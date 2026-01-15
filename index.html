@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Kelli Homes | Job Management</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="kh-header">
+      <div class="kh-container kh-header__inner">
+        <a class="kh-brand" href="index.html">
+          <span>Kelli Homes</span>
+          <span class="kh-brand__tag">Job Management</span>
+        </a>
+        <nav class="kh-nav">
+          <a href="index.html" class="is-active">Dashboard</a>
+          <a href="#">Active Jobs</a>
+          <a href="#">Pipeline</a>
+          <a href="#">Clients</a>
+          <a href="#">Documents</a>
+        </nav>
+        <div class="kh-user">Signed in as Arne</div>
+      </div>
+    </header>
+
+    <main class="kh-main">
+      <div class="kh-container">
+        <section class="kh-hero">
+          <div>
+            <h1 class="kh-hero__title">Job Management</h1>
+            <p class="kh-hero__subtitle">
+              A clear view of every project in motion, from first estimate to final walkthrough.
+            </p>
+          </div>
+          <button class="kh-button" type="button">Create New Job</button>
+        </section>
+
+        <section class="kh-summary">
+          <div class="kh-card">
+            <div class="kh-card__label">Active Jobs</div>
+            <div class="kh-card__value" id="summary-active">—</div>
+          </div>
+          <div class="kh-card">
+            <div class="kh-card__label">In Design / Estimating</div>
+            <div class="kh-card__value" id="summary-precon">—</div>
+          </div>
+          <div class="kh-card">
+            <div class="kh-card__label">Closed This Year</div>
+            <div class="kh-card__value" id="summary-closed">—</div>
+          </div>
+        </section>
+
+        <section class="kh-panel">
+          <div class="kh-panel__header">
+            <div>
+              <div class="kh-panel__title">Jobs</div>
+              <div class="kh-panel__subtitle">Snapshot of all current projects.</div>
+            </div>
+            <div class="kh-filters">
+              <select class="kh-select" id="filter-stage">
+                <option>All stages</option>
+                <option>Design</option>
+                <option>Estimating</option>
+                <option>Construction</option>
+                <option>Punch</option>
+                <option>Closed</option>
+              </select>
+              <select class="kh-select" id="filter-type">
+                <option>All types</option>
+                <option>Insurance Restoration</option>
+                <option>Custom Build</option>
+                <option>Remodel</option>
+              </select>
+            </div>
+          </div>
+          <div class="kh-table-wrap">
+            <table class="kh-table">
+              <thead>
+                <tr>
+                  <th>Job</th>
+                  <th>Client</th>
+                  <th>Stage</th>
+                  <th>Type</th>
+                  <th>Start</th>
+                  <th>Target Complete</th>
+                  <th>Health</th>
+                </tr>
+              </thead>
+              <tbody id="jobs-table-body"></tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <footer class="kh-footer">
+      <div class="kh-container kh-footer__inner">
+        <div>© 2026 Kelli Homes. All Rights Reserved.</div>
+        <div>Private job management area · Not for public distribution.</div>
+      </div>
+    </footer>
+
+    <script src="config.js"></script>
+    <script type="module" src="api.js"></script>
+    <script type="module" src="main.js"></script>
+  </body>
+</html>
