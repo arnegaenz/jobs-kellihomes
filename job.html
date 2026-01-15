@@ -19,11 +19,31 @@
           <a href="#">Clients</a>
           <a href="#">Documents</a>
         </nav>
-        <div class="kh-user">Signed in as Arne</div>
+        <div class="kh-user" id="signed-in-user">Signed in as —</div>
       </div>
     </header>
 
-    <main class="kh-main">
+    <section class="kh-login" id="login-panel" hidden>
+      <div class="kh-login__card">
+        <img src="assets/kh-logo.png" alt="Kelli Homes" class="kh-login__logo" />
+        <h1 class="kh-login__title">Job Management</h1>
+        <p class="kh-login__subtitle">Sign in to view and manage active projects.</p>
+        <form class="kh-login__form" id="login-form">
+          <label class="kh-field">
+            <span>User ID</span>
+            <input class="kh-input" name="username" autocomplete="username" required />
+          </label>
+          <label class="kh-field">
+            <span>Password</span>
+            <input class="kh-input" name="password" type="password" autocomplete="current-password" required />
+          </label>
+          <button class="kh-button" type="submit">Sign in</button>
+          <div class="kh-form-message" id="login-message"></div>
+        </form>
+      </div>
+    </section>
+
+    <main class="kh-main" id="main-content">
       <div class="kh-container" id="job-detail-container">
         <section class="kh-detail-header">
           <div>
@@ -32,8 +52,84 @@
           </div>
           <div class="kh-detail-actions">
             <span class="kh-pill kh-pill--stage" id="job-stage-pill">Stage</span>
-            <button class="kh-button kh-button--ghost" type="button">Edit Job</button>
+            <button class="kh-button kh-button--ghost" type="button" id="edit-job-button">
+              Edit Job
+            </button>
+            <button class="kh-button kh-button--ghost" type="button" id="delete-job-button">
+              Delete Job
+            </button>
           </div>
+        </section>
+
+        <section class="kh-panel kh-panel--form" id="edit-job-panel" hidden>
+          <div class="kh-panel__header">
+            <div>
+              <div class="kh-panel__title">Edit job details</div>
+              <div class="kh-panel__subtitle">Update core job metadata.</div>
+            </div>
+            <button class="kh-button kh-button--ghost" type="button" id="edit-job-cancel">
+              Cancel
+            </button>
+          </div>
+          <form class="kh-form" id="job-edit-form">
+            <div class="kh-form-grid">
+              <label class="kh-field">
+                <span>Job name</span>
+                <input class="kh-input" name="name" required />
+              </label>
+              <label class="kh-field">
+                <span>Location</span>
+                <input class="kh-input" name="location" required />
+              </label>
+              <label class="kh-field">
+                <span>Client</span>
+                <input class="kh-input" name="client" />
+              </label>
+              <label class="kh-field">
+                <span>Stage</span>
+                <select class="kh-input" name="stage">
+                  <option>Preconstruction</option>
+                  <option>Estimating</option>
+                  <option>Construction</option>
+                  <option>Punch</option>
+                  <option>Post Construction</option>
+                  <option>Closed</option>
+                </select>
+              </label>
+              <label class="kh-field">
+                <span>Type</span>
+                <input class="kh-input" name="type" />
+              </label>
+              <label class="kh-field">
+                <span>Status</span>
+                <input class="kh-input" name="status" />
+              </label>
+              <label class="kh-field">
+                <span>Start date</span>
+                <input class="kh-input" type="date" name="startDate" />
+              </label>
+              <label class="kh-field">
+                <span>Target completion</span>
+                <input class="kh-input" type="date" name="targetCompletion" />
+              </label>
+              <label class="kh-field">
+                <span>Primary contact</span>
+                <input class="kh-input" name="primaryContact" />
+              </label>
+              <label class="kh-field">
+                <span>Health</span>
+                <select class="kh-input" name="health">
+                  <option>On Track</option>
+                  <option>Watch</option>
+                  <option>At Risk</option>
+                </select>
+              </label>
+            </div>
+            <div class="kh-form-actions">
+              <button class="kh-button" type="submit">Save changes</button>
+              <div class="kh-form-message" id="edit-job-message"></div>
+            </div>
+          </form>
         </section>
 
         <section class="kh-grid">
@@ -67,6 +163,31 @@
                 High-level figures only. Detailed job costing remains in QuickBooks.
               </div>
             </div>
+
+            <div class="kh-panel">
+              <div class="kh-panel__title">Line items</div>
+              <div class="kh-table-wrap">
+                <table class="kh-table kh-table--line-items">
+                  <thead>
+                    <tr>
+                      <th>Item</th>
+                      <th>Budget</th>
+                      <th>Actual</th>
+                      <th>Status</th>
+                      <th>Vendor</th>
+                      <th>Notes</th>
+                    </tr>
+                  </thead>
+                  <tbody id="line-items-body"></tbody>
+                </table>
+              </div>
+              <div class="kh-form-actions">
+                <button class="kh-button kh-button--ghost" type="button" id="save-line-items">
+                  Save line items
+                </button>
+                <div class="kh-form-message" id="line-items-message"></div>
+              </div>
+            </div>
           </div>
 
           <div>
@@ -83,12 +204,24 @@
               </p>
               <button class="kh-button kh-button--ghost" type="button">Add Note</button>
             </div>
+
+            <div class="kh-panel">
+              <div class="kh-panel__title">Documents</div>
+              <ul class="kh-documents" id="documents-list"></ul>
+              <div class="kh-form-actions">
+                <label class="kh-button kh-button--ghost">
+                  Upload document
+                  <input type="file" id="document-upload" class="kh-file-input" />
+                </label>
+                <div class="kh-form-message" id="documents-message"></div>
+              </div>
+            </div>
           </div>
         </section>
       </div>
     </main>
 
-    <footer class="kh-footer">
+    <footer class="kh-footer" id="page-footer">
       <div class="kh-container kh-footer__inner">
         <div>Copyright © 2026 Kelli Homes - All Rights Reserved.</div>
         <div>Private job management area · Not for public distribution.</div>
