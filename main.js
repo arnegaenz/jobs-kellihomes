@@ -114,6 +114,10 @@ function isJobDetailPage() {
   return window.location.pathname.endsWith("job.html");
 }
 
+function isDocumentsPage() {
+  return window.location.pathname.endsWith("documents.html");
+}
+
 function formatDate(value) {
   if (!value) return "—";
   const date = new Date(value);
@@ -155,6 +159,17 @@ function setMessage(id, message, isError = false) {
   if (!element) return;
   element.textContent = message;
   element.style.color = isError ? "#c2463d" : "";
+}
+
+function wireDateInputs(form) {
+  if (!form) return;
+  const dateInputs = form.querySelectorAll('input[type="date"]');
+  dateInputs.forEach((input) => {
+    input.addEventListener("change", () => {
+      // Collapse native pickers after a date is selected.
+      input.blur();
+    });
+  });
 }
 
 function getDocumentType(type) {
@@ -591,12 +606,6 @@ async function initDashboardPage() {
   const createButton = document.getElementById("create-job-button");
   const cancelButton = document.getElementById("create-job-cancel");
   const form = document.getElementById("job-create-form");
-  const docJobFilter = document.getElementById("documents-filter-job");
-  const docTypeFilter = document.getElementById("documents-filter-type");
-  const docTrashFilter = document.getElementById("documents-filter-trashed");
-
-  let cachedJobs = [];
-  let cachedDocuments = [];
 
   if (createButton && createPanel) {
     createButton.addEventListener("click", () => {
@@ -612,6 +621,7 @@ async function initDashboardPage() {
   }
 
   if (form) {
+    wireDateInputs(form);
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
       if (!validateClientContact(form, "create-job-message")) {
@@ -649,22 +659,35 @@ async function initDashboardPage() {
 
   try {
     const jobs = await fetchJobs();
-    cachedJobs = jobs;
     renderSummary(jobs);
     renderJobsTable(jobs);
-    populateDocumentFilters(jobs);
     if (apiStatus) {
       apiStatus.hidden = true;
     }
-
-    try {
-      const documents = await fetchDocuments({ includeTrashed: true });
-      cachedDocuments = documents || [];
-      renderDocumentsTable(cachedDocuments, cachedJobs);
-    } catch (docError) {
-      console.error("Failed to load documents.", docError);
-      renderDocumentsTable([], cachedJobs);
+  } catch (error) {
+    console.error("Failed to initialize dashboard.", error);
+    renderSummary([]);
+    renderJobsTable([]);
+    if (apiStatus) {
+      apiStatus.hidden = false;
     }
+  }
+}
+
+async function initDocumentsPage() {
+  const docJobFilter = document.getElementById("documents-filter-job");
+  const docTypeFilter = document.getElementById("documents-filter-type");
+  const docTrashFilter = document.getElementById("documents-filter-trashed");
+
+  let cachedJobs = [];
+  let cachedDocuments = [];
+
+  try {
+    cachedJobs = await fetchJobs();
+    populateDocumentFilters(cachedJobs);
+
+    cachedDocuments = (await fetchDocuments({ includeTrashed: true })) || [];
+    renderDocumentsTable(cachedDocuments, cachedJobs);
 
     const applyDocumentFilters = () => {
       const jobId = docJobFilter?.value || "";
@@ -691,12 +714,8 @@ async function initDashboardPage() {
       docTrashFilter.addEventListener("change", applyDocumentFilters);
     }
   } catch (error) {
-    console.error("Failed to initialize dashboard.", error);
-    renderSummary([]);
-    renderJobsTable([]);
-    if (apiStatus) {
-      apiStatus.hidden = false;
-    }
+    console.error("Failed to initialize documents page.", error);
+    renderDocumentsTable([], []);
   }
 }
 
@@ -733,7 +752,18 @@ function renderJobDetail(job) {
   const milestonesList = document.getElementById("milestones-list");
   if (milestonesList) {
     milestonesList.innerHTML = "";
-    (job.milestones || []).forEach((milestone) => {
+    let milestones = job.milestones || [];
+    if (typeof milestones === "string") {
+      try {
+        milestones = JSON.parse(milestones);
+      } catch (error) {
+        milestones = [];
+      }
+    }
+    if (!Array.isArray(milestones)) {
+      milestones = [];
+    }
+    milestones.forEach((milestone) => {
       const item = document.createElement("li");
       item.className = `kh-milestone ${milestone.status === "done" ? "kh-milestone--done" : ""}`;
       item.innerHTML = `
@@ -865,6 +895,7 @@ async function initJobDetailPage() {
   }
 
   if (editForm) {
+    wireDateInputs(editForm);
     editForm.addEventListener("submit", async (event) => {
       event.preventDefault();
       if (!validateClientContact(editForm, "edit-job-message")) {
@@ -963,29 +994,38 @@ async function initJobDetailPage() {
     });
   }
 
-  try {
-    const job = await fetchJobById(jobId);
-    if (!job) {
-      showJobNotFound();
-      return;
-    }
-    renderJobDetail(job);
-    fillEditForm(job);
-
+  const loadJobDetail = async (attempt) => {
     try {
-      const lineItems = await fetchJobLineItems(jobId);
-      renderLineItems("line-items-body", lineItems || []);
-    } catch (error) {
-      console.error("Failed to load line items.", error);
-      renderLineItems("line-items-body", []);
-      setMessage("line-items-message", "Unable to load line items.", true);
-    }
+      const job = await fetchJobById(jobId);
+      if (!job) {
+        throw new Error("Job not found");
+      }
+      renderJobDetail(job);
+      fillEditForm(job);
 
-    await loadDocuments(jobId);
-  } catch (error) {
-    console.error("Failed to load job detail.", error);
-    showJobNotFound();
-  }
+      try {
+        const lineItems = await fetchJobLineItems(jobId);
+        renderLineItems("line-items-body", lineItems || []);
+      } catch (error) {
+        console.error("Failed to load line items.", error);
+        renderLineItems("line-items-body", []);
+        setMessage("line-items-message", "Unable to load line items.", true);
+      }
+
+      await loadDocuments(jobId);
+    } catch (error) {
+      if (attempt < 2) {
+        setTimeout(() => {
+          loadJobDetail(attempt + 1);
+        }, 700);
+        return;
+      }
+      console.error("Failed to load job detail.", error);
+      showJobNotFound();
+    }
+  };
+
+  loadJobDetail(1);
 }
 
 function showJobNotFound() {
@@ -1004,6 +1044,8 @@ const authReady = initLoginFlow();
 if (authReady) {
   if (isJobDetailPage()) {
     initJobDetailPage();
+  } else if (isDocumentsPage()) {
+    initDocumentsPage();
   } else {
     initDashboardPage();
   }

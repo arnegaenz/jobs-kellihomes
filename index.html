@@ -14,7 +14,7 @@
         </a>
         <nav class="kh-nav">
           <a href="index.html" class="is-active">Dashboard</a>
-          <a href="index.html#documents">Documents</a>
+          <a href="documents.html">Documents</a>
         </nav>
         <div class="kh-user" id="signed-in-user">Signed in as —</div>
       </div>
@@ -98,7 +98,12 @@
               </label>
               <label class="kh-field">
                 <span>Type</span>
-                <input class="kh-input" name="type" />
+                <select class="kh-input" name="type">
+                  <option>Insurance Restoration</option>
+                  <option>Custom Build</option>
+                  <option>Remodel</option>
+                  <option>Other</option>
+                </select>
               </label>
               <label class="kh-field">
                 <span>Status</span>
@@ -200,35 +205,6 @@
           </div>
         </section>
 
-        <section class="kh-panel" id="documents">
-          <div class="kh-panel__header">
-            <div>
-              <div class="kh-panel__title">Documents</div>
-              <div class="kh-panel__subtitle">All documents across active jobs.</div>
-            </div>
-            <div class="kh-filters">
-              <label class="kh-toggle">
-                <input type="checkbox" id="documents-filter-trashed" />
-                <span>Show trash</span>
-              </label>
-              <select class="kh-select" id="documents-filter-job"></select>
-              <select class="kh-select" id="documents-filter-type"></select>
-            </div>
-          </div>
-          <div class="kh-table-wrap">
-            <table class="kh-table kh-table--documents">
-              <thead>
-                <tr>
-                  <th>Document</th>
-                  <th>Type</th>
-                  <th>Job</th>
-                  <th>Date</th>
-                </tr>
-              </thead>
-              <tbody id="documents-table-body"></tbody>
-            </table>
-          </div>
-        </section>
       </div>
     </main>
 

@@ -257,6 +257,7 @@ select {
   box-shadow: var(--kh-shadow-soft);
 }
 
+
 .kh-panel__header {
   display: flex;
   justify-content: space-between;

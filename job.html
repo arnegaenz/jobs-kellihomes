@@ -13,8 +13,8 @@
           <img src="assets/kh-logo.png" alt="Kelli Homes" class="kh-logo" />
         </a>
         <nav class="kh-nav">
-          <a href="index.html" class="is-active">Dashboard</a>
-          <a href="index.html#documents">Documents</a>
+          <a href="index.html">Dashboard</a>
+          <a href="documents.html">Documents</a>
         </nav>
         <div class="kh-user" id="signed-in-user">Signed in as —</div>
       </div>
@@ -104,7 +104,12 @@
               </label>
               <label class="kh-field">
                 <span>Type</span>
-                <input class="kh-input" name="type" />
+                <select class="kh-input" name="type">
+                  <option>Insurance Restoration</option>
+                  <option>Custom Build</option>
+                  <option>Remodel</option>
+                  <option>Other</option>
+                </select>
               </label>
               <label class="kh-field">
                 <span>Status</span>

@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Kelli Homes | Documents</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="kh-header">
+      <div class="kh-container kh-header__inner">
+        <a class="kh-logo-link" href="index.html">
+          <img src="assets/kh-logo.png" alt="Kelli Homes" class="kh-logo" />
+        </a>
+        <nav class="kh-nav">
+          <a href="index.html">Dashboard</a>
+          <a href="documents.html" class="is-active">Documents</a>
+        </nav>
+        <div class="kh-user" id="signed-in-user">Signed in as —</div>
+      </div>
+    </header>
+
+    <section class="kh-login" id="login-panel" hidden>
+      <div class="kh-login__card">
+        <img src="assets/kh-logo.png" alt="Kelli Homes" class="kh-login__logo" />
+        <h1 class="kh-login__title">Job Management</h1>
+        <p class="kh-login__subtitle">Sign in to view and manage active projects.</p>
+        <form class="kh-login__form" id="login-form">
+          <label class="kh-field">
+            <span>User ID</span>
+            <input class="kh-input" name="username" autocomplete="username" required />
+          </label>
+          <label class="kh-field">
+            <span>Password</span>
+            <input class="kh-input" name="password" type="password" autocomplete="current-password" required />
+          </label>
+          <button class="kh-button" type="submit">Sign in</button>
+          <div class="kh-form-message" id="login-message"></div>
+        </form>
+      </div>
+    </section>
+
+    <main class="kh-main" id="main-content">
+      <div class="kh-container">
+        <section class="kh-panel">
+          <div class="kh-panel__header">
+            <div>
+              <div class="kh-panel__title">Documents</div>
+              <div class="kh-panel__subtitle">All documents across active jobs.</div>
+            </div>
+            <div class="kh-filters">
+              <label class="kh-toggle">
+                <input type="checkbox" id="documents-filter-trashed" />
+                <span>Show trash</span>
+              </label>
+              <select class="kh-select" id="documents-filter-job"></select>
+              <select class="kh-select" id="documents-filter-type"></select>
+            </div>
+          </div>
+          <div class="kh-table-wrap">
+            <table class="kh-table kh-table--documents">
+              <thead>
+                <tr>
+                  <th>Document</th>
+                  <th>Type</th>
+                  <th>Job</th>
+                  <th>Date</th>
+                </tr>
+              </thead>
+              <tbody id="documents-table-body"></tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <footer class="kh-footer" id="page-footer">
+      <div class="kh-container kh-footer__inner">
+        <div>Copyright © 2026 Kelli Homes - All Rights Reserved.</div>
+        <div>Private job management area · Not for public distribution.</div>
+      </div>
+    </footer>
+
+    <script src="config.js"></script>
+    <script type="module" src="api.js"></script>
+    <script type="module" src="main.js"></script>
+  </body>
+</html>
