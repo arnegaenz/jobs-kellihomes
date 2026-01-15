@@ -143,6 +143,39 @@ function setMessage(id, message, isError = false) {
   element.style.color = isError ? "#c2463d" : "";
 }
 
+function validateClientContact(form, messageId) {
+  const email = String(form.clientEmail?.value || "").trim();
+  const phone = String(form.clientPhone?.value || "").trim();
+  const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const phonePattern = /^[0-9+().\-\s]*$/;
+  const digits = phone.replace(/\D/g, "");
+
+  if (email && !emailPattern.test(email)) {
+    setMessage(messageId, "Enter a valid client email address.", true);
+    form.clientEmail.focus();
+    return false;
+  }
+
+  if (phone) {
+    if (!phonePattern.test(phone) || digits.length < 7) {
+      setMessage(messageId, "Enter a valid client phone number.", true);
+      form.clientPhone.focus();
+      return false;
+    }
+  }
+
+  setMessage(messageId, "");
+  return true;
+}
+
+function formatPhoneDisplay(value) {
+  const digits = String(value || "").replace(/\D/g, "");
+  if (digits.length === 10) {
+    return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+  }
+  return value || "";
+}
+
 function getAuthenticatedUser() {
   try {
     return window.localStorage.getItem(AUTH_STORAGE_KEY);
@@ -239,10 +272,10 @@ function initLoginFlow() {
 
 function renderSummary(jobs) {
   const active = jobs.filter((job) =>
-    ["construction", "punch"].includes(String(job.stage).toLowerCase())
+    ["in construction", "punch list"].includes(String(job.stage).toLowerCase())
   ).length;
   const precon = jobs.filter((job) =>
-    ["preconstruction", "estimating"].includes(String(job.stage).toLowerCase())
+    ["preconstruction", "permitting"].includes(String(job.stage).toLowerCase())
   ).length;
   const currentYear = new Date().getFullYear();
   const closedThisYear = jobs.filter((job) => {
@@ -422,10 +455,14 @@ async function initDashboardPage() {
   if (form) {
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
+      if (!validateClientContact(form, "create-job-message")) {
+        return;
+      }
       setMessage("create-job-message", "Saving job...");
 
       const formData = new FormData(form);
       const payload = Object.fromEntries(formData.entries());
+      payload.clientPhone = formatPhoneDisplay(payload.clientPhone);
 
       try {
         const created = await createJob(payload);
@@ -475,7 +512,7 @@ function renderJobDetail(job) {
   setText("glance-target", formatDate(job.targetCompletion));
   setText("glance-client", job.client);
   setText("glance-email", job.clientEmail);
-  setText("glance-phone", job.clientPhone);
+  setText("glance-phone", formatPhoneDisplay(job.clientPhone));
   setText("glance-contact", job.primaryContact);
 
   setText("fin-contract", job.financials?.contractValue);
@@ -511,7 +548,7 @@ function fillEditForm(job) {
   form.location.value = job.location || "";
   form.client.value = job.client || "";
   form.clientEmail.value = job.clientEmail || "";
-  form.clientPhone.value = job.clientPhone || "";
+  form.clientPhone.value = formatPhoneDisplay(job.clientPhone);
   form.stage.value = job.stage || "Preconstruction";
   form.type.value = job.type || "";
   form.status.value = job.status || "";
@@ -610,9 +647,13 @@ async function initJobDetailPage() {
   if (editForm) {
     editForm.addEventListener("submit", async (event) => {
       event.preventDefault();
+      if (!validateClientContact(editForm, "edit-job-message")) {
+        return;
+      }
       setMessage("edit-job-message", "Saving changes...");
       const formData = new FormData(editForm);
       const payload = Object.fromEntries(formData.entries());
+      payload.clientPhone = formatPhoneDisplay(payload.clientPhone);
       try {
         const updated = await updateJob(jobId, payload);
         setMessage("edit-job-message", "Job updated.");
