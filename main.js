@@ -419,8 +419,6 @@ async function initDashboardPage() {
     });
   }
 
-  renderLineItems("create-line-items-body");
-
   if (form) {
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
@@ -428,7 +426,6 @@ async function initDashboardPage() {
 
       const formData = new FormData(form);
       const payload = Object.fromEntries(formData.entries());
-      payload.lineItems = collectLineItems("create-line-items-body");
 
       try {
         const created = await createJob(payload);
@@ -477,6 +474,8 @@ function renderJobDetail(job) {
   setText("glance-start", formatDate(job.startDate));
   setText("glance-target", formatDate(job.targetCompletion));
   setText("glance-client", job.client);
+  setText("glance-email", job.clientEmail);
+  setText("glance-phone", job.clientPhone);
   setText("glance-contact", job.primaryContact);
 
   setText("fin-contract", job.financials?.contractValue);
@@ -511,6 +510,8 @@ function fillEditForm(job) {
   form.name.value = job.name || "";
   form.location.value = job.location || "";
   form.client.value = job.client || "";
+  form.clientEmail.value = job.clientEmail || "";
+  form.clientPhone.value = job.clientPhone || "";
   form.stage.value = job.stage || "Preconstruction";
   form.type.value = job.type || "";
   form.status.value = job.status || "";

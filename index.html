@@ -72,12 +72,20 @@
                 <input class="kh-input" name="name" required />
               </label>
               <label class="kh-field">
-                <span>Location</span>
+                <span>Job address</span>
                 <input class="kh-input" name="location" required />
               </label>
               <label class="kh-field">
                 <span>Client</span>
                 <input class="kh-input" name="client" />
+              </label>
+              <label class="kh-field">
+                <span>Client email</span>
+                <input class="kh-input" name="clientEmail" type="email" />
+              </label>
+              <label class="kh-field">
+                <span>Client phone</span>
+                <input class="kh-input" name="clientPhone" type="tel" />
               </label>
               <label class="kh-field">
                 <span>Stage</span>
@@ -118,27 +126,6 @@
                   <option>At Risk</option>
                 </select>
               </label>
-            </div>
-            <div class="kh-form-section">
-              <div class="kh-section-title">Line items</div>
-              <div class="kh-section-subtitle">
-                Optional at creation. You can update budgets and costs later.
-              </div>
-              <div class="kh-table-wrap">
-                <table class="kh-table kh-table--line-items">
-                  <thead>
-                    <tr>
-                      <th>Item</th>
-                      <th>Budget</th>
-                      <th>Actual</th>
-                      <th>Status</th>
-                      <th>Vendor</th>
-                      <th>Notes</th>
-                    </tr>
-                  </thead>
-                  <tbody id="create-line-items-body"></tbody>
-                </table>
-              </div>
             </div>
             <div class="kh-form-actions">
               <button class="kh-button" type="submit">Create job</button>
