@@ -9,17 +9,25 @@
   <body>
     <header class="kh-header">
       <div class="kh-container kh-header__inner">
-        <a class="kh-brand" href="index.html">
-          <span>Kelli Homes</span>
-          <span class="kh-brand__tag">Job Management</span>
+        <a class="kh-logo-link" href="index.html">
+          <img src="assets/kh-logo.png" alt="Kelli Homes" class="kh-logo" />
         </a>
-        <nav class="kh-nav">
-          <a href="index.html" class="is-active">Dashboard</a>
-          <a href="#">Active Jobs</a>
-          <a href="#">Pipeline</a>
-          <a href="#">Clients</a>
-          <a href="#">Documents</a>
-        </nav>
+        <div class="kh-nav-group">
+          <nav class="kh-nav kh-nav--site">
+            <a href="https://kellihomes.com">Home</a>
+            <a href="#">About</a>
+            <a href="#">Current Projects</a>
+            <a href="#">Reviews</a>
+            <a href="#">Contact</a>
+          </nav>
+          <nav class="kh-nav kh-nav--portal">
+            <a href="index.html" class="is-active">Dashboard</a>
+            <a href="#">Active Jobs</a>
+            <a href="#">Pipeline</a>
+            <a href="#">Clients</a>
+            <a href="#">Documents</a>
+          </nav>
+        </div>
         <div class="kh-user">Signed in as Arne</div>
       </div>
     </header>
@@ -33,7 +41,7 @@
           </div>
           <div class="kh-detail-actions">
             <span class="kh-pill kh-pill--stage" id="job-stage-pill">Stage</span>
-            <button class="kh-button" type="button">Edit Job</button>
+            <button class="kh-button kh-button--ghost" type="button">Edit Job</button>
           </div>
         </section>
 
@@ -82,7 +90,7 @@
                 Capture change orders, customer check-ins, and internal reminders. Notes stay private
                 to the job team.
               </p>
-              <button class="kh-button" type="button">Add Note</button>
+              <button class="kh-button kh-button--ghost" type="button">Add Note</button>
             </div>
           </div>
         </section>
@@ -91,7 +99,8 @@
 
     <footer class="kh-footer">
       <div class="kh-container kh-footer__inner">
-        <div>© 2026 Kelli Homes. All Rights Reserved.</div>
+        <div>Copyright © 2026 Kelli Homes - All Rights Reserved.</div>
+        <div>Private job management area · Not for public distribution.</div>
       </div>
     </footer>
 

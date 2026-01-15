@@ -9,17 +9,25 @@
   <body>
     <header class="kh-header">
       <div class="kh-container kh-header__inner">
-        <a class="kh-brand" href="index.html">
-          <span>Kelli Homes</span>
-          <span class="kh-brand__tag">Job Management</span>
+        <a class="kh-logo-link" href="index.html">
+          <img src="assets/kh-logo.png" alt="Kelli Homes" class="kh-logo" />
         </a>
-        <nav class="kh-nav">
-          <a href="index.html" class="is-active">Dashboard</a>
-          <a href="#">Active Jobs</a>
-          <a href="#">Pipeline</a>
-          <a href="#">Clients</a>
-          <a href="#">Documents</a>
-        </nav>
+        <div class="kh-nav-group">
+          <nav class="kh-nav kh-nav--site">
+            <a href="https://kellihomes.com">Home</a>
+            <a href="#">About</a>
+            <a href="#">Current Projects</a>
+            <a href="#">Reviews</a>
+            <a href="#">Contact</a>
+          </nav>
+          <nav class="kh-nav kh-nav--portal">
+            <a href="index.html" class="is-active">Dashboard</a>
+            <a href="#">Active Jobs</a>
+            <a href="#">Pipeline</a>
+            <a href="#">Clients</a>
+            <a href="#">Documents</a>
+          </nav>
+        </div>
         <div class="kh-user">Signed in as Arne</div>
       </div>
     </header>
@@ -40,14 +48,17 @@
           <div class="kh-card">
             <div class="kh-card__label">Active Jobs</div>
             <div class="kh-card__value" id="summary-active">—</div>
+            <div class="kh-card__desc">Jobs currently in build or punch.</div>
           </div>
           <div class="kh-card">
             <div class="kh-card__label">In Design / Estimating</div>
             <div class="kh-card__value" id="summary-precon">—</div>
+            <div class="kh-card__desc">Preconstruction work in motion.</div>
           </div>
           <div class="kh-card">
             <div class="kh-card__label">Closed This Year</div>
             <div class="kh-card__value" id="summary-closed">—</div>
+            <div class="kh-card__desc">Completed and handed off in 2025.</div>
           </div>
         </section>
 
@@ -96,7 +107,7 @@
 
     <footer class="kh-footer">
       <div class="kh-container kh-footer__inner">
-        <div>© 2026 Kelli Homes. All Rights Reserved.</div>
+        <div>Copyright © 2026 Kelli Homes - All Rights Reserved.</div>
         <div>Private job management area · Not for public distribution.</div>
       </div>
     </footer>
