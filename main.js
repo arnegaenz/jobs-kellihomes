@@ -101,6 +101,7 @@ let authUserFallback = null;
 
 const DOCUMENT_TYPES = [
   { value: "Approved Planset", icon: "blueprint" },
+  { value: "Cabinet Plans", icon: "blueprint" },
   { value: "Permit", icon: "stamp" },
   { value: "Insurance Estimate", icon: "shield" },
   { value: "Contract / Agreement", icon: "file" },
