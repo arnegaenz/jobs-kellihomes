@@ -383,6 +383,7 @@ function collectLineItems(tbodyId) {
 }
 
 async function initDashboardPage() {
+  const apiStatus = document.getElementById("api-status");
   const createPanel = document.getElementById("create-job-panel");
   const createButton = document.getElementById("create-job-button");
   const cancelButton = document.getElementById("create-job-cancel");
@@ -431,10 +432,16 @@ async function initDashboardPage() {
     const jobs = await fetchJobs();
     renderSummary(jobs);
     renderJobsTable(jobs);
+    if (apiStatus) {
+      apiStatus.hidden = true;
+    }
   } catch (error) {
     console.error("Failed to initialize dashboard.", error);
     renderSummary([]);
     renderJobsTable([]);
+    if (apiStatus) {
+      apiStatus.hidden = false;
+    }
   }
 }
 
