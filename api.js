@@ -119,3 +119,12 @@ export async function restoreDocument(jobId, documentId) {
     method: "POST"
   });
 }
+
+export async function updateDocumentType(documentId, documentType) {
+  const apiBaseUrl = getApiBaseUrl();
+  return fetchJson(`${apiBaseUrl}/documents/${documentId}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ documentType })
+  });
+}

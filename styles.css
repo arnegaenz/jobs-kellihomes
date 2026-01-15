@@ -412,6 +412,10 @@ select {
   vertical-align: top;
 }
 
+.kh-table--documents tr.is-trashed {
+  opacity: 0.5;
+}
+
 .kh-doc-title {
   display: flex;
   align-items: center;

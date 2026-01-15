@@ -10,7 +10,8 @@ import {
   fetchDocuments,
   requestDocumentUpload,
   deleteDocument,
-  restoreDocument
+  restoreDocument,
+  updateDocumentType
 } from "./api.js";
 
 const LINE_ITEM_CATALOG = [
@@ -458,7 +459,7 @@ function populateDocumentFilters(jobs) {
   });
 }
 
-function renderDocumentsTable(documents, jobs) {
+function renderDocumentsTable(documents, jobs, onTypeChange) {
   const tableBody = document.getElementById("documents-table-body");
   if (!tableBody) return;
 
@@ -488,7 +489,30 @@ function renderDocumentsTable(documents, jobs) {
     `;
 
     const typeCell = document.createElement("td");
-    typeCell.textContent = doc.documentType || "—";
+    const typeSelect = document.createElement("select");
+    typeSelect.className = "kh-input kh-input--compact";
+    DOCUMENT_TYPES.forEach((item) => {
+      const option = document.createElement("option");
+      option.value = item.value;
+      option.textContent = item.value;
+      typeSelect.appendChild(option);
+    });
+    if (!DOCUMENT_TYPES.some((item) => item.value === doc.documentType) && doc.documentType) {
+      const option = document.createElement("option");
+      option.value = doc.documentType;
+      option.textContent = doc.documentType;
+      typeSelect.appendChild(option);
+    }
+    typeSelect.value = doc.documentType || DOCUMENT_TYPES[0].value;
+    if (doc.deletedAt) {
+      typeSelect.disabled = true;
+    }
+    typeSelect.addEventListener("change", () => {
+      if (onTypeChange) {
+        onTypeChange(doc, typeSelect.value, typeSelect);
+      }
+    });
+    typeCell.appendChild(typeSelect);
 
     const jobCell = document.createElement("td");
     jobCell.textContent = jobMap.get(doc.jobId) || "—";
@@ -678,31 +702,58 @@ async function initDocumentsPage() {
   const docJobFilter = document.getElementById("documents-filter-job");
   const docTypeFilter = document.getElementById("documents-filter-type");
   const docTrashFilter = document.getElementById("documents-filter-trashed");
+  const docMessage = document.getElementById("documents-page-message");
 
   let cachedJobs = [];
   let cachedDocuments = [];
+
+  const applyDocumentFilters = () => {
+    const jobId = docJobFilter?.value || "";
+    const type = docTypeFilter?.value || "";
+    const showTrashed = Boolean(docTrashFilter?.checked);
+
+    const filtered = cachedDocuments.filter((doc) => {
+      const jobMatch = jobId ? doc.jobId === jobId : true;
+      const typeMatch = type ? doc.documentType === type : true;
+      const trashMatch = showTrashed ? true : !doc.deletedAt;
+      return jobMatch && typeMatch && trashMatch;
+    });
+
+    renderDocumentsTable(filtered, cachedJobs, handleDocumentTypeChange);
+  };
+
+  const handleDocumentTypeChange = async (doc, nextType, select) => {
+    if (!nextType || nextType === doc.documentType) return;
+    const original = doc.documentType;
+    if (select) {
+      select.disabled = true;
+    }
+    setMessage("documents-page-message", "Updating document type...");
+    try {
+      await updateDocumentType(doc.id, nextType);
+      doc.documentType = nextType;
+      setMessage("documents-page-message", "Document type updated.");
+      applyDocumentFilters();
+    } catch (error) {
+      console.error("Failed to update document type.", error);
+      setMessage("documents-page-message", "Unable to update document type.", true);
+      doc.documentType = original;
+      if (select) {
+        select.value = original || "";
+      }
+    } finally {
+      if (select) {
+        select.disabled = false;
+      }
+    }
+  };
 
   try {
     cachedJobs = await fetchJobs();
     populateDocumentFilters(cachedJobs);
 
     cachedDocuments = (await fetchDocuments({ includeTrashed: true })) || [];
-    renderDocumentsTable(cachedDocuments, cachedJobs);
-
-    const applyDocumentFilters = () => {
-      const jobId = docJobFilter?.value || "";
-      const type = docTypeFilter?.value || "";
-      const showTrashed = Boolean(docTrashFilter?.checked);
-
-      const filtered = cachedDocuments.filter((doc) => {
-        const jobMatch = jobId ? doc.jobId === jobId : true;
-        const typeMatch = type ? doc.documentType === type : true;
-        const trashMatch = showTrashed ? true : !doc.deletedAt;
-        return jobMatch && typeMatch && trashMatch;
-      });
-
-      renderDocumentsTable(filtered, cachedJobs);
-    };
+    applyDocumentFilters();
 
     if (docJobFilter) {
       docJobFilter.addEventListener("change", applyDocumentFilters);
