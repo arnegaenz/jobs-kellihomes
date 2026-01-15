@@ -624,6 +624,22 @@ select {
   border-bottom: 1px solid var(--kh-border);
 }
 
+.kh-documents li.is-trashed {
+  opacity: 0.5;
+}
+
+.kh-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--kh-text-muted);
+}
+
+.kh-toggle input {
+  accent-color: var(--kh-accent);
+}
+
 .kh-documents a {
   color: var(--kh-text);
 }

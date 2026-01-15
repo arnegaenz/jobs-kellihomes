@@ -80,14 +80,16 @@ export async function saveJobLineItems(jobId, lineItems) {
   });
 }
 
-export async function fetchJobDocuments(jobId) {
+export async function fetchJobDocuments(jobId, options = {}) {
   const apiBaseUrl = getApiBaseUrl();
-  return fetchJson(`${apiBaseUrl}/jobs/${jobId}/documents`);
+  const query = options.includeTrashed ? "?includeTrashed=true" : "";
+  return fetchJson(`${apiBaseUrl}/jobs/${jobId}/documents${query}`);
 }
 
-export async function fetchDocuments() {
+export async function fetchDocuments(options = {}) {
   const apiBaseUrl = getApiBaseUrl();
-  return fetchJson(`${apiBaseUrl}/documents`);
+  const query = options.includeTrashed ? "?includeTrashed=true" : "";
+  return fetchJson(`${apiBaseUrl}/documents${query}`);
 }
 
 export async function requestDocumentUpload(jobId, file, documentType) {
@@ -108,5 +110,12 @@ export async function deleteDocument(jobId, documentId) {
   const apiBaseUrl = getApiBaseUrl();
   return fetchJson(`${apiBaseUrl}/jobs/${jobId}/documents/${documentId}`, {
     method: "DELETE"
+  });
+}
+
+export async function restoreDocument(jobId, documentId) {
+  const apiBaseUrl = getApiBaseUrl();
+  return fetchJson(`${apiBaseUrl}/jobs/${jobId}/documents/${documentId}/restore`, {
+    method: "POST"
   });
 }

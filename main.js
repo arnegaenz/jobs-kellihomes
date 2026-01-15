@@ -9,7 +9,8 @@ import {
   fetchJobDocuments,
   fetchDocuments,
   requestDocumentUpload,
-  deleteDocument
+  deleteDocument,
+  restoreDocument
 } from "./api.js";
 
 const LINE_ITEM_CATALOG = [
@@ -480,7 +481,11 @@ function renderDocumentsTable(documents, jobs) {
     const dateCell = document.createElement("td");
     dateCell.textContent = formatDate(doc.createdAt);
 
-    if (doc.url) {
+    if (doc.deletedAt) {
+      row.classList.add("is-trashed");
+    }
+
+    if (doc.url && !doc.deletedAt) {
       docCell.querySelector("div").addEventListener("click", () => {
         window.open(doc.url, "_blank", "noopener");
       });
@@ -588,6 +593,7 @@ async function initDashboardPage() {
   const form = document.getElementById("job-create-form");
   const docJobFilter = document.getElementById("documents-filter-job");
   const docTypeFilter = document.getElementById("documents-filter-type");
+  const docTrashFilter = document.getElementById("documents-filter-trashed");
 
   let cachedJobs = [];
   let cachedDocuments = [];
@@ -652,7 +658,7 @@ async function initDashboardPage() {
     }
 
     try {
-      const documents = await fetchDocuments();
+      const documents = await fetchDocuments({ includeTrashed: true });
       cachedDocuments = documents || [];
       renderDocumentsTable(cachedDocuments, cachedJobs);
     } catch (docError) {
@@ -663,11 +669,13 @@ async function initDashboardPage() {
     const applyDocumentFilters = () => {
       const jobId = docJobFilter?.value || "";
       const type = docTypeFilter?.value || "";
+      const showTrashed = Boolean(docTrashFilter?.checked);
 
       const filtered = cachedDocuments.filter((doc) => {
         const jobMatch = jobId ? doc.jobId === jobId : true;
         const typeMatch = type ? doc.documentType === type : true;
-        return jobMatch && typeMatch;
+        const trashMatch = showTrashed ? true : !doc.deletedAt;
+        return jobMatch && typeMatch && trashMatch;
       });
 
       renderDocumentsTable(filtered, cachedJobs);
@@ -678,6 +686,9 @@ async function initDashboardPage() {
     }
     if (docTypeFilter) {
       docTypeFilter.addEventListener("change", applyDocumentFilters);
+    }
+    if (docTrashFilter) {
+      docTrashFilter.addEventListener("change", applyDocumentFilters);
     }
   } catch (error) {
     console.error("Failed to initialize dashboard.", error);
@@ -753,7 +764,8 @@ function fillEditForm(job) {
 
 async function loadDocuments(jobId) {
   try {
-    const documents = await fetchJobDocuments(jobId);
+    const showTrashed = Boolean(document.getElementById("documents-show-trashed")?.checked);
+    const documents = await fetchJobDocuments(jobId, { includeTrashed: showTrashed });
     renderDocuments(jobId, documents || []);
   } catch (error) {
     console.error("Failed to load documents.", error);
@@ -776,6 +788,9 @@ function renderDocuments(jobId, documents) {
   documents.forEach((doc) => {
     const type = getDocumentType(doc.documentType);
     const item = document.createElement("li");
+    if (doc.deletedAt) {
+      item.classList.add("is-trashed");
+    }
     item.innerHTML = `
       <div class="kh-doc-title">
         <span class="kh-doc-icon">${getDocumentIcon(type.icon)}</span>
@@ -784,15 +799,19 @@ function renderDocuments(jobId, documents) {
           <div class="kh-doc-meta">${doc.documentType || "—"} · ${formatDate(doc.createdAt)}</div>
         </div>
       </div>
-      <button class="kh-link" data-doc-id="${doc.id}">Remove</button>
+      <button class="kh-link" data-doc-id="${doc.id}">${doc.deletedAt ? "Restore" : "Move to trash"}</button>
     `;
     item.querySelector("button").addEventListener("click", async () => {
       try {
-        await deleteDocument(jobId, doc.id);
+        if (doc.deletedAt) {
+          await restoreDocument(jobId, doc.id);
+        } else {
+          await deleteDocument(jobId, doc.id);
+        }
         loadDocuments(jobId);
       } catch (error) {
-        console.error("Failed to delete document.", error);
-        setMessage("documents-message", "Unable to remove document.", true);
+        console.error("Failed to update document.", error);
+        setMessage("documents-message", "Unable to update document.", true);
       }
     });
     list.appendChild(item);
@@ -907,6 +926,12 @@ async function initJobDetailPage() {
 
   const uploadInput = document.getElementById("document-upload");
   const documentTypeSelect = document.getElementById("document-type");
+  const showTrashedToggle = document.getElementById("documents-show-trashed");
+  if (showTrashedToggle) {
+    showTrashedToggle.addEventListener("change", () => {
+      loadDocuments(jobId);
+    });
+  }
   if (uploadInput) {
     uploadInput.addEventListener("change", async (event) => {
       const file = event.target.files[0];
