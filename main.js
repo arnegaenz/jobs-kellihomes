@@ -176,6 +176,7 @@ function showLogin() {
   const panel = document.getElementById("login-panel");
   if (panel) {
     panel.hidden = false;
+    panel.style.display = "flex";
   }
 }
 
@@ -184,6 +185,7 @@ function hideLogin() {
   const panel = document.getElementById("login-panel");
   if (panel) {
     panel.hidden = true;
+    panel.style.display = "none";
   }
 }
 
@@ -202,28 +204,33 @@ function initLoginFlow() {
   form.addEventListener("submit", (event) => {
     event.preventDefault();
     setMessage("login-message", "Signing in...");
-    const formData = new FormData(form);
-    const username = String(formData.get("username") || "").trim().toLowerCase();
-    const password = String(formData.get("password") || "");
+    try {
+      const formData = new FormData(form);
+      const username = String(formData.get("username") || "").trim().toLowerCase();
+      const password = String(formData.get("password") || "");
 
-    const match = AUTH_USERS.find(
-      (user) => user.username === username && user.password === password
-    );
+      const match = AUTH_USERS.find(
+        (user) => user.username === username && user.password === password
+      );
 
-    if (!match) {
-      setMessage("login-message", "Invalid login. Please try again.", true);
-      return;
-    }
+      if (!match) {
+        setMessage("login-message", "Invalid login. Please try again.", true);
+        return;
+      }
 
-    setAuthenticatedUser(match.username);
-    updateSignedInUser();
-    setMessage("login-message", "");
-    hideLogin();
+      setAuthenticatedUser(match.username);
+      updateSignedInUser();
+      setMessage("login-message", "Signed in. Loading...");
+      hideLogin();
 
-    if (isJobDetailPage()) {
-      initJobDetailPage();
-    } else {
-      initDashboardPage();
+      if (isJobDetailPage()) {
+        initJobDetailPage();
+      } else {
+        initDashboardPage();
+      }
+    } catch (error) {
+      console.error("Login failed.", error);
+      setMessage("login-message", "Login failed. Please refresh and try again.", true);
     }
   });
 
