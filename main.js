@@ -7,6 +7,7 @@ import {
   fetchJobLineItems,
   saveJobLineItems,
   fetchJobDocuments,
+  fetchDocuments,
   requestDocumentUpload,
   deleteDocument
 } from "./api.js";
@@ -96,6 +97,18 @@ const AUTH_USERS = [
 const AUTH_STORAGE_KEY = "kh-auth-user";
 let authUserFallback = null;
 
+const DOCUMENT_TYPES = [
+  { value: "Approved Planset", icon: "blueprint" },
+  { value: "Permit", icon: "stamp" },
+  { value: "Insurance Estimate", icon: "shield" },
+  { value: "Contract / Agreement", icon: "file" },
+  { value: "Change Order", icon: "swap" },
+  { value: "Photos", icon: "camera" },
+  { value: "Invoice", icon: "receipt" },
+  { value: "Inspection / Signoff", icon: "check" },
+  { value: "Warranty Docs", icon: "warranty" }
+];
+
 function isJobDetailPage() {
   return window.location.pathname.endsWith("job.html");
 }
@@ -143,6 +156,39 @@ function setMessage(id, message, isError = false) {
   element.style.color = isError ? "#c2463d" : "";
 }
 
+function getDocumentType(type) {
+  return DOCUMENT_TYPES.find((item) => item.value === type) || DOCUMENT_TYPES[0];
+}
+
+function getDocumentIcon(name) {
+  const icons = {
+    blueprint:
+      '<svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><path d="M4 4h16v12H7l-3 4V4z"/><path d="M8 8h8M8 12h8"/></svg>',
+    stamp:
+      '<svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><path d="M7 8h10v4l2 2v2H5v-2l2-2z"/><path d="M9 5h6"/></svg>',
+    shield:
+      '<svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><path d="M12 3l7 3v6c0 5-3.5 7.5-7 9-3.5-1.5-7-4-7-9V6z"/></svg>',
+    file:
+      '<svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><path d="M7 3h7l5 5v13H7z"/><path d="M14 3v6h6"/></svg>',
+    swap:
+      '<svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><path d="M7 7h10l-2-2m2 2-2 2"/><path d="M17 17H7l2 2m-2-2 2-2"/></svg>',
+    camera:
+      '<svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><path d="M4 7h4l2-2h4l2 2h4v12H4z"/><circle cx="12" cy="13" r="3.5"/></svg>',
+    receipt:
+      '<svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/></svg>',
+    check:
+      '<svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><path d="M20 7l-10 10-4-4"/><circle cx="12" cy="12" r="9"/></svg>',
+    warranty:
+      '<svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><path d="M12 3l3 4 5 1-3 4 1 5-6-2-6 2 1-5-3-4 5-1z"/></svg>'
+  };
+
+  return icons[name] || icons.file;
+}
+
+function requiresApprovedPlanset(stage) {
+  return String(stage || "").toLowerCase() === "in construction";
+}
+
 function validateClientContact(form, messageId) {
   const email = String(form.clientEmail?.value || "").trim();
   const phone = String(form.clientPhone?.value || "").trim();
@@ -174,6 +220,24 @@ function formatPhoneDisplay(value) {
     return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
   }
   return value || "";
+}
+
+function populateDocumentTypeSelect() {
+  const select = document.getElementById("document-type");
+  if (!select) return;
+
+  select.innerHTML = "";
+  const placeholder = document.createElement("option");
+  placeholder.value = "";
+  placeholder.textContent = "Select document type";
+  select.appendChild(placeholder);
+
+  DOCUMENT_TYPES.forEach((type) => {
+    const option = document.createElement("option");
+    option.value = type.value;
+    option.textContent = type.value;
+    select.appendChild(option);
+  });
 }
 
 function getAuthenticatedUser() {
@@ -272,7 +336,9 @@ function initLoginFlow() {
 
 function renderSummary(jobs) {
   const active = jobs.filter((job) =>
-    ["in construction", "punch list"].includes(String(job.stage).toLowerCase())
+    ["groundbreaking", "in construction", "punch list"].includes(
+      String(job.stage).toLowerCase()
+    )
   ).length;
   const precon = jobs.filter((job) =>
     ["preconstruction", "permitting"].includes(String(job.stage).toLowerCase())
@@ -339,6 +405,88 @@ function renderJobsTable(jobs) {
       window.location.href = `job.html?jobId=${encodeURIComponent(job.id)}`;
     });
 
+    tableBody.appendChild(row);
+  });
+}
+
+function populateDocumentFilters(jobs) {
+  const jobSelect = document.getElementById("documents-filter-job");
+  const typeSelect = document.getElementById("documents-filter-type");
+  if (!jobSelect || !typeSelect) return;
+
+  jobSelect.innerHTML = "";
+  typeSelect.innerHTML = "";
+
+  const allJobs = document.createElement("option");
+  allJobs.value = "";
+  allJobs.textContent = "All jobs";
+  jobSelect.appendChild(allJobs);
+
+  jobs.forEach((job) => {
+    const option = document.createElement("option");
+    option.value = job.id;
+    option.textContent = job.name || "Untitled Job";
+    jobSelect.appendChild(option);
+  });
+
+  const allTypes = document.createElement("option");
+  allTypes.value = "";
+  allTypes.textContent = "All types";
+  typeSelect.appendChild(allTypes);
+
+  DOCUMENT_TYPES.forEach((type) => {
+    const option = document.createElement("option");
+    option.value = type.value;
+    option.textContent = type.value;
+    typeSelect.appendChild(option);
+  });
+}
+
+function renderDocumentsTable(documents, jobs) {
+  const tableBody = document.getElementById("documents-table-body");
+  if (!tableBody) return;
+
+  tableBody.innerHTML = "";
+  if (!documents.length) {
+    const row = document.createElement("tr");
+    row.innerHTML = '<td colspan="4">No documents uploaded yet.</td>';
+    tableBody.appendChild(row);
+    return;
+  }
+
+  const jobMap = new Map(jobs.map((job) => [job.id, job.name]));
+
+  documents.forEach((doc) => {
+    const row = document.createElement("tr");
+    const type = getDocumentType(doc.documentType);
+
+    const docCell = document.createElement("td");
+    docCell.innerHTML = `
+      <div class="kh-doc-title">
+        <span class="kh-doc-icon">${getDocumentIcon(type.icon)}</span>
+        <div>
+          <div>${doc.name || "Document"}</div>
+          <div class="kh-doc-meta">${doc.size ? `${Math.round(doc.size / 1024)} KB` : ""}</div>
+        </div>
+      </div>
+    `;
+
+    const typeCell = document.createElement("td");
+    typeCell.textContent = doc.documentType || "—";
+
+    const jobCell = document.createElement("td");
+    jobCell.textContent = jobMap.get(doc.jobId) || "—";
+
+    const dateCell = document.createElement("td");
+    dateCell.textContent = formatDate(doc.createdAt);
+
+    if (doc.url) {
+      docCell.querySelector("div").addEventListener("click", () => {
+        window.open(doc.url, "_blank", "noopener");
+      });
+    }
+
+    row.append(docCell, typeCell, jobCell, dateCell);
     tableBody.appendChild(row);
   });
 }
@@ -438,6 +586,11 @@ async function initDashboardPage() {
   const createButton = document.getElementById("create-job-button");
   const cancelButton = document.getElementById("create-job-cancel");
   const form = document.getElementById("job-create-form");
+  const docJobFilter = document.getElementById("documents-filter-job");
+  const docTypeFilter = document.getElementById("documents-filter-type");
+
+  let cachedJobs = [];
+  let cachedDocuments = [];
 
   if (createButton && createPanel) {
     createButton.addEventListener("click", () => {
@@ -464,6 +617,15 @@ async function initDashboardPage() {
       const payload = Object.fromEntries(formData.entries());
       payload.clientPhone = formatPhoneDisplay(payload.clientPhone);
 
+      if (requiresApprovedPlanset(payload.stage)) {
+        setMessage(
+          "create-job-message",
+          "Approved Planset is required before moving to In Construction.",
+          true
+        );
+        return;
+      }
+
       try {
         const created = await createJob(payload);
         setMessage("create-job-message", "Job created.");
@@ -481,10 +643,41 @@ async function initDashboardPage() {
 
   try {
     const jobs = await fetchJobs();
+    cachedJobs = jobs;
     renderSummary(jobs);
     renderJobsTable(jobs);
+    populateDocumentFilters(jobs);
     if (apiStatus) {
       apiStatus.hidden = true;
+    }
+
+    try {
+      const documents = await fetchDocuments();
+      cachedDocuments = documents || [];
+      renderDocumentsTable(cachedDocuments, cachedJobs);
+    } catch (docError) {
+      console.error("Failed to load documents.", docError);
+      renderDocumentsTable([], cachedJobs);
+    }
+
+    const applyDocumentFilters = () => {
+      const jobId = docJobFilter?.value || "";
+      const type = docTypeFilter?.value || "";
+
+      const filtered = cachedDocuments.filter((doc) => {
+        const jobMatch = jobId ? doc.jobId === jobId : true;
+        const typeMatch = type ? doc.documentType === type : true;
+        return jobMatch && typeMatch;
+      });
+
+      renderDocumentsTable(filtered, cachedJobs);
+    };
+
+    if (docJobFilter) {
+      docJobFilter.addEventListener("change", applyDocumentFilters);
+    }
+    if (docTypeFilter) {
+      docTypeFilter.addEventListener("change", applyDocumentFilters);
     }
   } catch (error) {
     console.error("Failed to initialize dashboard.", error);
@@ -581,9 +774,16 @@ function renderDocuments(jobId, documents) {
   }
 
   documents.forEach((doc) => {
+    const type = getDocumentType(doc.documentType);
     const item = document.createElement("li");
     item.innerHTML = `
-      <a href="${doc.url || "#"}" target="_blank" rel="noopener">${doc.name || "Document"}</a>
+      <div class="kh-doc-title">
+        <span class="kh-doc-icon">${getDocumentIcon(type.icon)}</span>
+        <div>
+          <a href="${doc.url || "#"}" target="_blank" rel="noopener">${doc.name || "Document"}</a>
+          <div class="kh-doc-meta">${doc.documentType || "—"} · ${formatDate(doc.createdAt)}</div>
+        </div>
+      </div>
       <button class="kh-link" data-doc-id="${doc.id}">Remove</button>
     `;
     item.querySelector("button").addEventListener("click", async () => {
@@ -614,6 +814,7 @@ async function initJobDetailPage() {
   const editForm = document.getElementById("job-edit-form");
   const deleteButton = document.getElementById("delete-job-button");
   const saveLineItemsButton = document.getElementById("save-line-items");
+  populateDocumentTypeSelect();
 
   if (editButton && editPanel) {
     editButton.addEventListener("click", () => {
@@ -654,6 +855,30 @@ async function initJobDetailPage() {
       const formData = new FormData(editForm);
       const payload = Object.fromEntries(formData.entries());
       payload.clientPhone = formatPhoneDisplay(payload.clientPhone);
+
+      if (requiresApprovedPlanset(payload.stage)) {
+        try {
+          const documents = await fetchJobDocuments(jobId);
+          const hasPlanset = (documents || []).some(
+            (doc) => doc.documentType === "Approved Planset"
+          );
+          if (!hasPlanset) {
+            setMessage(
+              "edit-job-message",
+              "Approved Planset is required before moving to In Construction.",
+              true
+            );
+            return;
+          }
+        } catch (docError) {
+          setMessage(
+            "edit-job-message",
+            "Unable to verify documents. Please try again.",
+            true
+          );
+          return;
+        }
+      }
       try {
         const updated = await updateJob(jobId, payload);
         setMessage("edit-job-message", "Job updated.");
@@ -681,13 +906,20 @@ async function initJobDetailPage() {
   }
 
   const uploadInput = document.getElementById("document-upload");
+  const documentTypeSelect = document.getElementById("document-type");
   if (uploadInput) {
     uploadInput.addEventListener("change", async (event) => {
       const file = event.target.files[0];
       if (!file) return;
+      const documentType = documentTypeSelect?.value || "";
+      if (!documentType) {
+        setMessage("documents-message", "Select a document type first.", true);
+        uploadInput.value = "";
+        return;
+      }
       setMessage("documents-message", "Uploading document...");
       try {
-        const response = await requestDocumentUpload(jobId, file);
+        const response = await requestDocumentUpload(jobId, file, documentType);
         await fetch(response.uploadUrl, {
           method: "PUT",
           headers: { "Content-Type": file.type || "application/octet-stream" },
@@ -695,6 +927,9 @@ async function initJobDetailPage() {
         });
         setMessage("documents-message", "Document uploaded.");
         uploadInput.value = "";
+        if (documentTypeSelect) {
+          documentTypeSelect.value = "";
+        }
         await loadDocuments(jobId);
       } catch (error) {
         console.error("Failed to upload document.", error);

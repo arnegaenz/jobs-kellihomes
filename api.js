@@ -85,7 +85,12 @@ export async function fetchJobDocuments(jobId) {
   return fetchJson(`${apiBaseUrl}/jobs/${jobId}/documents`);
 }
 
-export async function requestDocumentUpload(jobId, file) {
+export async function fetchDocuments() {
+  const apiBaseUrl = getApiBaseUrl();
+  return fetchJson(`${apiBaseUrl}/documents`);
+}
+
+export async function requestDocumentUpload(jobId, file, documentType) {
   const apiBaseUrl = getApiBaseUrl();
   return fetchJson(`${apiBaseUrl}/jobs/${jobId}/documents/upload`, {
     method: "POST",
@@ -93,7 +98,8 @@ export async function requestDocumentUpload(jobId, file) {
     body: JSON.stringify({
       filename: file.name,
       contentType: file.type,
-      size: file.size
+      size: file.size,
+      documentType
     })
   });
 }

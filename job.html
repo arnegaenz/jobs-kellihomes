@@ -14,10 +14,7 @@
         </a>
         <nav class="kh-nav">
           <a href="index.html" class="is-active">Dashboard</a>
-          <a href="#">Active Jobs</a>
-          <a href="#">Pipeline</a>
-          <a href="#">Clients</a>
-          <a href="#">Documents</a>
+          <a href="index.html#documents">Documents</a>
         </nav>
         <div class="kh-user" id="signed-in-user">Signed in as —</div>
       </div>
@@ -225,6 +222,7 @@
               <div class="kh-panel__title">Documents</div>
               <ul class="kh-documents" id="documents-list"></ul>
               <div class="kh-form-actions">
+                <select class="kh-input kh-input--compact" id="document-type"></select>
                 <label class="kh-button kh-button--ghost">
                   Upload document
                   <input type="file" id="document-upload" class="kh-file-input" />

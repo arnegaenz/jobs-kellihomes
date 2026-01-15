@@ -14,10 +14,7 @@
         </a>
         <nav class="kh-nav">
           <a href="index.html" class="is-active">Dashboard</a>
-          <a href="#">Active Jobs</a>
-          <a href="#">Pipeline</a>
-          <a href="#">Clients</a>
-          <a href="#">Documents</a>
+          <a href="index.html#documents">Documents</a>
         </nav>
         <div class="kh-user" id="signed-in-user">Signed in as —</div>
       </div>
@@ -199,6 +196,32 @@
                 </tr>
               </thead>
               <tbody id="jobs-table-body"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="kh-panel" id="documents">
+          <div class="kh-panel__header">
+            <div>
+              <div class="kh-panel__title">Documents</div>
+              <div class="kh-panel__subtitle">All documents across active jobs.</div>
+            </div>
+            <div class="kh-filters">
+              <select class="kh-select" id="documents-filter-job"></select>
+              <select class="kh-select" id="documents-filter-type"></select>
+            </div>
+          </div>
+          <div class="kh-table-wrap">
+            <table class="kh-table kh-table--documents">
+              <thead>
+                <tr>
+                  <th>Document</th>
+                  <th>Type</th>
+                  <th>Job</th>
+                  <th>Date</th>
+                </tr>
+              </thead>
+              <tbody id="documents-table-body"></tbody>
             </table>
           </div>
         </section>
