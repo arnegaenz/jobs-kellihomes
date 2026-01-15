@@ -94,6 +94,7 @@ const AUTH_USERS = [
   { username: "justin", password: "Aryna2026" }
 ];
 const AUTH_STORAGE_KEY = "kh-auth-user";
+let authUserFallback = null;
 
 function isJobDetailPage() {
   return window.location.pathname.endsWith("job.html");
@@ -143,11 +144,19 @@ function setMessage(id, message, isError = false) {
 }
 
 function getAuthenticatedUser() {
-  return window.localStorage.getItem(AUTH_STORAGE_KEY);
+  try {
+    return window.localStorage.getItem(AUTH_STORAGE_KEY);
+  } catch (error) {
+    return authUserFallback;
+  }
 }
 
 function setAuthenticatedUser(username) {
-  window.localStorage.setItem(AUTH_STORAGE_KEY, username);
+  try {
+    window.localStorage.setItem(AUTH_STORAGE_KEY, username);
+  } catch (error) {
+    authUserFallback = username;
+  }
 }
 
 function isAuthenticated() {
@@ -208,6 +217,7 @@ function initLoginFlow() {
 
     setAuthenticatedUser(match.username);
     updateSignedInUser();
+    setMessage("login-message", "");
     hideLogin();
 
     if (isJobDetailPage()) {
