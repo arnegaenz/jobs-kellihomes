@@ -1,25 +1,48 @@
 /*
-  API layer for Kelli Homes Job Management.
-  TODO: Point these endpoints at your Lightsail API when ready.
+  API layer for Kelli Homes Job Management with secure authentication.
 */
 
-function getApiBaseUrl() {
-  if (!window.KH_CONFIG || !window.KH_CONFIG.apiBaseUrl) {
-    throw new Error("KH_CONFIG.apiBaseUrl is not set");
-  }
-  return window.KH_CONFIG.apiBaseUrl.replace(/\/$/, "");
-}
+import { getApiBaseUrl } from "./config.js";
+import { refreshAccessToken } from "./auth.js";
+import { sanitizeObject } from "./utils/sanitize.js";
 
-async function fetchJson(url, options = {}) {
+async function fetchJson(url, options = {}, retryCount = 0) {
   const response = await fetch(url, {
     ...options,
+    credentials: "include", // CRITICAL: Send authentication cookies
     headers: {
       Accept: "application/json",
       ...(options.headers || {})
     }
   });
 
+  // Handle token expiration with automatic refresh
+  if (!response.ok && response.status === 401 && retryCount === 0) {
+    try {
+      const errorData = await response.clone().json();
+
+      // If access token expired, try to refresh it
+      if (errorData.code === "TOKEN_EXPIRED") {
+        const refreshed = await refreshAccessToken();
+
+        if (refreshed) {
+          // Retry the original request with new token
+          return fetchJson(url, options, retryCount + 1);
+        }
+      }
+    } catch (e) {
+      // If we can't parse error or refresh fails, fall through to error handling
+    }
+  }
+
   if (!response.ok) {
+    // Handle authentication errors
+    if (response.status === 401 || response.status === 403) {
+      // User needs to log in again
+      window.location.href = "/";
+      throw new Error("Authentication required");
+    }
+
     const message = await response.text();
     throw new Error(`Request failed: ${response.status} ${message}`);
   }
@@ -46,7 +69,7 @@ export async function createJob(payload) {
   return fetchJson(`${apiBaseUrl}/jobs`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload)
+    body: JSON.stringify(sanitizeObject(payload))
   });
 }
 
@@ -55,7 +78,7 @@ export async function updateJob(jobId, payload) {
   return fetchJson(`${apiBaseUrl}/jobs/${jobId}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload)
+    body: JSON.stringify(sanitizeObject(payload))
   });
 }
 
@@ -76,7 +99,7 @@ export async function saveJobLineItems(jobId, lineItems) {
   return fetchJson(`${apiBaseUrl}/jobs/${jobId}/line-items`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ lineItems })
+    body: JSON.stringify({ lineItems: sanitizeObject(lineItems) })
   });
 }
 

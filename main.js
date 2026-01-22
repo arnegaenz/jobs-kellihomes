@@ -14,6 +14,13 @@ import {
   updateDocumentType
 } from "./api.js";
 
+import {
+  isAuthenticated,
+  getCurrentUser,
+  login,
+  logout
+} from "./auth.js";
+
 const LINE_ITEM_CATALOG = [
   { code: "01.01", group: "01.00 Site Work", name: "Demolition", description: "Removal of any structures" },
   { code: "01.02", group: "01.00 Site Work", name: "Excavation", description: "Excavation - Foundation Prep" },
@@ -91,13 +98,6 @@ const LINE_ITEM_CATALOG = [
 ];
 
 const LINE_ITEM_STATUSES = ["Not Started", "In Progress", "Complete", "On Hold"];
-const AUTH_USERS = [
-  { username: "arne", password: "$yd3JAC9" },
-  { username: "raquel", password: "elizabeth1" },
-  { username: "justin", password: "Aryna2026" }
-];
-const AUTH_STORAGE_KEY = "kh-auth-user";
-let authUserFallback = null;
 
 const DOCUMENT_TYPES = [
   { value: "Approved Planset", icon: "blueprint" },
@@ -258,31 +258,15 @@ function populateDocumentTypeSelect() {
   });
 }
 
-function getAuthenticatedUser() {
-  try {
-    return window.localStorage.getItem(AUTH_STORAGE_KEY);
-  } catch (error) {
-    return authUserFallback;
-  }
-}
-
-function setAuthenticatedUser(username) {
-  try {
-    window.localStorage.setItem(AUTH_STORAGE_KEY, username);
-  } catch (error) {
-    authUserFallback = username;
-  }
-}
-
-function isAuthenticated() {
-  return Boolean(getAuthenticatedUser());
-}
-
-function updateSignedInUser() {
-  const user = getAuthenticatedUser();
+async function updateSignedInUser() {
   const label = document.getElementById("signed-in-user");
-  if (label) {
-    label.textContent = user ? `Signed in as ${user}` : "Signed in as —";
+  if (!label) return;
+
+  const user = await getCurrentUser();
+  if (user) {
+    label.textContent = `Signed in as ${user.username}`;
+  } else {
+    label.textContent = "Signed in as —";
   }
 }
 
@@ -304,52 +288,57 @@ function hideLogin() {
   }
 }
 
-function initLoginFlow() {
+async function initLoginFlow() {
   const form = document.getElementById("login-form");
   if (!form) return false;
 
-  if (!isAuthenticated()) {
+  const authenticated = await isAuthenticated();
+
+  if (!authenticated) {
     showLogin();
   } else {
     hideLogin();
   }
 
-  updateSignedInUser();
+  await updateSignedInUser();
 
-  form.addEventListener("submit", (event) => {
+  form.addEventListener("submit", async (event) => {
     event.preventDefault();
     setMessage("login-message", "Signing in...");
+
     try {
       const formData = new FormData(form);
-      const username = String(formData.get("username") || "").trim().toLowerCase();
+      const username = String(formData.get("username") || "").trim();
       const password = String(formData.get("password") || "");
 
-      const match = AUTH_USERS.find(
-        (user) => user.username === username && user.password === password
-      );
+      await login(username, password);
 
-      if (!match) {
-        setMessage("login-message", "Invalid login. Please try again.", true);
-        return;
-      }
-
-      setAuthenticatedUser(match.username);
-      updateSignedInUser();
+      await updateSignedInUser();
       setMessage("login-message", "Signed in. Loading...");
       hideLogin();
 
+      // Clear old localStorage if it exists
+      try {
+        localStorage.removeItem("kh-auth-user");
+      } catch (e) {
+        // Ignore
+      }
+
+      // Initialize the appropriate page
       if (isJobDetailPage()) {
         initJobDetailPage();
+      } else if (isDocumentsPage()) {
+        initDocumentsPage();
       } else {
         initDashboardPage();
       }
     } catch (error) {
-      console.error("Login failed.", error);
-      setMessage("login-message", "Login failed. Please refresh and try again.", true);
+      console.error("Login failed:", error);
+      setMessage("login-message", error.message || "Invalid login. Please try again.", true);
     }
   });
 
-  return isAuthenticated();
+  return authenticated;
 }
 
 function renderSummary(jobs) {
@@ -1092,13 +1081,27 @@ function showJobNotFound() {
   `;
 }
 
-const authReady = initLoginFlow();
-if (authReady) {
-  if (isJobDetailPage()) {
-    initJobDetailPage();
-  } else if (isDocumentsPage()) {
-    initDocumentsPage();
-  } else {
-    initDashboardPage();
+// Initialize authentication and page
+(async () => {
+  const authReady = await initLoginFlow();
+  if (authReady) {
+    if (isJobDetailPage()) {
+      initJobDetailPage();
+    } else if (isDocumentsPage()) {
+      initDocumentsPage();
+    } else {
+      initDashboardPage();
+    }
   }
-}
+})();
+
+// Add logout functionality
+document.addEventListener("DOMContentLoaded", () => {
+  const logoutButton = document.getElementById("logout-button");
+  if (logoutButton) {
+    logoutButton.addEventListener("click", async () => {
+      await logout();
+      window.location.reload();
+    });
+  }
+});
