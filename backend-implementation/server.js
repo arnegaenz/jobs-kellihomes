@@ -1,0 +1,123 @@
+/**
+ * Kelli Homes Job Management API Server
+ * WITH SECURE AUTHENTICATION
+ *
+ * This file shows how to integrate the new authentication into your existing server.
+ * Your actual server.js on Lightsail will have additional routes for jobs, documents, etc.
+ */
+
+require('dotenv').config();
+const express = require('express');
+const cors = require('cors');
+const helmet = require('helmet');
+const cookieParser = require('cookie-parser');
+const rateLimit = require('express-rate-limit');
+
+// Middleware
+const { authenticateToken } = require('./middleware/auth');
+const { sanitizeInput } = require('./middleware/sanitize');
+
+// Routes
+const authRoutes = require('./routes/auth');
+// You'll also import your existing routes here:
+// const jobsRoutes = require('./routes/jobs');
+// const documentsRoutes = require('./routes/documents');
+// const lineItemsRoutes = require('./routes/lineItems');
+
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+// Security middleware
+app.use(helmet());
+
+// CORS configuration - allow frontend to send cookies
+app.use(cors({
+  origin: process.env.FRONTEND_URL || 'https://jobs.kellihomes.com',
+  credentials: true, // CRITICAL: Allow cookies to be sent
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type']
+}));
+
+// Body parsing
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true }));
+
+// Cookie parsing
+app.use(cookieParser());
+
+// Global rate limiting
+const limiter = rateLimit({
+  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000,
+  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100,
+  message: {
+    error: 'Too many requests, please try again later'
+  },
+  standardHeaders: true,
+  legacyHeaders: false
+});
+app.use(limiter);
+
+// Global input sanitization
+app.use(sanitizeInput);
+
+// Request logging
+app.use((req, res, next) => {
+  console.log(`${new Date().toISOString()} ${req.method} ${req.path}`);
+  next();
+});
+
+// PUBLIC ROUTES (no authentication required)
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// Authentication routes (public)
+app.use('/auth', authRoutes);
+
+// PROTECTED ROUTES (authentication required)
+// All routes below this line require a valid JWT token
+
+// Example: Protect all /jobs routes
+// app.use('/jobs', authenticateToken, jobsRoutes);
+// app.use('/documents', authenticateToken, documentsRoutes);
+
+// For now, here's a simple protected example:
+app.get('/api/protected-example', authenticateToken, (req, res) => {
+  res.json({
+    message: 'This is a protected route',
+    user: req.user // { userId, username }
+  });
+});
+
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error('Error:', err);
+  res.status(err.status || 500).json({
+    error: err.message || 'Internal server error'
+  });
+});
+
+// 404 handler
+app.use((req, res) => {
+  res.status(404).json({
+    error: 'Route not found'
+  });
+});
+
+// Start server
+app.listen(PORT, () => {
+  console.log(`✅ Kelli Homes API Server running on port ${PORT}`);
+  console.log(`   Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`   Frontend URL: ${process.env.FRONTEND_URL}`);
+});
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+  console.log('SIGTERM received, shutting down gracefully...');
+  process.exit(0);
+});
+
+process.on('SIGINT', () => {
+  console.log('SIGINT received, shutting down gracefully...');
+  process.exit(0);
+});
