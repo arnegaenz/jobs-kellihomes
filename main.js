@@ -21,6 +21,21 @@ import {
   logout
 } from "./auth.js";
 
+// Button loading state utilities
+function setButtonLoading(button, loadingText = "Loading...") {
+  if (!button) return;
+  button.dataset.originalText = button.textContent;
+  button.textContent = loadingText;
+  button.disabled = true;
+}
+
+function resetButton(button) {
+  if (!button) return;
+  button.textContent = button.dataset.originalText || button.textContent;
+  button.disabled = false;
+  delete button.dataset.originalText;
+}
+
 const LINE_ITEM_CATALOG = [
   { code: "01.01", group: "01.00 Site Work", name: "Demolition", description: "Removal of any structures" },
   { code: "01.02", group: "01.00 Site Work", name: "Excavation", description: "Excavation - Foundation Prep" },
@@ -174,6 +189,63 @@ function wireDateInputs(form) {
   });
 }
 
+function wireValidation(form) {
+  if (!form) return;
+
+  const emailInput = form.clientEmail;
+  const phoneInput = form.clientPhone;
+  const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const phonePattern = /^[0-9+().\-\s]*$/;
+
+  if (emailInput) {
+    emailInput.addEventListener("blur", () => {
+      const email = String(emailInput.value || "").trim();
+      if (email && !emailPattern.test(email)) {
+        showFieldError(emailInput, "Enter a valid email address");
+      } else {
+        clearFieldError(emailInput);
+      }
+    });
+
+    emailInput.addEventListener("input", () => {
+      // Clear error on input to give immediate feedback
+      if (emailInput.classList.contains("kh-input--error")) {
+        const email = String(emailInput.value || "").trim();
+        if (!email || emailPattern.test(email)) {
+          clearFieldError(emailInput);
+        }
+      }
+    });
+  }
+
+  if (phoneInput) {
+    phoneInput.addEventListener("blur", () => {
+      const phone = String(phoneInput.value || "").trim();
+      const digits = phone.replace(/\D/g, "");
+      if (phone) {
+        if (!phonePattern.test(phone) || digits.length < 7) {
+          showFieldError(phoneInput, "Enter a valid phone number (at least 7 digits)");
+        } else {
+          clearFieldError(phoneInput);
+        }
+      } else {
+        clearFieldError(phoneInput);
+      }
+    });
+
+    phoneInput.addEventListener("input", () => {
+      // Clear error on input
+      if (phoneInput.classList.contains("kh-input--error")) {
+        const phone = String(phoneInput.value || "").trim();
+        const digits = phone.replace(/\D/g, "");
+        if (!phone || (phonePattern.test(phone) && digits.length >= 7)) {
+          clearFieldError(phoneInput);
+        }
+      }
+    });
+  }
+}
+
 function getDocumentType(type) {
   return DOCUMENT_TYPES.find((item) => item.value === type) || DOCUMENT_TYPES[0];
 }
@@ -207,23 +279,63 @@ function requiresApprovedPlanset(stage) {
   return String(stage || "").toLowerCase() === "in construction";
 }
 
+function showFieldError(input, message) {
+  if (!input) return;
+
+  // Add error class
+  input.classList.add("kh-input--error");
+  input.classList.remove("kh-input--success");
+
+  // Remove existing error message
+  const existingError = input.parentElement.querySelector(".kh-field-error");
+  if (existingError) {
+    existingError.remove();
+  }
+
+  // Add error message
+  if (message) {
+    const errorSpan = document.createElement("span");
+    errorSpan.className = "kh-field-error";
+    errorSpan.textContent = message;
+    input.parentElement.appendChild(errorSpan);
+  }
+}
+
+function clearFieldError(input) {
+  if (!input) return;
+
+  input.classList.remove("kh-input--error");
+  const errorSpan = input.parentElement.querySelector(".kh-field-error");
+  if (errorSpan) {
+    errorSpan.remove();
+  }
+}
+
 function validateClientContact(form, messageId) {
-  const email = String(form.clientEmail?.value || "").trim();
-  const phone = String(form.clientPhone?.value || "").trim();
+  const emailInput = form.clientEmail;
+  const phoneInput = form.clientPhone;
+  const email = String(emailInput?.value || "").trim();
+  const phone = String(phoneInput?.value || "").trim();
   const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   const phonePattern = /^[0-9+().\-\s]*$/;
   const digits = phone.replace(/\D/g, "");
 
+  // Clear previous errors
+  clearFieldError(emailInput);
+  clearFieldError(phoneInput);
+
   if (email && !emailPattern.test(email)) {
+    showFieldError(emailInput, "Enter a valid email address");
     setMessage(messageId, "Enter a valid client email address.", true);
-    form.clientEmail.focus();
+    emailInput.focus();
     return false;
   }
 
   if (phone) {
     if (!phonePattern.test(phone) || digits.length < 7) {
+      showFieldError(phoneInput, "Enter a valid phone number (at least 7 digits)");
       setMessage(messageId, "Enter a valid client phone number.", true);
-      form.clientPhone.focus();
+      phoneInput.focus();
       return false;
     }
   }
@@ -304,6 +416,8 @@ async function initLoginFlow() {
 
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
+    const submitButton = form.querySelector('button[type="submit"]');
+    setButtonLoading(submitButton, "Signing in...");
     setMessage("login-message", "Signing in...");
 
     try {
@@ -335,6 +449,7 @@ async function initLoginFlow() {
     } catch (error) {
       console.error("Login failed:", error);
       setMessage("login-message", error.message || "Invalid login. Please try again.", true);
+      resetButton(submitButton);
     }
   });
 
@@ -360,6 +475,18 @@ function renderSummary(jobs) {
   setText("summary-active", String(active));
   setText("summary-precon", String(precon));
   setText("summary-closed", String(closedThisYear));
+}
+
+function showTableLoading(tableBodyId, colspan = 7) {
+  const tableBody = document.getElementById(tableBodyId);
+  if (!tableBody) return;
+  tableBody.innerHTML = `<tr><td colspan="${colspan}"><div class="kh-loading"><div class="kh-spinner"></div>Loading...</div></td></tr>`;
+}
+
+function showListLoading(listId, text = "Loading...") {
+  const list = document.getElementById(listId);
+  if (!list) return;
+  list.innerHTML = `<li><div class="kh-loading"><div class="kh-spinner"></div>${text}</div></li>`;
 }
 
 function renderJobsTable(jobs) {
@@ -636,11 +763,15 @@ async function initDashboardPage() {
 
   if (form) {
     wireDateInputs(form);
+    wireValidation(form);
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
       if (!validateClientContact(form, "create-job-message")) {
         return;
       }
+
+      const submitButton = form.querySelector('button[type="submit"]');
+      setButtonLoading(submitButton, "Creating job...");
       setMessage("create-job-message", "Saving job...");
 
       const formData = new FormData(form);
@@ -653,6 +784,7 @@ async function initDashboardPage() {
           "Approved Planset is required before moving to In Construction.",
           true
         );
+        resetButton(submitButton);
         return;
       }
 
@@ -663,13 +795,18 @@ async function initDashboardPage() {
           window.location.href = `job.html?jobId=${encodeURIComponent(created.id)}`;
         } else {
           form.reset();
+          resetButton(submitButton);
         }
       } catch (error) {
         console.error("Failed to create job.", error);
         setMessage("create-job-message", "Failed to create job. Check API setup.", true);
+        resetButton(submitButton);
       }
     });
   }
+
+  // Show loading state
+  showTableLoading("jobs-table-body", 7);
 
   try {
     const jobs = await fetchJobs();
@@ -737,6 +874,9 @@ async function initDocumentsPage() {
       }
     }
   };
+
+  // Show loading state
+  showTableLoading("documents-table-body", 4);
 
   try {
     cachedJobs = await fetchJobs();
@@ -834,6 +974,7 @@ function fillEditForm(job) {
 }
 
 async function loadDocuments(jobId) {
+  showListLoading("documents-list", "Loading documents...");
   try {
     const showTrashed = Boolean(document.getElementById("documents-show-trashed")?.checked);
     const documents = await fetchJobDocuments(jobId, { includeTrashed: showTrashed });
@@ -872,7 +1013,9 @@ function renderDocuments(jobId, documents) {
       </div>
       <button class="kh-link" data-doc-id="${doc.id}">${doc.deletedAt ? "Restore" : "Move to trash"}</button>
     `;
-    item.querySelector("button").addEventListener("click", async () => {
+    item.querySelector("button").addEventListener("click", async (e) => {
+      const btn = e.target;
+      setButtonLoading(btn, doc.deletedAt ? "Restoring..." : "Deleting...");
       try {
         if (doc.deletedAt) {
           await restoreDocument(jobId, doc.id);
@@ -883,6 +1026,7 @@ function renderDocuments(jobId, documents) {
       } catch (error) {
         console.error("Failed to update document.", error);
         setMessage("documents-message", "Unable to update document.", true);
+        resetButton(btn);
       }
     });
     list.appendChild(item);
@@ -937,12 +1081,17 @@ async function initJobDetailPage() {
 
   if (editForm) {
     wireDateInputs(editForm);
+    wireValidation(editForm);
     editForm.addEventListener("submit", async (event) => {
       event.preventDefault();
       if (!validateClientContact(editForm, "edit-job-message")) {
         return;
       }
+
+      const submitButton = editForm.querySelector('button[type="submit"]');
+      setButtonLoading(submitButton, "Saving...");
       setMessage("edit-job-message", "Saving changes...");
+
       const formData = new FormData(editForm);
       const payload = Object.fromEntries(formData.entries());
       payload.clientPhone = formatPhoneDisplay(payload.clientPhone);
@@ -959,6 +1108,7 @@ async function initJobDetailPage() {
               "Approved Planset is required before moving to In Construction.",
               true
             );
+            resetButton(submitButton);
             return;
           }
         } catch (docError) {
@@ -967,6 +1117,7 @@ async function initJobDetailPage() {
             "Unable to verify documents. Please try again.",
             true
           );
+          resetButton(submitButton);
           return;
         }
       }
@@ -975,23 +1126,28 @@ async function initJobDetailPage() {
         setMessage("edit-job-message", "Job updated.");
         editPanel.hidden = true;
         renderJobDetail(updated || payload);
+        resetButton(submitButton);
       } catch (error) {
         console.error("Failed to update job.", error);
         setMessage("edit-job-message", "Failed to update job.", true);
+        resetButton(submitButton);
       }
     });
   }
 
   if (saveLineItemsButton) {
     saveLineItemsButton.addEventListener("click", async () => {
+      setButtonLoading(saveLineItemsButton, "Saving...");
       setMessage("line-items-message", "Saving line items...");
       const lineItems = collectLineItems("line-items-body");
       try {
         await saveJobLineItems(jobId, lineItems);
         setMessage("line-items-message", "Line items saved.");
+        resetButton(saveLineItemsButton);
       } catch (error) {
         console.error("Failed to save line items.", error);
         setMessage("line-items-message", "Unable to save line items.", true);
+        resetButton(saveLineItemsButton);
       }
     });
   }
@@ -1014,7 +1170,14 @@ async function initJobDetailPage() {
         uploadInput.value = "";
         return;
       }
+
+      // Disable upload input during upload
+      uploadInput.disabled = true;
+      if (documentTypeSelect) {
+        documentTypeSelect.disabled = true;
+      }
       setMessage("documents-message", "Uploading document...");
+
       try {
         const response = await requestDocumentUpload(jobId, file, documentType);
         await fetch(response.uploadUrl, {
@@ -1031,6 +1194,11 @@ async function initJobDetailPage() {
       } catch (error) {
         console.error("Failed to upload document.", error);
         setMessage("documents-message", "Unable to upload document.", true);
+      } finally {
+        uploadInput.disabled = false;
+        if (documentTypeSelect) {
+          documentTypeSelect.disabled = false;
+        }
       }
     });
   }
@@ -1045,6 +1213,7 @@ async function initJobDetailPage() {
       fillEditForm(job);
 
       try {
+        showTableLoading("line-items-body", 6);
         const lineItems = await fetchJobLineItems(jobId);
         renderLineItems("line-items-body", lineItems || []);
       } catch (error) {

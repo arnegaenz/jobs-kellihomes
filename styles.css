@@ -709,3 +709,56 @@ select {
     grid-template-columns: 1fr;
   }
 }
+
+/* Loading spinner */
+.kh-spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--kh-border);
+  border-top-color: var(--kh-accent);
+  border-radius: 50%;
+  animation: kh-spin 0.6s linear infinite;
+}
+
+.kh-spinner--large {
+  width: 32px;
+  height: 32px;
+  border-width: 3px;
+}
+
+@keyframes kh-spin {
+  to { transform: rotate(360deg); }
+}
+
+.kh-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 40px;
+  color: var(--kh-text-muted);
+  font-size: 14px;
+}
+
+/* Form validation */
+.kh-input--error,
+.kh-input--error:focus {
+  border-color: var(--kh-pill-risk);
+  outline-color: var(--kh-pill-risk);
+}
+
+.kh-input--success {
+  border-color: var(--kh-pill-ok);
+}
+
+.kh-field-error {
+  display: block;
+  font-size: 13px;
+  color: var(--kh-pill-risk);
+  margin-top: 4px;
+}
+
+.kh-field-group {
+  position: relative;
+}
