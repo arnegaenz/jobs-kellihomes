@@ -36,6 +36,52 @@ function resetButton(button) {
   delete button.dataset.originalText;
 }
 
+// Debounce utility for performance
+function debounce(func, wait = 300) {
+  let timeout;
+  return function executedFunction(...args) {
+    const later = () => {
+      clearTimeout(timeout);
+      func(...args);
+    };
+    clearTimeout(timeout);
+    timeout = setTimeout(later, wait);
+  };
+}
+
+// Network status monitoring
+let isOnline = navigator.onLine;
+
+window.addEventListener("online", () => {
+  isOnline = true;
+  console.log("Connection restored");
+});
+
+window.addEventListener("offline", () => {
+  isOnline = false;
+  console.log("Connection lost");
+});
+
+// Enhanced error handling helper
+function handleError(error, messageId, defaultMessage = "An error occurred") {
+  console.error(error);
+
+  let userMessage = defaultMessage;
+
+  if (!isOnline) {
+    userMessage = "No internet connection. Please check your network and try again.";
+  } else if (error.message) {
+    // Use the error message from the API if available
+    userMessage = error.message;
+  }
+
+  if (messageId) {
+    setMessage(messageId, userMessage, true);
+  }
+
+  return userMessage;
+}
+
 const LINE_ITEM_CATALOG = [
   { code: "01.01", group: "01.00 Site Work", name: "Demolition", description: "Removal of any structures" },
   { code: "01.02", group: "01.00 Site Work", name: "Excavation", description: "Excavation - Foundation Prep" },
@@ -798,8 +844,7 @@ async function initDashboardPage() {
           resetButton(submitButton);
         }
       } catch (error) {
-        console.error("Failed to create job.", error);
-        setMessage("create-job-message", "Failed to create job. Check API setup.", true);
+        handleError(error, "create-job-message", "Failed to create job");
         resetButton(submitButton);
       }
     });
@@ -829,7 +874,6 @@ async function initDocumentsPage() {
   const docJobFilter = document.getElementById("documents-filter-job");
   const docTypeFilter = document.getElementById("documents-filter-type");
   const docTrashFilter = document.getElementById("documents-filter-trashed");
-  const docMessage = document.getElementById("documents-page-message");
 
   let cachedJobs = [];
   let cachedDocuments = [];
@@ -848,6 +892,9 @@ async function initDocumentsPage() {
 
     renderDocumentsTable(filtered, cachedJobs, handleDocumentTypeChange);
   };
+
+  // Debounced version for filter changes
+  const debouncedFilter = debounce(applyDocumentFilters, 150);
 
   const handleDocumentTypeChange = async (doc, nextType, select) => {
     if (!nextType || nextType === doc.documentType) return;
@@ -886,10 +933,10 @@ async function initDocumentsPage() {
     applyDocumentFilters();
 
     if (docJobFilter) {
-      docJobFilter.addEventListener("change", applyDocumentFilters);
+      docJobFilter.addEventListener("change", debouncedFilter);
     }
     if (docTypeFilter) {
-      docTypeFilter.addEventListener("change", applyDocumentFilters);
+      docTypeFilter.addEventListener("change", debouncedFilter);
     }
     if (docTrashFilter) {
       docTrashFilter.addEventListener("change", applyDocumentFilters);
@@ -1128,8 +1175,7 @@ async function initJobDetailPage() {
         renderJobDetail(updated || payload);
         resetButton(submitButton);
       } catch (error) {
-        console.error("Failed to update job.", error);
-        setMessage("edit-job-message", "Failed to update job.", true);
+        handleError(error, "edit-job-message", "Failed to update job");
         resetButton(submitButton);
       }
     });
@@ -1145,8 +1191,7 @@ async function initJobDetailPage() {
         setMessage("line-items-message", "Line items saved.");
         resetButton(saveLineItemsButton);
       } catch (error) {
-        console.error("Failed to save line items.", error);
-        setMessage("line-items-message", "Unable to save line items.", true);
+        handleError(error, "line-items-message", "Unable to save line items");
         resetButton(saveLineItemsButton);
       }
     });
