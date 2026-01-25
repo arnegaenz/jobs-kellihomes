@@ -34,8 +34,8 @@ router.get('/', async (req, res) => {
 
     let query = `
       SELECT
-        id, job_id AS "jobId", s3_key AS "s3Key", name, type AS "documentType",
-        size, created_at AS "createdAt", uploaded_by AS "uploadedBy", deleted_at AS "deletedAt"
+        id, job_id AS "jobId", storage_key AS "storageKey", name, document_type AS "documentType",
+        size, created_at AS "createdAt", deleted_at AS "deletedAt"
       FROM documents
     `;
 
@@ -53,7 +53,7 @@ router.get('/', async (req, res) => {
         try {
           const command = new GetObjectCommand({
             Bucket: S3_BUCKET,
-            Key: doc.s3Key,
+            Key: doc.storageKey,
           });
           const url = await getSignedUrl(s3Client, command, { expiresIn: 3600 }); // 1 hour
           return { ...doc, url };
@@ -79,8 +79,8 @@ router.get('/:id', async (req, res) => {
 
     const result = await pool.query(
       `SELECT
-        id, job_id AS "jobId", s3_key AS "s3Key", name, type AS "documentType",
-        size, created_at AS "createdAt", uploaded_by AS "uploadedBy", deleted_at AS "deletedAt"
+        id, job_id AS "jobId", storage_key AS "storageKey", name, document_type AS "documentType",
+        size, created_at AS "createdAt", deleted_at AS "deletedAt"
       FROM documents
       WHERE id = $1`,
       [id]
@@ -96,7 +96,7 @@ router.get('/:id', async (req, res) => {
     try {
       const command = new GetObjectCommand({
         Bucket: S3_BUCKET,
-        Key: doc.s3Key,
+        Key: doc.storageKey,
       });
       const url = await getSignedUrl(s3Client, command, { expiresIn: 3600 });
       doc.url = url;
@@ -125,10 +125,10 @@ router.put('/:id', async (req, res) => {
     const pool = getPool();
     const result = await pool.query(
       `UPDATE documents
-      SET type = $1
+      SET document_type = $1
       WHERE id = $2 AND deleted_at IS NULL
-      RETURNING id, job_id AS "jobId", s3_key AS "s3Key", name, type AS "documentType",
-                size, created_at AS "createdAt", uploaded_by AS "uploadedBy", deleted_at AS "deletedAt"`,
+      RETURNING id, job_id AS "jobId", storage_key AS "storageKey", name, document_type AS "documentType",
+                size, created_at AS "createdAt", deleted_at AS "deletedAt"`,
       [documentType, id]
     );
 
