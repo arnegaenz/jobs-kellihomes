@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const pool = require('../db');
+const { getPool } = require('../db');
 const { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } = require('@aws-sdk/client-s3');
 const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 const multer = require('multer');
@@ -44,7 +44,7 @@ router.get('/', async (req, res) => {
 
     query += ' ORDER BY uploaded_at DESC';
 
-    const result = await pool.query(query);
+    const result = await getPool().query(query);
 
     // Generate presigned URLs for each document
     const documentsWithUrls = await Promise.all(
@@ -106,7 +106,7 @@ router.post('/upload', upload.single('file'), async (req, res) => {
       RETURNING *
     `;
 
-    const result = await pool.query(insertQuery, [
+    const result = await getPool().query(insertQuery, [
       s3Key,
       req.file.originalname,
       req.file.mimetype,
@@ -164,7 +164,7 @@ router.patch('/:id', async (req, res) => {
       RETURNING *
     `;
 
-    const result = await pool.query(query, values);
+    const result = await getPool().query(query, values);
 
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Business document not found' });
@@ -190,7 +190,7 @@ router.delete('/:id', async (req, res) => {
       RETURNING *
     `;
 
-    const result = await pool.query(query, [id]);
+    const result = await getPool().query(query, [id]);
 
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Business document not found' });
@@ -216,7 +216,7 @@ router.post('/:id/restore', async (req, res) => {
       RETURNING *
     `;
 
-    const result = await pool.query(query, [id]);
+    const result = await getPool().query(query, [id]);
 
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Deleted business document not found' });
