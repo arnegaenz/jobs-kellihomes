@@ -112,10 +112,15 @@ function initAddressAutocomplete(inputId, suggestionsId) {
       e.preventDefault();
       currentFocus--;
       addActive(items);
-    } else if (e.key === 'Enter') {
+      } else if (e.key === 'Enter') {
+      // Always prevent Enter from submitting the form in address field
       e.preventDefault();
       if (currentFocus > -1 && items[currentFocus]) {
         items[currentFocus].click();
+      }
+      // If no suggestion selected, just close the dropdown without submitting
+      if (suggestionsContainer.classList.contains('is-visible')) {
+        suggestionsContainer.classList.remove('is-visible');
       }
     } else if (e.key === 'Escape') {
       suggestionsContainer.classList.remove('is-visible');
@@ -1715,6 +1720,10 @@ async function initJobDetailPage() {
 
   if (editCancel && editPanel) {
     editCancel.addEventListener("click", () => {
+      // Reset form to original values when canceling
+      if (editForm && currentJob) {
+        fillEditForm(currentJob);
+      }
       editPanel.hidden = true;
     });
   }
