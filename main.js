@@ -49,6 +49,136 @@ function debounce(func, wait = 300) {
   };
 }
 
+/**
+ * Mapbox Address Autocomplete
+ * Provides address suggestions as user types using Mapbox Geocoding API
+ */
+async function searchAddresses(query) {
+  if (!query || query.length < 3) return [];
+
+  const token = window.KH_CONFIG.mapboxToken;
+  if (!token) {
+    console.error('Mapbox token not configured');
+    return [];
+  }
+
+  try {
+    const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?access_token=${token}&country=US&types=address&limit=5`;
+    const response = await fetch(url);
+
+    if (!response.ok) {
+      throw new Error('Mapbox API request failed');
+    }
+
+    const data = await response.json();
+    return data.features || [];
+  } catch (error) {
+    console.error('Error fetching address suggestions:', error);
+    return [];
+  }
+}
+
+function initAddressAutocomplete(inputId, suggestionsId) {
+  const input = document.getElementById(inputId);
+  const suggestionsContainer = document.getElementById(suggestionsId);
+
+  if (!input || !suggestionsContainer) return;
+
+  let currentFocus = -1;
+
+  const debouncedSearch = debounce(async (query) => {
+    if (query.length < 3) {
+      suggestionsContainer.classList.remove('is-visible');
+      return;
+    }
+
+    const results = await searchAddresses(query);
+    renderAddressSuggestions(results, suggestionsContainer, input);
+  }, 300);
+
+  input.addEventListener('input', (e) => {
+    currentFocus = -1;
+    debouncedSearch(e.target.value);
+  });
+
+  input.addEventListener('keydown', (e) => {
+    const items = suggestionsContainer.querySelectorAll('.kh-address-suggestion');
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      currentFocus++;
+      addActive(items);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      currentFocus--;
+      addActive(items);
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (currentFocus > -1 && items[currentFocus]) {
+        items[currentFocus].click();
+      }
+    } else if (e.key === 'Escape') {
+      suggestionsContainer.classList.remove('is-visible');
+    }
+  });
+
+  function addActive(items) {
+    if (!items.length) return;
+    removeActive(items);
+
+    if (currentFocus >= items.length) currentFocus = 0;
+    if (currentFocus < 0) currentFocus = items.length - 1;
+
+    items[currentFocus].classList.add('is-active');
+  }
+
+  function removeActive(items) {
+    items.forEach(item => item.classList.remove('is-active'));
+  }
+
+  // Close suggestions when clicking outside
+  document.addEventListener('click', (e) => {
+    if (e.target !== input && !suggestionsContainer.contains(e.target)) {
+      suggestionsContainer.classList.remove('is-visible');
+    }
+  });
+}
+
+function renderAddressSuggestions(results, container, input) {
+  container.innerHTML = '';
+
+  if (!results || results.length === 0) {
+    container.classList.remove('is-visible');
+    return;
+  }
+
+  results.forEach(result => {
+    const suggestion = document.createElement('div');
+    suggestion.className = 'kh-address-suggestion';
+
+    const name = document.createElement('div');
+    name.className = 'kh-address-suggestion__name';
+    name.textContent = result.text || '';
+
+    const full = document.createElement('div');
+    full.className = 'kh-address-suggestion__full';
+    full.textContent = result.place_name || '';
+
+    suggestion.appendChild(name);
+    suggestion.appendChild(full);
+
+    suggestion.addEventListener('click', () => {
+      input.value = result.place_name;
+      container.classList.remove('is-visible');
+      input.focus();
+    });
+
+    container.appendChild(suggestion);
+  });
+
+  container.classList.add('is-visible');
+}
+
 // Network status monitoring
 let isOnline = navigator.onLine;
 
@@ -611,7 +741,7 @@ function renderJobsTable(jobs) {
 
   if (!jobs.length) {
     const row = document.createElement("tr");
-    row.innerHTML = '<td colspan="7">No jobs yet. Create one to get started.</td>';
+    row.innerHTML = '<td colspan="6">No jobs yet. Create one to get started.</td>';
     tableBody.appendChild(row);
     return;
   }
@@ -644,10 +774,7 @@ function renderJobsTable(jobs) {
     const targetCell = document.createElement("td");
     targetCell.textContent = formatDate(job.targetCompletion);
 
-    const healthCell = document.createElement("td");
-    healthCell.appendChild(createPill(job.health || "—", healthClass(job.health)));
-
-    row.append(jobCell, clientCell, stageCell, typeCell, startCell, targetCell, healthCell);
+    row.append(jobCell, clientCell, stageCell, typeCell, startCell, targetCell);
 
     row.addEventListener("click", () => {
       window.location.href = `job.html?jobId=${encodeURIComponent(job.id)}`;
@@ -1245,6 +1372,9 @@ async function initDashboardPage() {
   const cancelButton = document.getElementById("create-job-cancel");
   const form = document.getElementById("job-create-form");
 
+  // Initialize address autocomplete for job creation form
+  initAddressAutocomplete('job-address-input', 'address-suggestions-create');
+
   if (createButton && createPanel) {
     createButton.addEventListener("click", () => {
       createPanel.hidden = false;
@@ -1568,6 +1698,9 @@ async function initJobDetailPage() {
   // Initialize tab navigation
   initTabNavigation();
   initJobNotesModal();
+
+  // Initialize address autocomplete for job edit form
+  initAddressAutocomplete('job-address-edit', 'address-suggestions-edit');
 
   const editPanel = document.getElementById("edit-job-panel");
   const editButton = document.getElementById("edit-job-button");

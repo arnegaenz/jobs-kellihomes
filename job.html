@@ -80,7 +80,8 @@
               </label>
               <label class="kh-field">
                 <span>Job address</span>
-                <input class="kh-input" name="location" required />
+                <input class="kh-input" id="job-address-edit" name="location" required autocomplete="off" />
+                <div class="kh-address-suggestions" id="address-suggestions-edit"></div>
               </label>
               <label class="kh-field">
                 <span>Client</span>
@@ -116,15 +117,6 @@
                 </select>
               </label>
               <label class="kh-field">
-                <span>Status</span>
-                <select class="kh-input" name="status">
-                  <option>Not Started</option>
-                  <option>In Progress</option>
-                  <option>On Hold</option>
-                  <option>Completed</option>
-                </select>
-              </label>
-              <label class="kh-field">
                 <span>Start date</span>
                 <input class="kh-input" type="date" name="startDate" />
               </label>
@@ -139,14 +131,6 @@
               <label class="kh-field">
                 <span>Primary contact</span>
                 <input class="kh-input" name="primaryContact" />
-              </label>
-              <label class="kh-field">
-                <span>Health</span>
-                <select class="kh-input" name="health">
-                  <option>On Track</option>
-                  <option>Watch</option>
-                  <option>At Risk</option>
-                </select>
               </label>
               <label class="kh-field" style="grid-column: 1 / -1;">
                 <span>Job Notes</span>

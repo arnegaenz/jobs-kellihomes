@@ -23,12 +23,10 @@ router.get('/', async (req, res) => {
         client_phone AS "clientPhone",
         stage,
         type,
-        status,
         start_date AS "startDate",
         target_completion AS "targetCompletion",
         actual_completion AS "actualCompletion",
         primary_contact AS "primaryContact",
-        health,
         notes,
         created_at AS "createdAt",
         updated_at AS "updatedAt"
@@ -64,12 +62,10 @@ router.get('/:jobId', async (req, res) => {
         client_phone AS "clientPhone",
         stage,
         type,
-        status,
         start_date AS "startDate",
         target_completion AS "targetCompletion",
         actual_completion AS "actualCompletion",
         primary_contact AS "primaryContact",
-        health,
         notes,
         created_at AS "createdAt",
         updated_at AS "updatedAt"
@@ -107,12 +103,10 @@ router.post('/', async (req, res) => {
     clientPhone,
     stage,
     type,
-    status,
     startDate,
     targetCompletion,
     actualCompletion,
     primaryContact,
-    health,
     notes
   } = req.body;
 
@@ -133,14 +127,12 @@ router.post('/', async (req, res) => {
         client_phone,
         stage,
         type,
-        status,
         start_date,
         target_completion,
         actual_completion,
         primary_contact,
-        health,
         notes
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
       RETURNING
         id,
         name,
@@ -150,12 +142,10 @@ router.post('/', async (req, res) => {
         client_phone AS "clientPhone",
         stage,
         type,
-        status,
         start_date AS "startDate",
         target_completion AS "targetCompletion",
         actual_completion AS "actualCompletion",
         primary_contact AS "primaryContact",
-        health,
         notes,
         created_at AS "createdAt",
         updated_at AS "updatedAt"`,
@@ -167,12 +157,10 @@ router.post('/', async (req, res) => {
         clientPhone || null,
         stage || 'Preconstruction',
         type || 'Other',
-        status || 'Not Started',
         startDate || null,
         targetCompletion || null,
         actualCompletion || null,
         primaryContact || null,
-        health || 'On Track',
         notes || ''
       ]
     );
@@ -201,12 +189,10 @@ router.put('/:jobId', async (req, res) => {
     clientPhone,
     stage,
     type,
-    status,
     startDate,
     targetCompletion,
     actualCompletion,
     primaryContact,
-    health,
     notes
   } = req.body;
 
@@ -220,15 +206,13 @@ router.put('/:jobId', async (req, res) => {
         client_phone = COALESCE($5, client_phone),
         stage = COALESCE($6, stage),
         type = COALESCE($7, type),
-        status = COALESCE($8, status),
-        start_date = COALESCE($9, start_date),
-        target_completion = COALESCE($10, target_completion),
-        actual_completion = $11,
-        primary_contact = COALESCE($12, primary_contact),
-        health = COALESCE($13, health),
-        notes = COALESCE($14, notes),
+        start_date = COALESCE($8, start_date),
+        target_completion = COALESCE($9, target_completion),
+        actual_completion = $10,
+        primary_contact = COALESCE($11, primary_contact),
+        notes = COALESCE($12, notes),
         updated_at = NOW()
-      WHERE id = $15
+      WHERE id = $13
       RETURNING
         id,
         name,
@@ -238,12 +222,10 @@ router.put('/:jobId', async (req, res) => {
         client_phone AS "clientPhone",
         stage,
         type,
-        status,
         start_date AS "startDate",
         target_completion AS "targetCompletion",
         actual_completion AS "actualCompletion",
         primary_contact AS "primaryContact",
-        health,
         notes,
         created_at AS "createdAt",
         updated_at AS "updatedAt"`,
@@ -255,12 +237,10 @@ router.put('/:jobId', async (req, res) => {
         clientPhone,
         stage,
         type,
-        status,
         startDate,
         targetCompletion,
         actualCompletion, // Can be null
         primaryContact,
-        health,
         notes,
         jobId
       ]

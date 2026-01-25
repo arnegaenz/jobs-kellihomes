@@ -1,5 +1,6 @@
 window.KH_CONFIG = {
-  apiBaseUrl: "https://api.jobs.kellihomes.com"
+  apiBaseUrl: "https://api.jobs.kellihomes.com",
+  mapboxToken: "pk.eyJ1Ijoia2VsbGlob21lcyIsImEiOiJjbWt1OWV2Z3kxeTdyM2dxODM5MW5xMmttIn0.UZVFite5tNNwrIOXJgBcYQ"
 };
 
 export function getApiBaseUrl() {

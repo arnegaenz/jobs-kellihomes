@@ -382,6 +382,58 @@ select {
   accent-color: var(--kh-primary);
 }
 
+/* Address Autocomplete Suggestions */
+.kh-address-suggestions {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: white;
+  border: 1px solid var(--kh-border);
+  border-radius: var(--kh-radius);
+  box-shadow: var(--kh-shadow-soft);
+  max-height: 300px;
+  overflow-y: auto;
+  z-index: 1000;
+  margin-top: 4px;
+  display: none;
+}
+
+.kh-address-suggestions.is-visible {
+  display: block;
+}
+
+.kh-address-suggestion {
+  padding: 12px 16px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--kh-border);
+  transition: background 0.2s ease;
+}
+
+.kh-address-suggestion:last-child {
+  border-bottom: none;
+}
+
+.kh-address-suggestion:hover {
+  background: var(--kh-bg-soft);
+}
+
+.kh-address-suggestion__name {
+  font-weight: 500;
+  color: var(--kh-text);
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+
+.kh-address-suggestion__full {
+  font-size: 13px;
+  color: var(--kh-text-muted);
+}
+
+.kh-field {
+  position: relative;
+}
+
 .kh-input--compact {
   min-width: 180px;
 }
