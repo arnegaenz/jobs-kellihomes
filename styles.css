@@ -823,6 +823,10 @@ html {
 /* Job Costing: Line Items Enhancements */
 
 /* Modal Styles */
+.kh-modal[hidden] {
+  display: none;
+}
+
 .kh-modal {
   position: fixed;
   top: 0;
