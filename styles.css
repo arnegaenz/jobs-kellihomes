@@ -365,6 +365,23 @@ select {
   color: var(--kh-text-muted);
 }
 
+.kh-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+  font-size: 14px;
+  color: var(--kh-text-muted);
+}
+
+.kh-checkbox {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: var(--kh-primary);
+}
+
 .kh-input--compact {
   min-width: 180px;
 }

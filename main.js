@@ -1307,10 +1307,33 @@ async function initDashboardPage() {
   // Show loading state
   showTableLoading("jobs-table-body", 7);
 
+  let allJobs = [];
+
+  // Filter logic
+  const hideClosedCheckbox = document.getElementById("hide-closed-jobs");
+
+  const applyJobFilters = () => {
+    const hideClosed = hideClosedCheckbox?.checked || false;
+
+    const filtered = allJobs.filter((job) => {
+      if (hideClosed && job.stage === "Closed") {
+        return false;
+      }
+      return true;
+    });
+
+    renderJobsTable(filtered);
+  };
+
+  if (hideClosedCheckbox) {
+    hideClosedCheckbox.addEventListener("change", applyJobFilters);
+  }
+
   try {
     const jobs = await fetchJobs();
+    allJobs = jobs;
     renderSummary(jobs);
-    renderJobsTable(jobs);
+    applyJobFilters(); // Apply initial filter
     if (apiStatus) {
       apiStatus.hidden = true;
     }

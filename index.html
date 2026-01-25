@@ -174,22 +174,10 @@
               <div class="kh-panel__title">Jobs</div>
               <div class="kh-panel__subtitle">Snapshot of all current projects.</div>
             </div>
-            <div class="kh-filters">
-              <select class="kh-select" id="filter-stage">
-                <option>All stages</option>
-                <option>Design</option>
-                <option>Estimating</option>
-                <option>Construction</option>
-                <option>Punch</option>
-                <option>Closed</option>
-              </select>
-              <select class="kh-select" id="filter-type">
-                <option>All types</option>
-                <option>Insurance Restoration</option>
-                <option>Custom Build</option>
-                <option>Remodel</option>
-              </select>
-            </div>
+            <label class="kh-checkbox-label">
+              <input type="checkbox" class="kh-checkbox" id="hide-closed-jobs" checked />
+              <span>Hide closed jobs</span>
+            </label>
           </div>
           <div class="kh-table-wrap">
             <table class="kh-table">
