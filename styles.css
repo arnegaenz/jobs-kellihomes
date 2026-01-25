@@ -62,19 +62,12 @@
 
 .kh-tab-panel--grid {
   display: none;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: 1fr;
   gap: 24px;
 }
 
 .kh-tab-panel--grid.is-active {
   display: grid;
-}
-
-/* Responsive behavior */
-@media (max-width: 960px) {
-  .kh-tab-panel--grid {
-    grid-template-columns: 1fr;
-  }
 }
 
 @media (max-width: 720px) {

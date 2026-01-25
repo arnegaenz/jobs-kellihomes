@@ -1854,8 +1854,10 @@ async function loadDocuments(jobId) {
   showListLoading("documents-list", "Loading documents...");
   try {
     const showTrashed = Boolean(document.getElementById("documents-show-trashed")?.checked);
-    const documents = await fetchJobDocuments(jobId, { includeTrashed: showTrashed });
-    renderDocuments(jobId, documents || []);
+    const allDocuments = await fetchDocuments({ includeTrashed: showTrashed });
+    // Filter documents for this specific job
+    const jobDocuments = (allDocuments || []).filter(doc => doc.jobId === jobId);
+    renderDocuments(jobId, jobDocuments);
   } catch (error) {
     console.error("Failed to load documents.", error);
     setMessage("documents-message", "Unable to load documents.", true);
@@ -1895,9 +1897,9 @@ function renderDocuments(jobId, documents) {
       setButtonLoading(btn, doc.deletedAt ? "Restoring..." : "Deleting...");
       try {
         if (doc.deletedAt) {
-          await restoreDocument(jobId, doc.id);
+          await restoreDocument(doc.id);
         } else {
-          await deleteDocument(jobId, doc.id);
+          await deleteDocument(doc.id);
         }
         loadDocuments(jobId);
       } catch (error) {

@@ -195,9 +195,9 @@ export async function saveJobLineItems(jobId, lineItems) {
 }
 
 export async function fetchJobDocuments(jobId, options = {}) {
-  const apiBaseUrl = getApiBaseUrl();
-  const query = options.includeTrashed ? "?includeTrashed=true" : "";
-  return fetchJsonDedup(`${apiBaseUrl}/jobs/${jobId}/documents${query}`);
+  // Fetch all documents and filter by jobId client-side
+  const allDocuments = await fetchDocuments(options);
+  return (allDocuments || []).filter(doc => doc.jobId === jobId);
 }
 
 export async function fetchDocuments(options = {}) {
@@ -208,10 +208,11 @@ export async function fetchDocuments(options = {}) {
 
 export async function requestDocumentUpload(jobId, file, documentType) {
   const apiBaseUrl = getApiBaseUrl();
-  return fetchJson(`${apiBaseUrl}/jobs/${jobId}/documents/upload`, {
+  return fetchJson(`${apiBaseUrl}/documents/upload`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
+      jobId,
       filename: file.name,
       contentType: file.type,
       size: file.size,
@@ -220,16 +221,16 @@ export async function requestDocumentUpload(jobId, file, documentType) {
   });
 }
 
-export async function deleteDocument(jobId, documentId) {
+export async function deleteDocument(documentId) {
   const apiBaseUrl = getApiBaseUrl();
-  return fetchJson(`${apiBaseUrl}/jobs/${jobId}/documents/${documentId}`, {
+  return fetchJson(`${apiBaseUrl}/documents/${documentId}`, {
     method: "DELETE"
   });
 }
 
-export async function restoreDocument(jobId, documentId) {
+export async function restoreDocument(documentId) {
   const apiBaseUrl = getApiBaseUrl();
-  return fetchJson(`${apiBaseUrl}/jobs/${jobId}/documents/${documentId}/restore`, {
+  return fetchJson(`${apiBaseUrl}/documents/${documentId}/restore`, {
     method: "POST"
   });
 }

@@ -196,4 +196,67 @@ router.post('/:id/restore', async (req, res) => {
   }
 });
 
+// POST /documents/upload - Request presigned URL for document upload
+router.post('/upload', async (req, res) => {
+  try {
+    const { jobId, filename, contentType, size, documentType } = req.body;
+
+    if (!jobId || !filename || !documentType) {
+      return res.status(400).json({ error: 'Job ID, filename, and document type are required' });
+    }
+
+    // Validate file size (10MB limit)
+    if (size > 10 * 1024 * 1024) {
+      return res.status(400).json({ error: 'File size exceeds 10MB limit' });
+    }
+
+    // Verify job exists
+    const pool = getPool();
+    const jobCheck = await pool.query('SELECT id FROM jobs WHERE id = $1', [jobId]);
+    if (jobCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'Job not found' });
+    }
+
+    // Generate unique storage key
+    const fileExtension = filename.split('.').pop();
+    const storageKey = `jobs/${jobId}/${crypto.randomBytes(16).toString('hex')}.${fileExtension}`;
+
+    // Create presigned URL for upload
+    const uploadCommand = new PutObjectCommand({
+      Bucket: S3_BUCKET,
+      Key: storageKey,
+      ContentType: contentType || 'application/octet-stream',
+    });
+
+    const uploadUrl = await getSignedUrl(s3Client, uploadCommand, { expiresIn: 3600 });
+
+    // Save document record to database
+    const result = await pool.query(
+      `INSERT INTO documents (job_id, storage_key, name, document_type, size, uploaded_by)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING id, job_id AS "jobId", storage_key AS "storageKey", name, document_type AS "documentType",
+                 size, created_at AS "createdAt"`,
+      [jobId, storageKey, filename, documentType, size, req.user.username]
+    );
+
+    const doc = result.rows[0];
+
+    logger.info('Document upload initiated', {
+      docId: doc.id,
+      jobId,
+      filename,
+      documentType,
+      uploadedBy: req.user.username
+    });
+
+    res.json({
+      uploadUrl,
+      document: doc
+    });
+  } catch (error) {
+    logger.error('Error initiating document upload', { error: error.message });
+    res.status(500).json({ error: 'Failed to initiate document upload' });
+  }
+});
+
 module.exports = router;
