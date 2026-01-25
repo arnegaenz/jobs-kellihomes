@@ -187,17 +187,30 @@
             </div>
 
             <div class="kh-panel">
-              <div class="kh-panel__title">Line items</div>
+              <div class="kh-panel__title">
+                Line Items & Job Costing
+                <button class="kh-button kh-button--small" type="button" id="add-line-item-button">
+                  + Add Line Item
+                </button>
+              </div>
+              <div id="line-items-empty" class="kh-empty-state" hidden>
+                <p>No line items yet. Add one to start tracking costs and schedule.</p>
+              </div>
               <div class="kh-table-wrap">
                 <table class="kh-table kh-table--line-items">
                   <thead>
                     <tr>
                       <th>Item</th>
-                      <th>Budget</th>
+                      <th>Original Budget</th>
+                      <th>Budget Increases</th>
+                      <th>Current Budget</th>
                       <th>Actual</th>
+                      <th>Variance</th>
+                      <th>Schedule</th>
                       <th>Status</th>
                       <th>Vendor</th>
                       <th>Notes</th>
+                      <th></th>
                     </tr>
                   </thead>
                   <tbody id="line-items-body"></tbody>
@@ -208,6 +221,43 @@
                   Save line items
                 </button>
                 <div class="kh-form-message" id="line-items-message"></div>
+              </div>
+            </div>
+
+            <!-- Add Line Item Modal -->
+            <div id="add-line-item-modal" class="kh-modal" hidden>
+              <div class="kh-modal__content">
+                <div class="kh-modal__header">
+                  <h3>Add Line Item</h3>
+                  <button class="kh-modal__close" id="close-add-line-item">&times;</button>
+                </div>
+                <div class="kh-modal__body">
+                  <input type="text" id="line-item-search" class="kh-input" placeholder="Search line items..." />
+                  <div id="line-item-catalog-list" class="kh-catalog-list"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Budget Increase Modal -->
+            <div id="budget-increase-modal" class="kh-modal" hidden>
+              <div class="kh-modal__content">
+                <div class="kh-modal__header">
+                  <h3>Add Budget Increase</h3>
+                  <button class="kh-modal__close" id="close-budget-increase">&times;</button>
+                </div>
+                <div class="kh-modal__body">
+                  <label class="kh-label">
+                    <span>Increase Amount</span>
+                    <input type="number" id="budget-increase-amount" class="kh-input" placeholder="0.00" step="0.01" />
+                  </label>
+                  <label class="kh-label">
+                    <span>Reason for Increase</span>
+                    <textarea id="budget-increase-reason" class="kh-input" placeholder="Why is the budget increasing?"></textarea>
+                  </label>
+                  <div class="kh-form-actions">
+                    <button class="kh-button" id="save-budget-increase">Add Increase</button>
+                  </div>
+                </div>
               </div>
             </div>
           </div>

@@ -708,55 +708,145 @@ function buildLineItemsMap(items = []) {
   return map;
 }
 
+// Store current line items in memory for editing
+let currentLineItems = [];
+let currentEditingLineItemCode = null;
+
 function renderLineItems(tbodyId, items = []) {
   const tableBody = document.getElementById(tbodyId);
+  const emptyState = document.getElementById("line-items-empty");
   if (!tableBody) return;
 
-  const lineItemMap = buildLineItemsMap(items);
+  currentLineItems = items;
   tableBody.innerHTML = "";
 
-  LINE_ITEM_CATALOG.forEach((catalogItem) => {
-    const existing = lineItemMap.get(catalogItem.code) || {};
-    const row = document.createElement("tr");
-    row.dataset.code = catalogItem.code;
-    row.dataset.name = catalogItem.name;
+  // Show/hide empty state
+  if (emptyState) {
+    emptyState.hidden = items.length > 0;
+  }
 
+  if (items.length === 0) {
+    return;
+  }
+
+  items.forEach((item) => {
+    const row = document.createElement("tr");
+    row.dataset.code = item.code;
+
+    // Item name
     const itemCell = document.createElement("td");
+    const catalogItem = LINE_ITEM_CATALOG.find(c => c.code === item.code);
     itemCell.innerHTML = `
       <div class="kh-job">
-        <div class="kh-job__name">${catalogItem.group}: ${catalogItem.name}</div>
-        <div class="kh-job__meta">${catalogItem.description || ""}</div>
+        <div class="kh-job__name">${item.name}</div>
+        <div class="kh-job__meta">${catalogItem?.description || ""}</div>
       </div>
     `;
 
-    const budgetCell = document.createElement("td");
-    budgetCell.innerHTML = `<input type="text" value="${existing.budget || ""}" />`;
+    // Original Budget (editable)
+    const originalBudgetCell = document.createElement("td");
+    originalBudgetCell.innerHTML = `<input type="number" step="0.01" value="${item.originalBudget || 0}" data-field="originalBudget" />`;
 
+    // Budget Increases (button + display)
+    const increasesCell = document.createElement("td");
+    const totalIncreases = (item.budgetHistory || []).reduce((sum, inc) => sum + parseFloat(inc.amount || 0), 0);
+    increasesCell.innerHTML = `
+      <button class="kh-link" data-action="add-increase" data-code="${item.code}">
+        ${totalIncreases > 0 ? `+$${formatCurrency(totalIncreases)}` : '+ Add'}
+      </button>
+    `;
+    if (item.budgetHistory && item.budgetHistory.length > 0) {
+      const historyHtml = item.budgetHistory.map(inc =>
+        `<div class="kh-budget-increase-item">+$${formatCurrency(inc.amount)}: ${inc.reason}</div>`
+      ).join('');
+      increasesCell.innerHTML += `<div class="kh-budget-history">${historyHtml}</div>`;
+    }
+
+    // Current Budget (calculated, read-only)
+    const currentBudgetCell = document.createElement("td");
+    const currentBudget = parseFloat(item.originalBudget || 0) + totalIncreases;
+    currentBudgetCell.innerHTML = `<strong>$${formatCurrency(currentBudget)}</strong>`;
+    currentBudgetCell.className = "kh-cell-currency";
+
+    // Actual (editable)
     const actualCell = document.createElement("td");
-    actualCell.innerHTML = `<input type="text" value="${existing.actual || ""}" />`;
+    actualCell.innerHTML = `<input type="number" step="0.01" value="${item.actual || 0}" data-field="actual" />`;
 
+    // Variance (calculated, color-coded)
+    const varianceCell = document.createElement("td");
+    const variance = currentBudget - parseFloat(item.actual || 0);
+    const varianceClass = variance >= 0 ? "kh-variance-good" : "kh-variance-bad";
+    varianceCell.innerHTML = `<span class="${varianceClass}">${variance >= 0 ? '+' : ''}$${formatCurrency(variance)}</span>`;
+    varianceCell.className = "kh-cell-currency";
+
+    // Schedule (start/end dates)
+    const scheduleCell = document.createElement("td");
+    const schedule = item.schedule || {};
+    scheduleCell.innerHTML = `
+      <div class="kh-schedule">
+        <input type="date" value="${schedule.startDate || ''}" data-field="schedule.startDate" placeholder="Start" />
+        <input type="date" value="${schedule.endDate || ''}" data-field="schedule.endDate" placeholder="End" />
+      </div>
+    `;
+
+    // Status dropdown
     const statusCell = document.createElement("td");
     const statusSelect = document.createElement("select");
+    statusSelect.dataset.field = "status";
     LINE_ITEM_STATUSES.forEach((status) => {
       const option = document.createElement("option");
       option.value = status;
       option.textContent = status;
-      if ((existing.status || "") === status) {
+      if ((item.status || "Not Started") === status) {
         option.selected = true;
       }
       statusSelect.appendChild(option);
     });
     statusCell.appendChild(statusSelect);
 
+    // Vendor
     const vendorCell = document.createElement("td");
-    vendorCell.innerHTML = `<input type="text" value="${existing.vendor || ""}" />`;
+    vendorCell.innerHTML = `<input type="text" value="${item.vendor || ""}" data-field="vendor" />`;
 
+    // Notes
     const notesCell = document.createElement("td");
-    notesCell.innerHTML = `<textarea>${existing.notes || ""}</textarea>`;
+    notesCell.innerHTML = `<textarea data-field="notes">${item.notes || ""}</textarea>`;
 
-    row.append(itemCell, budgetCell, actualCell, statusCell, vendorCell, notesCell);
+    // Remove button
+    const actionsCell = document.createElement("td");
+    actionsCell.innerHTML = `<button class="kh-link kh-link--danger" data-action="remove" data-code="${item.code}">Remove</button>`;
+
+    row.append(itemCell, originalBudgetCell, increasesCell, currentBudgetCell, actualCell, varianceCell, scheduleCell, statusCell, vendorCell, notesCell, actionsCell);
     tableBody.appendChild(row);
   });
+
+  // Wire up event listeners
+  wireLineItemActions(tableBody);
+}
+
+function wireLineItemActions(tableBody) {
+  // Add increase button
+  tableBody.querySelectorAll('[data-action="add-increase"]').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const code = e.target.dataset.code;
+      showBudgetIncreaseModal(code);
+    });
+  });
+
+  // Remove button
+  tableBody.querySelectorAll('[data-action="remove"]').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const code = e.target.dataset.code;
+      if (confirm('Remove this line item?')) {
+        currentLineItems = currentLineItems.filter(item => item.code !== code);
+        renderLineItems('line-items-body', currentLineItems);
+      }
+    });
+  });
+}
+
+function formatCurrency(value) {
+  return parseFloat(value || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 }
 
 function collectLineItems(tbodyId) {
@@ -764,27 +854,145 @@ function collectLineItems(tbodyId) {
   if (!tableBody) return [];
 
   const rows = Array.from(tableBody.querySelectorAll("tr"));
-  return rows
-    .map((row) => {
-      const inputs = row.querySelectorAll("input, select, textarea");
-      const [budget, actual, status, vendor, notes] = inputs;
+  return rows.map((row) => {
+    const code = row.dataset.code;
+    const existingItem = currentLineItems.find(item => item.code === code);
 
-      const entry = {
-        code: row.dataset.code,
-        name: row.dataset.name,
-        budget: budget.value.trim(),
-        actual: actual.value.trim(),
-        status: status.value,
-        vendor: vendor.value.trim(),
-        notes: notes.value.trim()
-      };
+    // Collect field values from DOM
+    const originalBudget = parseFloat(row.querySelector('[data-field="originalBudget"]')?.value || 0);
+    const actual = parseFloat(row.querySelector('[data-field="actual"]')?.value || 0);
+    const status = row.querySelector('[data-field="status"]')?.value || "Not Started";
+    const vendor = row.querySelector('[data-field="vendor"]')?.value || "";
+    const notes = row.querySelector('[data-field="notes"]')?.value || "";
+    const startDate = row.querySelector('[data-field="schedule.startDate"]')?.value || null;
+    const endDate = row.querySelector('[data-field="schedule.endDate"]')?.value || null;
 
-      const hasValues =
-        entry.budget || entry.actual || entry.vendor || entry.notes || entry.status !== "Not Started";
+    // Build line item object
+    return {
+      code: code,
+      name: existingItem?.name || "",
+      originalBudget: originalBudget,
+      budgetHistory: existingItem?.budgetHistory || [],
+      currentBudget: originalBudget + (existingItem?.budgetHistory || []).reduce((sum, inc) => sum + parseFloat(inc.amount || 0), 0),
+      actual: actual,
+      variance: 0, // Will be calculated by backend
+      schedule: { startDate, endDate },
+      notes: notes,
+      status: status,
+      vendor: vendor
+    };
+  });
+}
 
-      return hasValues ? entry : null;
-    })
-    .filter(Boolean);
+// Modal handling for adding line items
+function showAddLineItemModal() {
+  const modal = document.getElementById('add-line-item-modal');
+  const catalogList = document.getElementById('line-item-catalog-list');
+  const searchInput = document.getElementById('line-item-search');
+
+  if (!modal || !catalogList) return;
+
+  // Filter out already-added items
+  const addedCodes = new Set(currentLineItems.map(item => item.code));
+  const availableItems = LINE_ITEM_CATALOG.filter(item => !addedCodes.has(item.code));
+
+  const renderCatalog = (filter = '') => {
+    const filtered = availableItems.filter(item =>
+      item.name.toLowerCase().includes(filter.toLowerCase()) ||
+      item.group.toLowerCase().includes(filter.toLowerCase()) ||
+      item.code.includes(filter)
+    );
+
+    catalogList.innerHTML = filtered.map(item => `
+      <div class="kh-catalog-item" data-code="${item.code}">
+        <div class="kh-catalog-item__name">${item.code} - ${item.name}</div>
+        <div class="kh-catalog-item__desc">${item.group}${item.description ? ' · ' + item.description : ''}</div>
+      </div>
+    `).join('');
+
+    // Wire up click handlers
+    catalogList.querySelectorAll('.kh-catalog-item').forEach(el => {
+      el.addEventListener('click', () => {
+        const code = el.dataset.code;
+        addLineItem(code);
+        modal.hidden = true;
+      });
+    });
+  };
+
+  renderCatalog();
+
+  searchInput.value = '';
+  searchInput.oninput = (e) => renderCatalog(e.target.value);
+
+  modal.hidden = false;
+}
+
+function addLineItem(code) {
+  const catalogItem = LINE_ITEM_CATALOG.find(item => item.code === code);
+  if (!catalogItem) return;
+
+  const newItem = {
+    code: catalogItem.code,
+    name: catalogItem.name,
+    originalBudget: 0,
+    budgetHistory: [],
+    currentBudget: 0,
+    actual: 0,
+    variance: 0,
+    schedule: { startDate: null, endDate: null },
+    notes: '',
+    status: 'Not Started',
+    vendor: ''
+  };
+
+  currentLineItems.push(newItem);
+  renderLineItems('line-items-body', currentLineItems);
+}
+
+// Modal handling for budget increases
+function showBudgetIncreaseModal(code) {
+  const modal = document.getElementById('budget-increase-modal');
+  const amountInput = document.getElementById('budget-increase-amount');
+  const reasonInput = document.getElementById('budget-increase-reason');
+  const saveButton = document.getElementById('save-budget-increase');
+
+  if (!modal) return;
+
+  currentEditingLineItemCode = code;
+  amountInput.value = '';
+  reasonInput.value = '';
+
+  saveButton.onclick = () => {
+    const amount = parseFloat(amountInput.value);
+    const reason = reasonInput.value.trim();
+
+    if (!amount || amount <= 0) {
+      alert('Please enter a valid amount');
+      return;
+    }
+
+    if (!reason) {
+      alert('Please enter a reason for the increase');
+      return;
+    }
+
+    // Add increase to the line item
+    const item = currentLineItems.find(item => item.code === currentEditingLineItemCode);
+    if (item) {
+      if (!item.budgetHistory) item.budgetHistory = [];
+      item.budgetHistory.push({
+        amount: amount,
+        date: new Date().toISOString().split('T')[0],
+        reason: reason
+      });
+      renderLineItems('line-items-body', currentLineItems);
+    }
+
+    modal.hidden = true;
+  };
+
+  modal.hidden = false;
 }
 
 async function initDashboardPage() {
@@ -1193,6 +1401,46 @@ async function initJobDetailPage() {
       } catch (error) {
         handleError(error, "line-items-message", "Unable to save line items");
         resetButton(saveLineItemsButton);
+      }
+    });
+  }
+
+  // Wire up line item modals
+  const addLineItemButton = document.getElementById("add-line-item-button");
+  const closeAddLineItem = document.getElementById("close-add-line-item");
+  const closeBudgetIncrease = document.getElementById("close-budget-increase");
+  const addLineItemModal = document.getElementById("add-line-item-modal");
+  const budgetIncreaseModal = document.getElementById("budget-increase-modal");
+
+  if (addLineItemButton) {
+    addLineItemButton.addEventListener("click", () => showAddLineItemModal());
+  }
+
+  if (closeAddLineItem && addLineItemModal) {
+    closeAddLineItem.addEventListener("click", () => {
+      addLineItemModal.hidden = true;
+    });
+  }
+
+  if (closeBudgetIncrease && budgetIncreaseModal) {
+    closeBudgetIncrease.addEventListener("click", () => {
+      budgetIncreaseModal.hidden = true;
+    });
+  }
+
+  // Click outside modal to close
+  if (addLineItemModal) {
+    addLineItemModal.addEventListener("click", (e) => {
+      if (e.target === addLineItemModal) {
+        addLineItemModal.hidden = true;
+      }
+    });
+  }
+
+  if (budgetIncreaseModal) {
+    budgetIncreaseModal.addEventListener("click", (e) => {
+      if (e.target === budgetIncreaseModal) {
+        budgetIncreaseModal.hidden = true;
       }
     });
   }
