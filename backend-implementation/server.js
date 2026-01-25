@@ -13,6 +13,9 @@ const helmet = require('helmet');
 const cookieParser = require('cookie-parser');
 const rateLimit = require('express-rate-limit');
 
+// Database
+const { initializePool, testConnection, closePool } = require('./db');
+
 // Middleware
 const { authenticateToken } = require('./middleware/auth');
 const { sanitizeInput } = require('./middleware/sanitize');
@@ -66,6 +69,15 @@ app.use((req, res, next) => {
   next();
 });
 
+// Initialize database pool
+initializePool();
+testConnection()
+  .then(() => console.log('Database connection verified'))
+  .catch((err) => {
+    console.error('Failed to connect to database:', err.message);
+    process.exit(1);
+  });
+
 // PUBLIC ROUTES (no authentication required)
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
@@ -105,12 +117,14 @@ app.listen(PORT, () => {
 });
 
 // Graceful shutdown
-process.on('SIGTERM', () => {
+process.on('SIGTERM', async () => {
   console.log('SIGTERM received, shutting down gracefully...');
+  await closePool();
   process.exit(0);
 });
 
-process.on('SIGINT', () => {
+process.on('SIGINT', async () => {
   console.log('SIGINT received, shutting down gracefully...');
+  await closePool();
   process.exit(0);
 });
