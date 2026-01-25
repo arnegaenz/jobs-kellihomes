@@ -25,6 +25,7 @@ const authRoutes = require('./routes/auth');
 const jobsRoutes = require('./routes/jobs');
 const lineItemsRoutes = require('./routes/lineItems');
 const passwordRoutes = require('./routes/password');
+const documentsRoutes = require('./routes/documents');
 const businessDocumentsRoutes = require('./routes/businessDocuments');
 
 const app = express();
@@ -92,6 +93,7 @@ app.use('/auth', authRoutes);
 app.use('/jobs', authenticateToken, jobsRoutes);
 app.use('/line-items', authenticateToken, lineItemsRoutes);
 app.use('/password', authenticateToken, passwordRoutes);
+app.use('/documents', authenticateToken, documentsRoutes);
 app.use('/business-documents', authenticateToken, businessDocumentsRoutes);
 
 // Error handling middleware
