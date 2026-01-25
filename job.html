@@ -156,53 +156,49 @@
         <!-- Tab Content -->
         <div class="kh-tabs__content">
           <!-- Summary Tab -->
-          <div class="kh-tab-panel kh-tab-panel--grid is-active" data-tab-panel="summary">
-            <div>
-              <!-- Job Overview Card -->
-              <div class="kh-panel">
-                <div class="kh-panel__title">Job Overview</div>
-                <div class="kh-panel__list">
-                  <div class="kh-panel__list-item"><span>Status</span><strong id="overview-status">—</strong></div>
-                  <div class="kh-panel__list-item"><span>Start Date</span><strong id="overview-start">—</strong></div>
-                  <div class="kh-panel__list-item"><span>Target Completion</span><strong id="overview-target">—</strong></div>
-                  <div class="kh-panel__list-item" id="overview-actual-row" hidden><span>Actual Completion</span><strong id="overview-actual">—</strong></div>
-                  <div class="kh-panel__list-item"><span>Client</span><strong id="overview-client">—</strong></div>
-                  <div class="kh-panel__list-item"><span>Primary Contact</span><strong id="overview-contact">—</strong></div>
-                </div>
-
-                <!-- Overall Job Notes Section -->
-                <div class="kh-panel__section">
-                  <div class="kh-panel__section-title">Notes</div>
-                  <div id="overview-notes-preview" class="kh-notes-preview">No notes yet.</div>
-                  <button class="kh-link" id="view-job-notes">View details</button>
-                </div>
+          <div class="kh-tab-panel is-active" data-tab-panel="summary">
+            <!-- Job Overview & Financial Combined -->
+            <div class="kh-panel">
+              <div class="kh-panel__title">Job Overview</div>
+              <div class="kh-panel__list">
+                <div class="kh-panel__list-item"><span>Status</span><strong id="overview-status">—</strong></div>
+                <div class="kh-panel__list-item"><span>Client</span><strong id="overview-client">—</strong></div>
+                <div class="kh-panel__list-item"><span>Start Date</span><strong id="overview-start">—</strong></div>
+                <div class="kh-panel__list-item"><span>Target Completion</span><strong id="overview-target">—</strong></div>
+                <div class="kh-panel__list-item" id="overview-actual-row" hidden><span>Actual Completion</span><strong id="overview-actual">—</strong></div>
+                <div class="kh-panel__list-item"><span>Primary Contact</span><strong id="overview-contact">—</strong></div>
               </div>
 
-              <!-- Financial Snapshot Card -->
-              <div class="kh-panel">
-                <div class="kh-panel__title">Financial Snapshot</div>
-                <div class="kh-panel__list">
-                  <div class="kh-panel__list-item"><span>Original Estimate</span><strong id="fin-original">—</strong></div>
-                  <div class="kh-panel__list-item"><span>Change Orders</span><strong id="fin-changes">—</strong></div>
-                  <div class="kh-panel__list-item"><span>Current Budget</span><strong id="fin-current">—</strong></div>
-                  <div class="kh-panel__list-item"><span>Costs to Date</span><strong id="fin-costs">—</strong></div>
-                  <div class="kh-panel__list-item"><span>Remaining Budget</span><strong id="fin-remaining">—</strong></div>
-                </div>
-                <div class="kh-note">
-                  Budget calculated from line items. Track detailed costs in line items table.
-                </div>
+              <!-- Overall Job Notes Section -->
+              <div class="kh-panel__section">
+                <div class="kh-panel__section-title">Notes</div>
+                <div id="overview-notes-preview" class="kh-notes-preview">No notes yet.</div>
+                <button class="kh-link" id="view-job-notes">View details</button>
               </div>
             </div>
 
-            <div>
-              <!-- Job Schedule Card -->
-              <div class="kh-panel">
-                <div class="kh-panel__title">Job Schedule</div>
-                <div id="schedule-empty" class="kh-empty-state" hidden>
-                  <p>No line items yet. Add line items to track schedule.</p>
-                </div>
-                <ul class="kh-schedule-list" id="schedule-list"></ul>
+            <!-- Financial Snapshot Card -->
+            <div class="kh-panel">
+              <div class="kh-panel__title">Financial Snapshot</div>
+              <div class="kh-panel__list">
+                <div class="kh-panel__list-item"><span>Original Estimate</span><strong id="fin-original">—</strong></div>
+                <div class="kh-panel__list-item"><span>Change Orders</span><strong id="fin-changes">—</strong></div>
+                <div class="kh-panel__list-item"><span>Current Budget</span><strong id="fin-current">—</strong></div>
+                <div class="kh-panel__list-item"><span>Costs to Date</span><strong id="fin-costs">—</strong></div>
+                <div class="kh-panel__list-item"><span>Remaining Budget</span><strong id="fin-remaining">—</strong></div>
               </div>
+              <div class="kh-note">
+                Budget calculated from line items. Track detailed costs in line items table.
+              </div>
+            </div>
+
+            <!-- Job Schedule Card -->
+            <div class="kh-panel">
+              <div class="kh-panel__title">Job Schedule</div>
+              <div id="schedule-empty" class="kh-empty-state" hidden>
+                <p>No line items yet. Add line items to track schedule.</p>
+              </div>
+              <ul class="kh-schedule-list" id="schedule-list"></ul>
             </div>
           </div>
 
