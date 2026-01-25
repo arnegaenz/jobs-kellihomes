@@ -745,7 +745,8 @@ function renderLineItems(tbodyId, items = []) {
 
     // Original Budget (editable)
     const originalBudgetCell = document.createElement("td");
-    originalBudgetCell.innerHTML = `<input type="number" step="0.01" value="${item.originalBudget || 0}" data-field="originalBudget" />`;
+    originalBudgetCell.className = "kh-cell-currency";
+    originalBudgetCell.innerHTML = `<div class="kh-currency-input"><span>$</span><input type="number" step="0.01" min="0" value="${item.originalBudget || 0}" data-field="originalBudget" /></div>`;
 
     // Budget Increases (button + display)
     const increasesCell = document.createElement("td");
@@ -770,7 +771,8 @@ function renderLineItems(tbodyId, items = []) {
 
     // Actual (editable)
     const actualCell = document.createElement("td");
-    actualCell.innerHTML = `<input type="number" step="0.01" value="${item.actual || 0}" data-field="actual" />`;
+    actualCell.className = "kh-cell-currency";
+    actualCell.innerHTML = `<div class="kh-currency-input"><span>$</span><input type="number" step="0.01" min="0" value="${item.actual || 0}" data-field="actual" /></div>`;
 
     // Variance (calculated, color-coded)
     const varianceCell = document.createElement("td");
