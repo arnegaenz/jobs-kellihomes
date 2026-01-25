@@ -19,10 +19,10 @@ const { sanitizeInput } = require('./middleware/sanitize');
 
 // Routes
 const authRoutes = require('./routes/auth');
-// You'll also import your existing routes here:
-// const jobsRoutes = require('./routes/jobs');
-// const documentsRoutes = require('./routes/documents');
-// const lineItemsRoutes = require('./routes/lineItems');
+const jobsRoutes = require('./routes/jobs');
+const lineItemsRoutes = require('./routes/lineItems');
+const passwordRoutes = require('./routes/password');
+const businessDocumentsRoutes = require('./routes/businessDocuments');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -77,17 +77,10 @@ app.use('/auth', authRoutes);
 // PROTECTED ROUTES (authentication required)
 // All routes below this line require a valid JWT token
 
-// Example: Protect all /jobs routes
-// app.use('/jobs', authenticateToken, jobsRoutes);
-// app.use('/documents', authenticateToken, documentsRoutes);
-
-// For now, here's a simple protected example:
-app.get('/api/protected-example', authenticateToken, (req, res) => {
-  res.json({
-    message: 'This is a protected route',
-    user: req.user // { userId, username }
-  });
-});
+app.use('/jobs', authenticateToken, jobsRoutes);
+app.use('/line-items', authenticateToken, lineItemsRoutes);
+app.use('/password', authenticateToken, passwordRoutes);
+app.use('/business-documents', authenticateToken, businessDocumentsRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

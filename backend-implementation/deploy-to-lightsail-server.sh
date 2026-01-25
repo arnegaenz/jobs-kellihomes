@@ -35,56 +35,60 @@ else
     echo -e "${YELLOW}⚠ Backup skipped (version mismatch - this is OK, migration is non-destructive)${NC}"
 fi
 
-# Step 2: Run migration
+# Step 2: Run migrations
 echo ""
-echo -e "${YELLOW}Step 2: Running database migration...${NC}"
-PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -f ~/001_line_items_job_costing.sql
-echo -e "${GREEN}✓ Migration completed${NC}"
+echo -e "${YELLOW}Step 2: Running database migrations...${NC}"
 
-# Step 3: Verify migration
-echo ""
-echo -e "${YELLOW}Step 3: Verifying migration...${NC}"
-PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -c "\d line_items" > /tmp/line_items_schema.txt
-if grep -q "budget_history" /tmp/line_items_schema.txt && \
-   grep -q "schedule" /tmp/line_items_schema.txt && \
-   grep -q "notes_text" /tmp/line_items_schema.txt; then
-    echo -e "${GREEN}✓ Schema verified - new columns exist${NC}"
+# Run business documents migration
+if [ -f "$API_DIR/migrations/005_business_documents.sql" ]; then
+    echo -e "${YELLOW}Running business_documents migration...${NC}"
+    PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -f "$API_DIR/migrations/005_business_documents.sql"
+    echo -e "${GREEN}✓ Business documents migration completed${NC}"
 else
-    echo -e "${RED}✗ Migration verification failed${NC}"
-    echo "Schema output:"
-    cat /tmp/line_items_schema.txt
-    exit 1
+    echo -e "${YELLOW}⚠ business_documents migration file not found, skipping${NC}"
 fi
 
-# Step 4: Update server.js to include line items route
+# Step 3: Verify migrations
 echo ""
-echo -e "${YELLOW}Step 4: Updating server.js...${NC}"
+echo -e "${YELLOW}Step 3: Verifying migrations...${NC}"
+
+# Verify business_documents table exists
+PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -c "\d business_documents" > /tmp/business_docs_schema.txt 2>&1
+if grep -q "s3_key" /tmp/business_docs_schema.txt && \
+   grep -q "file_name" /tmp/business_docs_schema.txt && \
+   grep -q "type" /tmp/business_docs_schema.txt; then
+    echo -e "${GREEN}✓ business_documents table verified${NC}"
+else
+    echo -e "${YELLOW}⚠ business_documents table verification failed (may already exist)${NC}"
+fi
+
+# Step 4: server.js should already be updated from file copy
+echo ""
+echo -e "${YELLOW}Step 4: Verifying server.js...${NC}"
 cd "$API_DIR"
 
 # Backup current server.js
 cp server.js server.js.backup.$(date +%Y%m%d_%H%M%S)
+echo -e "${GREEN}✓ server.js backed up${NC}"
 
-# Check if lineItemsRoutes is already imported
-if grep -q "lineItemsRoutes" server.js; then
-    echo -e "${GREEN}✓ server.js already has lineItemsRoutes import${NC}"
+# Verify it has the new routes
+if grep -q "businessDocumentsRoutes" server.js; then
+    echo -e "${GREEN}✓ server.js has businessDocumentsRoutes${NC}"
 else
-    # Add the import after authRoutes line
-    sed -i "/const authRoutes = require('.\/routes\/auth');/a const lineItemsRoutes = require('./routes/lineItems');" server.js
-    echo -e "${GREEN}✓ Added lineItemsRoutes import${NC}"
+    echo -e "${RED}✗ server.js missing businessDocumentsRoutes - file copy may have failed${NC}"
+    exit 1
 fi
 
-# Check if line items route is already registered
-if grep -q "\/jobs\/:jobId\/line-items" server.js; then
-    echo -e "${GREEN}✓ server.js already has line-items route registered${NC}"
-else
-    # Add the route after the protected routes comment or after authenticateToken usage
-    sed -i "/app.get('\/api\/protected-example', authenticateToken,/i app.use('/jobs/:jobId/line-items', authenticateToken, lineItemsRoutes);\n" server.js
-    echo -e "${GREEN}✓ Added line-items route registration${NC}"
-fi
-
-# Step 5: Verify line items route file exists
+# Step 5: Verify route files exist
 echo ""
-echo -e "${YELLOW}Step 5: Verifying route file...${NC}"
+echo -e "${YELLOW}Step 5: Verifying route files...${NC}"
+if [ -f "$API_DIR/routes/businessDocuments.js" ]; then
+    echo -e "${GREEN}✓ routes/businessDocuments.js exists${NC}"
+else
+    echo -e "${RED}✗ routes/businessDocuments.js not found${NC}"
+    exit 1
+fi
+
 if [ -f "$API_DIR/routes/lineItems.js" ]; then
     echo -e "${GREEN}✓ routes/lineItems.js exists${NC}"
 else

@@ -20,14 +20,19 @@ echo "Step 1: Copy Files (Local)"
 echo "=========================================="
 echo ""
 
-echo -e "${YELLOW}Copying migration file...${NC}"
-scp -i "$SSH_KEY" "$LOCAL_DIR/migrations/001_line_items_job_costing.sql" $SERVER:~/
-echo -e "${GREEN}✓ Migration file copied${NC}"
+echo -e "${YELLOW}Copying all backend files...${NC}"
 
-echo ""
-echo -e "${YELLOW}Copying lineItems.js route...${NC}"
-scp -i "$SSH_KEY" "$LOCAL_DIR/routes/lineItems.js" $SERVER:/home/ubuntu/kh-jobs-api/routes/
-echo -e "${GREEN}✓ Route file copied${NC}"
+# Copy all routes
+scp -i "$SSH_KEY" "$LOCAL_DIR/routes/"*.js $SERVER:/home/ubuntu/kh-jobs-api/routes/
+echo -e "${GREEN}✓ Route files copied${NC}"
+
+# Copy server.js
+scp -i "$SSH_KEY" "$LOCAL_DIR/server.js" $SERVER:/home/ubuntu/kh-jobs-api/
+echo -e "${GREEN}✓ server.js copied${NC}"
+
+# Copy all migration files
+scp -i "$SSH_KEY" "$LOCAL_DIR/migrations/"*.sql $SERVER:/home/ubuntu/kh-jobs-api/migrations/
+echo -e "${GREEN}✓ Migration files copied${NC}"
 
 echo ""
 echo -e "${YELLOW}Copying server deployment script...${NC}"

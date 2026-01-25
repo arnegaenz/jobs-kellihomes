@@ -242,3 +242,50 @@ export async function updateDocumentType(documentId, documentType) {
     body: JSON.stringify({ documentType })
   });
 }
+
+// Business Documents API
+export async function fetchBusinessDocuments(options = {}) {
+  const apiBaseUrl = getApiBaseUrl();
+  const query = options.showTrashed ? "?showTrashed=true" : "";
+  return fetchJsonDedup(`${apiBaseUrl}/business-documents${query}`);
+}
+
+export async function uploadBusinessDocument(file, type, description) {
+  const apiBaseUrl = getApiBaseUrl();
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('type', type);
+  if (description) {
+    formData.append('description', description);
+  }
+
+  return fetchJson(`${apiBaseUrl}/business-documents/upload`, {
+    method: "POST",
+    body: formData,
+    // Don't set Content-Type header - browser will set it with boundary for multipart/form-data
+    headers: {}
+  });
+}
+
+export async function updateBusinessDocument(documentId, data) {
+  const apiBaseUrl = getApiBaseUrl();
+  return fetchJson(`${apiBaseUrl}/business-documents/${documentId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data)
+  });
+}
+
+export async function deleteBusinessDocument(documentId) {
+  const apiBaseUrl = getApiBaseUrl();
+  return fetchJson(`${apiBaseUrl}/business-documents/${documentId}`, {
+    method: "DELETE"
+  });
+}
+
+export async function restoreBusinessDocument(documentId) {
+  const apiBaseUrl = getApiBaseUrl();
+  return fetchJson(`${apiBaseUrl}/business-documents/${documentId}/restore`, {
+    method: "POST"
+  });
+}

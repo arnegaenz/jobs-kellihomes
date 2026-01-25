@@ -11,7 +11,12 @@ import {
   requestDocumentUpload,
   deleteDocument,
   restoreDocument,
-  updateDocumentType
+  updateDocumentType,
+  fetchBusinessDocuments,
+  uploadBusinessDocument,
+  updateBusinessDocument,
+  deleteBusinessDocument,
+  restoreBusinessDocument
 } from "./api.js";
 
 import {
@@ -898,6 +903,126 @@ function renderDocumentsTable(documents, jobs, onTypeChange) {
   });
 }
 
+function renderBusinessDocumentsTable(documents) {
+  const tableBody = document.getElementById("business-docs-table-body");
+  if (!tableBody) return;
+
+  tableBody.innerHTML = "";
+  if (!documents.length) {
+    const row = document.createElement("tr");
+    row.innerHTML = '<td colspan="5">No business documents uploaded yet.</td>';
+    tableBody.appendChild(row);
+    return;
+  }
+
+  documents.forEach((doc) => {
+    const row = document.createElement("tr");
+
+    // Document name cell with icon
+    const docCell = document.createElement("td");
+    const fileExtension = doc.file_name?.split('.').pop()?.toLowerCase() || '';
+    const icon = getDocumentIconForExtension(fileExtension);
+    const sizeKB = doc.file_size ? Math.round(doc.file_size / 1024) : 0;
+
+    docCell.innerHTML = `
+      <div class="kh-doc-title">
+        <span class="kh-doc-icon">${icon}</span>
+        <div>
+          <div>${doc.file_name || "Document"}</div>
+          <div class="kh-doc-meta">${sizeKB > 0 ? `${sizeKB} KB` : ""}</div>
+        </div>
+      </div>
+    `;
+    if (doc.url && !doc.deleted_at) {
+      docCell.style.cursor = "pointer";
+      docCell.addEventListener("click", () => {
+        window.open(doc.url, "_blank", "noopener");
+      });
+    }
+
+    // Type cell
+    const typeCell = document.createElement("td");
+    typeCell.textContent = doc.type || "—";
+
+    // Description cell
+    const descCell = document.createElement("td");
+    descCell.textContent = doc.description || "—";
+    descCell.style.maxWidth = "300px";
+    descCell.style.overflow = "hidden";
+    descCell.style.textOverflow = "ellipsis";
+    descCell.style.whiteSpace = "nowrap";
+    if (doc.description) {
+      descCell.title = doc.description;
+    }
+
+    // Date cell
+    const dateCell = document.createElement("td");
+    dateCell.textContent = formatDate(doc.uploaded_at);
+
+    // Actions cell
+    const actionsCell = document.createElement("td");
+    if (doc.deleted_at) {
+      const restoreBtn = document.createElement("button");
+      restoreBtn.className = "kh-button kh-button--secondary kh-button--small";
+      restoreBtn.textContent = "Restore";
+      restoreBtn.addEventListener("click", async () => {
+        try {
+          await restoreBusinessDocument(doc.id);
+          setMessage("business-docs-message", "Document restored successfully.");
+          // Reload business documents
+          const showTrashed = Boolean(document.getElementById("business-docs-filter-trashed")?.checked);
+          const updatedDocs = await fetchBusinessDocuments({ showTrashed });
+          renderBusinessDocumentsTable(updatedDocs);
+        } catch (error) {
+          console.error("Failed to restore business document:", error);
+          setMessage("business-docs-message", "Failed to restore document.", true);
+        }
+      });
+      actionsCell.appendChild(restoreBtn);
+    } else {
+      const deleteBtn = document.createElement("button");
+      deleteBtn.className = "kh-button kh-button--secondary kh-button--small";
+      deleteBtn.textContent = "Delete";
+      deleteBtn.addEventListener("click", async () => {
+        if (!confirm(`Delete "${doc.file_name}"?`)) return;
+        try {
+          await deleteBusinessDocument(doc.id);
+          setMessage("business-docs-message", "Document deleted successfully.");
+          // Reload business documents
+          const showTrashed = Boolean(document.getElementById("business-docs-filter-trashed")?.checked);
+          const updatedDocs = await fetchBusinessDocuments({ showTrashed });
+          renderBusinessDocumentsTable(updatedDocs);
+        } catch (error) {
+          console.error("Failed to delete business document:", error);
+          setMessage("business-docs-message", "Failed to delete document.", true);
+        }
+      });
+      actionsCell.appendChild(deleteBtn);
+    }
+
+    if (doc.deleted_at) {
+      row.classList.add("is-trashed");
+    }
+
+    row.append(docCell, typeCell, descCell, dateCell, actionsCell);
+    tableBody.appendChild(row);
+  });
+}
+
+function getDocumentIconForExtension(ext) {
+  const icons = {
+    pdf: '📄',
+    doc: '📝',
+    docx: '📝',
+    jpg: '🖼️',
+    jpeg: '🖼️',
+    png: '🖼️',
+    xls: '📊',
+    xlsx: '📊',
+  };
+  return icons[ext] || '📎';
+}
+
 function buildLineItemsMap(items = []) {
   const map = new Map();
   items.forEach((item) => {
@@ -1480,13 +1605,23 @@ async function initDashboardPage() {
 }
 
 async function initDocumentsPage() {
+  // Job documents filters
   const docJobFilter = document.getElementById("documents-filter-job");
   const docTypeFilter = document.getElementById("documents-filter-type");
   const docTrashFilter = document.getElementById("documents-filter-trashed");
 
+  // Business documents elements
+  const businessDocsTrashFilter = document.getElementById("business-docs-filter-trashed");
+  const uploadBusinessDocButton = document.getElementById("upload-business-doc-button");
+  const uploadBusinessDocModal = document.getElementById("upload-business-doc-modal");
+  const uploadBusinessDocForm = document.getElementById("upload-business-doc-form");
+  const cancelBusinessUpload = document.getElementById("cancel-business-upload");
+
   let cachedJobs = [];
   let cachedDocuments = [];
+  let cachedBusinessDocuments = [];
 
+  // Job documents filtering
   const applyDocumentFilters = () => {
     const jobId = docJobFilter?.value || "";
     const type = docTypeFilter?.value || "";
@@ -1500,6 +1635,17 @@ async function initDocumentsPage() {
     });
 
     renderDocumentsTable(filtered, cachedJobs, handleDocumentTypeChange);
+  };
+
+  // Business documents filtering
+  const applyBusinessDocumentFilters = () => {
+    const showTrashed = Boolean(businessDocsTrashFilter?.checked);
+
+    const filtered = cachedBusinessDocuments.filter((doc) => {
+      return showTrashed ? true : !doc.deleted_at;
+    });
+
+    renderBusinessDocumentsTable(filtered);
   };
 
   // Debounced version for filter changes
@@ -1531,16 +1677,78 @@ async function initDocumentsPage() {
     }
   };
 
+  // Business document upload modal handlers
+  if (uploadBusinessDocButton) {
+    uploadBusinessDocButton.addEventListener("click", () => {
+      uploadBusinessDocModal?.removeAttribute("hidden");
+      uploadBusinessDocForm?.reset();
+      setMessage("upload-business-doc-message", "");
+    });
+  }
+
+  if (cancelBusinessUpload) {
+    cancelBusinessUpload.addEventListener("click", () => {
+      uploadBusinessDocModal?.setAttribute("hidden", "");
+    });
+  }
+
+  const closeButton = uploadBusinessDocModal?.querySelector(".kh-modal__close");
+  if (closeButton) {
+    closeButton.addEventListener("click", () => {
+      uploadBusinessDocModal?.setAttribute("hidden", "");
+    });
+  }
+
+  if (uploadBusinessDocForm) {
+    uploadBusinessDocForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const formData = new FormData(uploadBusinessDocForm);
+      const file = formData.get("file");
+      const type = formData.get("type");
+      const description = formData.get("description");
+
+      if (!file || !type) {
+        setMessage("upload-business-doc-message", "Please select a file and type.", true);
+        return;
+      }
+
+      setMessage("upload-business-doc-message", "Uploading...");
+      const submitButton = uploadBusinessDocForm.querySelector('button[type="submit"]');
+      if (submitButton) submitButton.disabled = true;
+
+      try {
+        await uploadBusinessDocument(file, type, description);
+        setMessage("upload-business-doc-message", "Document uploaded successfully!");
+        uploadBusinessDocModal?.setAttribute("hidden", "");
+
+        // Reload business documents
+        cachedBusinessDocuments = await fetchBusinessDocuments({ showTrashed: Boolean(businessDocsTrashFilter?.checked) });
+        applyBusinessDocumentFilters();
+      } catch (error) {
+        console.error("Failed to upload business document:", error);
+        setMessage("upload-business-doc-message", error.message || "Upload failed. Please try again.", true);
+      } finally {
+        if (submitButton) submitButton.disabled = false;
+      }
+    });
+  }
+
   // Show loading state
   showTableLoading("documents-table-body", 4);
+  showTableLoading("business-docs-table-body", 5);
 
   try {
+    // Load job documents
     cachedJobs = await fetchJobs();
     populateDocumentFilters(cachedJobs);
-
     cachedDocuments = (await fetchDocuments({ includeTrashed: true })) || [];
     applyDocumentFilters();
 
+    // Load business documents
+    cachedBusinessDocuments = await fetchBusinessDocuments({ showTrashed: false });
+    applyBusinessDocumentFilters();
+
+    // Attach job document filter listeners
     if (docJobFilter) {
       docJobFilter.addEventListener("change", debouncedFilter);
     }
@@ -1550,9 +1758,24 @@ async function initDocumentsPage() {
     if (docTrashFilter) {
       docTrashFilter.addEventListener("change", applyDocumentFilters);
     }
+
+    // Attach business document filter listeners
+    if (businessDocsTrashFilter) {
+      businessDocsTrashFilter.addEventListener("change", async () => {
+        showTableLoading("business-docs-table-body", 5);
+        try {
+          cachedBusinessDocuments = await fetchBusinessDocuments({ showTrashed: Boolean(businessDocsTrashFilter.checked) });
+          applyBusinessDocumentFilters();
+        } catch (error) {
+          console.error("Failed to reload business documents:", error);
+          renderBusinessDocumentsTable([]);
+        }
+      });
+    }
   } catch (error) {
     console.error("Failed to initialize documents page.", error);
     renderDocumentsTable([], []);
+    renderBusinessDocumentsTable([]);
   }
 }
 

@@ -46,10 +46,43 @@
 
     <main class="kh-main" id="main-content">
       <div class="kh-container">
+        <!-- Business Documents Section -->
+        <section class="kh-panel" style="margin-bottom: 2rem;">
+          <div class="kh-panel__header">
+            <div>
+              <div class="kh-panel__title">Business Documents</div>
+              <div class="kh-panel__subtitle">Company-level documents (licenses, permits, insurance, etc.)</div>
+            </div>
+            <div style="display: flex; gap: 1rem; align-items: center;">
+              <label class="kh-toggle">
+                <input type="checkbox" id="business-docs-filter-trashed" />
+                <span>Show trash</span>
+              </label>
+              <button class="kh-button" id="upload-business-doc-button">Upload Document</button>
+            </div>
+          </div>
+          <div class="kh-form-message" id="business-docs-message"></div>
+          <div class="kh-table-wrap">
+            <table class="kh-table">
+              <thead>
+                <tr>
+                  <th>Document</th>
+                  <th>Type</th>
+                  <th>Description</th>
+                  <th>Uploaded</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="business-docs-table-body"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- Job Documents Section -->
         <section class="kh-panel">
           <div class="kh-panel__header">
             <div>
-              <div class="kh-panel__title">Documents</div>
+              <div class="kh-panel__title">Job Documents</div>
               <div class="kh-panel__subtitle">All documents across active jobs.</div>
             </div>
             <div class="kh-filters">
@@ -85,6 +118,47 @@
         <div>Private job management area · Not for public distribution.</div>
       </div>
     </footer>
+
+    <!-- Upload Business Document Modal -->
+    <div class="kh-modal" id="upload-business-doc-modal" hidden>
+      <div class="kh-modal__overlay"></div>
+      <div class="kh-modal__content">
+        <div class="kh-modal__header">
+          <div class="kh-modal__title">Upload Business Document</div>
+          <button class="kh-modal__close" aria-label="Close">&times;</button>
+        </div>
+        <div class="kh-modal__body">
+          <form id="upload-business-doc-form">
+            <div class="kh-field">
+              <label>Document Type</label>
+              <select class="kh-select" name="type" required>
+                <option value="">Select type...</option>
+                <option value="Business License">Business License</option>
+                <option value="Insurance">Insurance</option>
+                <option value="Permit">Permit</option>
+                <option value="Tax Document">Tax Document</option>
+                <option value="Certificate">Certificate</option>
+                <option value="Contract">Contract</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+            <div class="kh-field">
+              <label>Description (Optional)</label>
+              <textarea class="kh-input" name="description" rows="3" placeholder="Add notes about this document..."></textarea>
+            </div>
+            <div class="kh-field">
+              <label>File</label>
+              <input type="file" name="file" required accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" />
+            </div>
+            <div class="kh-form-message" id="upload-business-doc-message"></div>
+            <div style="display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 1.5rem;">
+              <button type="button" class="kh-button kh-button--secondary" id="cancel-business-upload">Cancel</button>
+              <button type="submit" class="kh-button">Upload</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
 
     <script src="config.js"></script>
     <script type="module" src="api.js"></script>

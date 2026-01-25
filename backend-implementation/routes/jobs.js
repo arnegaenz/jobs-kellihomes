@@ -5,7 +5,7 @@
 
 const express = require('express');
 const router = express.Router();
-const { pool } = require('../db');
+const { getPool } = require('../db');
 
 /**
  * GET /jobs
@@ -13,6 +13,7 @@ const { pool } = require('../db');
  */
 router.get('/', async (req, res) => {
   try {
+    const pool = getPool();
     const result = await pool.query(
       `SELECT
         id,
@@ -52,6 +53,7 @@ router.get('/:jobId', async (req, res) => {
   const { jobId } = req.params;
 
   try {
+    const pool = getPool();
     const result = await pool.query(
       `SELECT
         id,
@@ -118,6 +120,7 @@ router.post('/', async (req, res) => {
   }
 
   try {
+    const pool = getPool();
     const result = await pool.query(
       `INSERT INTO jobs (
         name,
@@ -197,6 +200,7 @@ router.put('/:jobId', async (req, res) => {
   } = req.body;
 
   try {
+    const pool = getPool();
     const result = await pool.query(
       `UPDATE jobs SET
         name = COALESCE($1, name),
@@ -237,9 +241,9 @@ router.put('/:jobId', async (req, res) => {
         clientPhone,
         stage,
         type,
-        startDate,
-        targetCompletion,
-        actualCompletion, // Can be null
+        startDate || null,
+        targetCompletion || null,
+        actualCompletion || null,
         primaryContact,
         notes,
         jobId
@@ -269,6 +273,7 @@ router.put('/:jobId', async (req, res) => {
 router.delete('/:jobId', async (req, res) => {
   const { jobId } = req.params;
 
+  const pool = getPool();
   const client = await pool.connect();
 
   try {
