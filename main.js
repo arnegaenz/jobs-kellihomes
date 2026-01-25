@@ -260,6 +260,9 @@ function formatDate(value) {
   });
 }
 
+// Alias for formatDate (used in job overview and line items)
+const formatDateDisplay = formatDate;
+
 function createPill(text, extraClass) {
   const span = document.createElement("span");
   span.className = `kh-pill ${extraClass || ""}`.trim();
