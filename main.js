@@ -173,6 +173,74 @@ const DOCUMENT_TYPES = [
   { value: "Warranty Docs", icon: "warranty" }
 ];
 
+/**
+ * Tab Navigation System
+ * Handles tab switching with URL hash persistence
+ */
+
+function initTabNavigation() {
+  const tabs = document.querySelectorAll('.kh-tab');
+  const tabPanels = document.querySelectorAll('.kh-tab-panel');
+
+  if (!tabs.length || !tabPanels.length) return;
+
+  // Get initial tab from URL hash or default to 'summary'
+  const initialTab = getTabFromHash() || 'summary';
+
+  // Tab click handlers
+  tabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      const tabName = tab.dataset.tab;
+      switchToTab(tabName);
+    });
+  });
+
+  // Handle browser back/forward
+  window.addEventListener('hashchange', () => {
+    const tabName = getTabFromHash();
+    if (tabName) {
+      switchToTab(tabName, false); // false = don't update hash
+    }
+  });
+
+  // Set initial tab
+  switchToTab(initialTab, false);
+}
+
+function switchToTab(tabName, updateHash = true) {
+  const tabs = document.querySelectorAll('.kh-tab');
+  const tabPanels = document.querySelectorAll('.kh-tab-panel');
+
+  // Remove active state from all tabs
+  tabs.forEach(tab => tab.classList.remove('is-active'));
+  tabPanels.forEach(panel => panel.classList.remove('is-active'));
+
+  // Add active state to selected tab
+  const activeTab = document.querySelector(`.kh-tab[data-tab="${tabName}"]`);
+  const activePanel = document.querySelector(`.kh-tab-panel[data-tab-panel="${tabName}"]`);
+
+  if (activeTab && activePanel) {
+    activeTab.classList.add('is-active');
+    activePanel.classList.add('is-active');
+
+    // Update URL hash for persistence
+    if (updateHash) {
+      updateUrlHash(tabName);
+    }
+  }
+}
+
+function getTabFromHash() {
+  const hash = window.location.hash.slice(1); // Remove '#'
+  const validTabs = ['summary', 'details', 'documents'];
+  return validTabs.includes(hash) ? hash : null;
+}
+
+function updateUrlHash(tabName) {
+  const newUrl = `${window.location.pathname}${window.location.search}#${tabName}`;
+  history.replaceState(null, '', newUrl);
+}
+
 function isJobDetailPage() {
   return window.location.pathname.endsWith("job.html");
 }
@@ -781,13 +849,23 @@ function renderLineItems(tbodyId, items = []) {
     varianceCell.innerHTML = `<span class="${varianceClass}">${variance >= 0 ? '+' : ''}$${formatCurrency(variance)}</span>`;
     varianceCell.className = "kh-cell-currency";
 
-    // Schedule (start/end dates)
+    // Schedule (start/end/actual dates)
     const scheduleCell = document.createElement("td");
     const schedule = item.schedule || {};
     scheduleCell.innerHTML = `
       <div class="kh-schedule">
-        <input type="date" value="${schedule.startDate || ''}" data-field="schedule.startDate" placeholder="Start" />
-        <input type="date" value="${schedule.endDate || ''}" data-field="schedule.endDate" placeholder="End" />
+        <label>
+          <span>Start</span>
+          <input type="date" value="${schedule.startDate || ''}" data-field="schedule.startDate" />
+        </label>
+        <label>
+          <span>Scheduled End</span>
+          <input type="date" value="${schedule.endDate || ''}" data-field="schedule.endDate" />
+        </label>
+        <label>
+          <span>Actual End</span>
+          <input type="date" value="${schedule.actualEndDate || ''}" data-field="schedule.actualEndDate" />
+        </label>
       </div>
     `;
 
@@ -995,6 +1073,169 @@ function showBudgetIncreaseModal(code) {
   };
 
   modal.hidden = false;
+}
+
+/**
+ * Render Job Overview Card (Summary Tab)
+ */
+let currentJob = null; // Store current job for reference
+
+function renderJobOverview(job) {
+  currentJob = job; // Store for later use
+
+  // Status
+  const statusEl = document.getElementById('overview-status');
+  if (statusEl) statusEl.textContent = job.status || '—';
+
+  // Dates
+  const startEl = document.getElementById('overview-start');
+  if (startEl) startEl.textContent = formatDateDisplay(job.startDate);
+
+  const targetEl = document.getElementById('overview-target');
+  if (targetEl) targetEl.textContent = formatDateDisplay(job.targetCompletion);
+
+  // Actual completion (only show if completed)
+  const actualEl = document.getElementById('overview-actual');
+  const actualRow = document.getElementById('overview-actual-row');
+  if (actualEl && actualRow) {
+    if (job.actualCompletion) {
+      actualEl.textContent = formatDateDisplay(job.actualCompletion);
+      actualRow.hidden = false;
+    } else {
+      actualEl.textContent = '—';
+      // Hide row if not completed
+      actualRow.hidden = job.status !== 'Completed';
+    }
+  }
+
+  // Client info
+  const clientEl = document.getElementById('overview-client');
+  if (clientEl) clientEl.textContent = job.client || '—';
+
+  const contactEl = document.getElementById('overview-contact');
+  if (contactEl) contactEl.textContent = job.primaryContact || '—';
+
+  // Notes preview
+  const notesPreview = document.getElementById('overview-notes-preview');
+  if (notesPreview) {
+    if (job.notes && job.notes.trim()) {
+      notesPreview.textContent = job.notes.substring(0, 150) + (job.notes.length > 150 ? '...' : '');
+    } else {
+      notesPreview.textContent = 'No notes yet.';
+    }
+  }
+}
+
+/**
+ * Render Financial Snapshot Card (Summary Tab)
+ * Calculated from line items
+ */
+function renderFinancialSnapshot(lineItems = []) {
+  // Calculate totals from line items
+  let originalTotal = 0;
+  let changeOrdersTotal = 0;
+  let actualTotal = 0;
+
+  lineItems.forEach(item => {
+    const original = parseFloat(item.originalBudget) || 0;
+    const increases = (item.budgetHistory || []).reduce((sum, inc) => sum + (parseFloat(inc.amount) || 0), 0);
+    const actual = parseFloat(item.actual) || 0;
+
+    originalTotal += original;
+    changeOrdersTotal += increases;
+    actualTotal += actual;
+  });
+
+  const currentBudget = originalTotal + changeOrdersTotal;
+  const remaining = currentBudget - actualTotal;
+
+  // Populate fields
+  const finOriginal = document.getElementById('fin-original');
+  if (finOriginal) finOriginal.textContent = `$${formatCurrency(originalTotal)}`;
+
+  const finChanges = document.getElementById('fin-changes');
+  if (finChanges) finChanges.textContent = `$${formatCurrency(changeOrdersTotal)}`;
+
+  const finCurrent = document.getElementById('fin-current');
+  if (finCurrent) finCurrent.textContent = `$${formatCurrency(currentBudget)}`;
+
+  const finCosts = document.getElementById('fin-costs');
+  if (finCosts) finCosts.textContent = `$${formatCurrency(actualTotal)}`;
+
+  const finRemaining = document.getElementById('fin-remaining');
+  if (finRemaining) {
+    finRemaining.textContent = `$${formatCurrency(remaining)}`;
+
+    // Color code remaining budget
+    if (remaining < 0) {
+      finRemaining.style.color = 'var(--kh-pill-risk)';
+    } else if (remaining < currentBudget * 0.1) {
+      finRemaining.style.color = 'var(--kh-pill-watch)';
+    } else {
+      finRemaining.style.color = 'var(--kh-pill-ok)';
+    }
+  }
+}
+
+/**
+ * Render Job Schedule Card (Summary Tab)
+ * Shows line items with status and dates
+ */
+function renderJobSchedule(lineItems = []) {
+  const scheduleList = document.getElementById('schedule-list');
+  const emptyState = document.getElementById('schedule-empty');
+
+  if (!scheduleList) return;
+
+  scheduleList.innerHTML = '';
+
+  if (lineItems.length === 0) {
+    if (emptyState) emptyState.hidden = false;
+    return;
+  }
+
+  if (emptyState) emptyState.hidden = true;
+
+  lineItems.forEach(item => {
+    const li = document.createElement('li');
+    li.className = 'kh-schedule-item';
+
+    const status = item.status || 'Not Started';
+    const statusClass = status.toLowerCase().replace(/\s+/g, '-');
+
+    const schedule = item.schedule || {};
+    const scheduledDate = schedule.endDate ? formatDateDisplay(schedule.endDate) : '—';
+    const actualDate = schedule.actualEndDate ? formatDateDisplay(schedule.actualEndDate) : null;
+
+    const datesHtml = actualDate
+      ? `Scheduled: ${scheduledDate}<br><span class="kh-schedule-item__date-actual">Actual: ${actualDate}</span>`
+      : `Scheduled: ${scheduledDate}`;
+
+    li.innerHTML = `
+      <div class="kh-schedule-item__name">${item.name}</div>
+      <span class="kh-schedule-item__status kh-schedule-item__status--${statusClass}">${status}</span>
+      <div class="kh-schedule-item__dates">${datesHtml}</div>
+    `;
+
+    scheduleList.appendChild(li);
+  });
+}
+
+/**
+ * Initialize Job Notes Modal
+ */
+function initJobNotesModal() {
+  const viewNotesBtn = document.getElementById('view-job-notes');
+
+  if (viewNotesBtn) {
+    viewNotesBtn.addEventListener('click', () => {
+      if (currentJob && currentJob.notes) {
+        alert(currentJob.notes);
+      } else {
+        alert('No notes yet.');
+      }
+    });
+  }
 }
 
 async function initDashboardPage() {
@@ -1226,8 +1467,10 @@ function fillEditForm(job) {
   form.status.value = job.status || "";
   form.startDate.value = job.startDate || "";
   form.targetCompletion.value = job.targetCompletion || "";
+  form.actualCompletion.value = job.actualCompletion || "";
   form.primaryContact.value = job.primaryContact || "";
   form.health.value = job.health || "On Track";
+  form.notes.value = job.notes || "";
 }
 
 async function loadDocuments(jobId) {
@@ -1298,6 +1541,10 @@ async function initJobDetailPage() {
     showJobNotFound();
     return;
   }
+
+  // Initialize tab navigation
+  initTabNavigation();
+  initJobNotesModal();
 
   const editPanel = document.getElementById("edit-job-panel");
   const editButton = document.getElementById("edit-job-button");
@@ -1400,6 +1647,10 @@ async function initJobDetailPage() {
         await saveJobLineItems(jobId, lineItems);
         setMessage("line-items-message", "Line items saved.");
         resetButton(saveLineItemsButton);
+
+        // Update Summary tab cards with new line items data
+        renderFinancialSnapshot(lineItems);
+        renderJobSchedule(lineItems);
       } catch (error) {
         handleError(error, "line-items-message", "Unable to save line items");
         resetButton(saveLineItemsButton);
@@ -1507,13 +1758,25 @@ async function initJobDetailPage() {
       renderJobDetail(job);
       fillEditForm(job);
 
+      // NEW: Render Summary tab cards
+      renderJobOverview(job);
+
       try {
         showTableLoading("line-items-body", 6);
         const lineItems = await fetchJobLineItems(jobId);
         renderLineItems("line-items-body", lineItems || []);
+
+        // NEW: Render Summary tab cards with line items data
+        renderFinancialSnapshot(lineItems || []);
+        renderJobSchedule(lineItems || []);
       } catch (error) {
         console.error("Failed to load line items.", error);
         renderLineItems("line-items-body", []);
+
+        // NEW: Render Summary tab cards with empty data
+        renderFinancialSnapshot([]);
+        renderJobSchedule([]);
+
         setMessage("line-items-message", "Unable to load line items.", true);
       }
 

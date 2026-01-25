@@ -12,6 +12,82 @@
   --kh-shadow-soft: 0 6px 18px rgba(0, 0, 0, 0.06);
 }
 
+/* Tab Navigation System */
+.kh-tabs {
+  margin-top: 24px;
+  margin-bottom: 32px;
+}
+
+.kh-tabs__nav {
+  display: flex;
+  gap: 8px;
+  border-bottom: 2px solid var(--kh-border);
+  padding: 0;
+}
+
+.kh-tab {
+  background: none;
+  border: none;
+  padding: 12px 24px;
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--kh-text-muted);
+  cursor: pointer;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -2px;
+  transition: color 0.2s ease, border-color 0.2s ease;
+}
+
+.kh-tab:hover {
+  color: var(--kh-text);
+  background: var(--kh-bg-soft);
+}
+
+.kh-tab.is-active {
+  color: var(--kh-accent);
+  border-bottom-color: var(--kh-accent);
+}
+
+.kh-tabs__content {
+  margin-top: 32px;
+}
+
+.kh-tab-panel {
+  display: none;
+}
+
+.kh-tab-panel.is-active {
+  display: block;
+}
+
+.kh-tab-panel--grid {
+  display: none;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 24px;
+}
+
+.kh-tab-panel--grid.is-active {
+  display: grid;
+}
+
+/* Responsive behavior */
+@media (max-width: 960px) {
+  .kh-tab-panel--grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .kh-tabs__nav {
+    gap: 4px;
+  }
+
+  .kh-tab {
+    padding: 10px 16px;
+    font-size: 14px;
+  }
+}
+
 * {
   box-sizing: border-box;
   margin: 0;
@@ -1035,4 +1111,118 @@ html {
     font-size: 0.875rem;
     padding: 0.375rem 0.5rem;
   }
+}
+
+/* Job Schedule List */
+.kh-schedule-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.kh-schedule-item {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--kh-border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+
+.kh-schedule-item:last-child {
+  border-bottom: none;
+}
+
+.kh-schedule-item__name {
+  font-weight: 500;
+  color: var(--kh-text);
+  flex: 1;
+}
+
+.kh-schedule-item__status {
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.kh-schedule-item__status--not-started {
+  background: #f0f0f0;
+  color: var(--kh-text-muted);
+}
+
+.kh-schedule-item__status--in-progress {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.kh-schedule-item__status--complete {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.kh-schedule-item__dates {
+  font-size: 14px;
+  color: var(--kh-text-muted);
+  text-align: right;
+}
+
+.kh-schedule-item__date-actual {
+  color: var(--kh-pill-ok);
+  font-weight: 500;
+}
+
+/* Panel Section (for grouped content within panels) */
+.kh-panel__section {
+  margin-top: 24px;
+  padding-top: 24px;
+  border-top: 1px solid var(--kh-border);
+}
+
+.kh-panel__section-title {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--kh-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 12px;
+}
+
+.kh-notes-preview {
+  background: var(--kh-bg-soft);
+  padding: 12px;
+  border-radius: 6px;
+  font-size: 14px;
+  color: var(--kh-text-muted);
+  max-height: 100px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 8px;
+  white-space: pre-wrap;
+}
+
+/* Schedule cell styling for Details tab */
+.kh-schedule {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.kh-schedule label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.kh-schedule label span {
+  font-size: 12px;
+  color: var(--kh-text-muted);
+  font-weight: 500;
+}
+
+.kh-schedule input[type="date"] {
+  font-size: 13px;
+  padding: 4px 8px;
+  border: 1px solid var(--kh-border);
+  border-radius: 4px;
 }

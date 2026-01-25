@@ -133,6 +133,10 @@
                 <input class="kh-input" type="date" name="targetCompletion" />
               </label>
               <label class="kh-field">
+                <span>Actual completion</span>
+                <input class="kh-input" type="date" name="actualCompletion" />
+              </label>
+              <label class="kh-field">
                 <span>Primary contact</span>
                 <input class="kh-input" name="primaryContact" />
               </label>
@@ -144,6 +148,10 @@
                   <option>At Risk</option>
                 </select>
               </label>
+              <label class="kh-field" style="grid-column: 1 / -1;">
+                <span>Job Notes</span>
+                <textarea class="kh-input" name="notes" rows="4" placeholder="Overall job notes..."></textarea>
+              </label>
             </div>
             <div class="kh-form-actions">
               <button class="kh-button" type="submit">Save changes</button>
@@ -152,40 +160,70 @@
           </form>
         </section>
 
-        <section class="kh-grid">
-          <div>
-            <div class="kh-panel">
-              <div class="kh-panel__title">At a glance</div>
-              <div class="kh-panel__list">
-                <div class="kh-panel__list-item"><span>Status</span><strong id="glance-status">—</strong></div>
-                <div class="kh-panel__list-item"><span>Phase</span><strong id="glance-phase">—</strong></div>
-                <div class="kh-panel__list-item"><span>Start Date</span><strong id="glance-start">—</strong></div>
-                <div class="kh-panel__list-item"><span>Target Completion</span><strong id="glance-target">—</strong></div>
-                <div class="kh-panel__list-item"><span>Client</span><strong id="glance-client">—</strong></div>
-                <div class="kh-panel__list-item"><span>Client Email</span><strong id="glance-email">—</strong></div>
-                <div class="kh-panel__list-item"><span>Client Phone</span><strong id="glance-phone">—</strong></div>
-                <div class="kh-panel__list-item"><span>Primary Contact</span><strong id="glance-contact">—</strong></div>
-              </div>
-            </div>
+        <!-- Tab Navigation -->
+        <section class="kh-tabs">
+          <div class="kh-tabs__nav">
+            <button class="kh-tab is-active" data-tab="summary">Summary</button>
+            <button class="kh-tab" data-tab="details">Details</button>
+            <button class="kh-tab" data-tab="documents">Documents</button>
+          </div>
+        </section>
 
-            <div class="kh-panel">
-              <div class="kh-panel__title">Financial snapshot</div>
-              <div class="kh-panel__list">
-                <div class="kh-panel__list-item"><span>Contract Value (RCV)</span><strong id="fin-contract">—</strong></div>
-                <div class="kh-panel__list-item"><span>Approved Supplements</span><strong id="fin-supplements">—</strong></div>
-                <div class="kh-panel__list-item"><span>Costs to Date</span><strong id="fin-costs">—</strong></div>
-                <div class="kh-panel__list-item"><span>Projected Gross Margin</span>
-                  <strong>
-                    <span id="fin-margin">—</span>
-                    <span id="fin-margin-status" class="kh-pill kh-pill--ok">On Track</span>
-                  </strong>
+        <!-- Tab Content -->
+        <div class="kh-tabs__content">
+          <!-- Summary Tab -->
+          <div class="kh-tab-panel kh-tab-panel--grid is-active" data-tab-panel="summary">
+            <div>
+              <!-- Job Overview Card -->
+              <div class="kh-panel">
+                <div class="kh-panel__title">Job Overview</div>
+                <div class="kh-panel__list">
+                  <div class="kh-panel__list-item"><span>Status</span><strong id="overview-status">—</strong></div>
+                  <div class="kh-panel__list-item"><span>Start Date</span><strong id="overview-start">—</strong></div>
+                  <div class="kh-panel__list-item"><span>Target Completion</span><strong id="overview-target">—</strong></div>
+                  <div class="kh-panel__list-item" id="overview-actual-row" hidden><span>Actual Completion</span><strong id="overview-actual">—</strong></div>
+                  <div class="kh-panel__list-item"><span>Client</span><strong id="overview-client">—</strong></div>
+                  <div class="kh-panel__list-item"><span>Primary Contact</span><strong id="overview-contact">—</strong></div>
+                </div>
+
+                <!-- Overall Job Notes Section -->
+                <div class="kh-panel__section">
+                  <div class="kh-panel__section-title">Notes</div>
+                  <div id="overview-notes-preview" class="kh-notes-preview">No notes yet.</div>
+                  <button class="kh-link" id="view-job-notes">View details</button>
                 </div>
               </div>
-              <div class="kh-note">
-                High-level figures only. Detailed job costing remains in QuickBooks.
+
+              <!-- Financial Snapshot Card -->
+              <div class="kh-panel">
+                <div class="kh-panel__title">Financial Snapshot</div>
+                <div class="kh-panel__list">
+                  <div class="kh-panel__list-item"><span>Original Estimate</span><strong id="fin-original">—</strong></div>
+                  <div class="kh-panel__list-item"><span>Change Orders</span><strong id="fin-changes">—</strong></div>
+                  <div class="kh-panel__list-item"><span>Current Budget</span><strong id="fin-current">—</strong></div>
+                  <div class="kh-panel__list-item"><span>Costs to Date</span><strong id="fin-costs">—</strong></div>
+                  <div class="kh-panel__list-item"><span>Remaining Budget</span><strong id="fin-remaining">—</strong></div>
+                </div>
+                <div class="kh-note">
+                  Budget calculated from line items. Track detailed costs in line items table.
+                </div>
               </div>
             </div>
 
+            <div>
+              <!-- Job Schedule Card -->
+              <div class="kh-panel">
+                <div class="kh-panel__title">Job Schedule</div>
+                <div id="schedule-empty" class="kh-empty-state" hidden>
+                  <p>No line items yet. Add line items to track schedule.</p>
+                </div>
+                <ul class="kh-schedule-list" id="schedule-list"></ul>
+              </div>
+            </div>
+          </div>
+
+          <!-- Details Tab -->
+          <div class="kh-tab-panel" data-tab-panel="details">
             <div class="kh-panel">
               <div class="kh-panel__title">
                 Line Items & Job Costing
@@ -223,60 +261,10 @@
                 <div class="kh-form-message" id="line-items-message"></div>
               </div>
             </div>
-
-            <!-- Add Line Item Modal -->
-            <div id="add-line-item-modal" class="kh-modal" hidden>
-              <div class="kh-modal__content">
-                <div class="kh-modal__header">
-                  <h3>Add Line Item</h3>
-                  <button class="kh-modal__close" id="close-add-line-item">&times;</button>
-                </div>
-                <div class="kh-modal__body">
-                  <input type="text" id="line-item-search" class="kh-input" placeholder="Search line items..." />
-                  <div id="line-item-catalog-list" class="kh-catalog-list"></div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Budget Increase Modal -->
-            <div id="budget-increase-modal" class="kh-modal" hidden>
-              <div class="kh-modal__content">
-                <div class="kh-modal__header">
-                  <h3>Add Budget Increase</h3>
-                  <button class="kh-modal__close" id="close-budget-increase">&times;</button>
-                </div>
-                <div class="kh-modal__body">
-                  <label class="kh-label">
-                    <span>Increase Amount</span>
-                    <input type="number" id="budget-increase-amount" class="kh-input" placeholder="0.00" step="0.01" />
-                  </label>
-                  <label class="kh-label">
-                    <span>Reason for Increase</span>
-                    <textarea id="budget-increase-reason" class="kh-input" placeholder="Why is the budget increasing?"></textarea>
-                  </label>
-                  <div class="kh-form-actions">
-                    <button class="kh-button" id="save-budget-increase">Add Increase</button>
-                  </div>
-                </div>
-              </div>
-            </div>
           </div>
 
-          <div>
-            <div class="kh-panel">
-              <div class="kh-panel__title">Milestones</div>
-              <ul class="kh-milestones" id="milestones-list"></ul>
-            </div>
-
-            <div class="kh-panel">
-              <div class="kh-panel__title">Notes</div>
-              <p class="kh-note">
-                Capture change orders, customer check-ins, and internal reminders. Notes stay private
-                to the job team.
-              </p>
-              <button class="kh-button kh-button--ghost" type="button">Add Note</button>
-            </div>
-
+          <!-- Documents Tab -->
+          <div class="kh-tab-panel" data-tab-panel="documents">
             <div class="kh-panel">
               <div class="kh-panel__title">Documents</div>
               <ul class="kh-documents" id="documents-list"></ul>
@@ -294,7 +282,44 @@
               </div>
             </div>
           </div>
-        </section>
+        </div>
+
+        <!-- Add Line Item Modal -->
+        <div id="add-line-item-modal" class="kh-modal" hidden>
+          <div class="kh-modal__content">
+            <div class="kh-modal__header">
+              <h3>Add Line Item</h3>
+              <button class="kh-modal__close" id="close-add-line-item">&times;</button>
+            </div>
+            <div class="kh-modal__body">
+              <input type="text" id="line-item-search" class="kh-input" placeholder="Search line items..." />
+              <div id="line-item-catalog-list" class="kh-catalog-list"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Budget Increase Modal -->
+        <div id="budget-increase-modal" class="kh-modal" hidden>
+          <div class="kh-modal__content">
+            <div class="kh-modal__header">
+              <h3>Add Budget Increase</h3>
+              <button class="kh-modal__close" id="close-budget-increase">&times;</button>
+            </div>
+            <div class="kh-modal__body">
+              <label class="kh-label">
+                <span>Increase Amount</span>
+                <input type="number" id="budget-increase-amount" class="kh-input" placeholder="0.00" step="0.01" />
+              </label>
+              <label class="kh-label">
+                <span>Reason for Increase</span>
+                <textarea id="budget-increase-reason" class="kh-input" placeholder="Why is the budget increasing?"></textarea>
+              </label>
+              <div class="kh-form-actions">
+                <button class="kh-button" id="save-budget-increase">Add Increase</button>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </main>
 
