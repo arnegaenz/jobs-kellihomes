@@ -1210,9 +1210,9 @@ let currentJob = null; // Store current job for reference
 function renderJobOverview(job) {
   currentJob = job; // Store for later use
 
-  // Status
+  // Stage (replaces status)
   const statusEl = document.getElementById('overview-status');
-  if (statusEl) statusEl.textContent = job.status || '—';
+  if (statusEl) statusEl.textContent = job.stage || '—';
 
   // Dates
   const startEl = document.getElementById('overview-start');
@@ -1230,8 +1230,8 @@ function renderJobOverview(job) {
       actualRow.hidden = false;
     } else {
       actualEl.textContent = '—';
-      // Hide row if not completed
-      actualRow.hidden = job.status !== 'Completed';
+      // Hide row if not in closed stage
+      actualRow.hidden = job.stage?.toLowerCase() !== 'closed';
     }
   }
 
@@ -1561,8 +1561,6 @@ function renderJobDetail(job) {
     stagePill.className = `kh-pill ${stageClass(job.stage)}`;
   }
 
-  setText("glance-status", job.status);
-  setText("glance-phase", job.phase);
   setText("glance-start", formatDate(job.startDate));
   setText("glance-target", formatDate(job.targetCompletion));
   setText("glance-client", job.client);
@@ -1617,12 +1615,10 @@ function fillEditForm(job) {
   form.clientPhone.value = formatPhoneDisplay(job.clientPhone);
   form.stage.value = job.stage || "Preconstruction";
   form.type.value = job.type || "";
-  form.status.value = job.status || "";
   form.startDate.value = job.startDate || "";
   form.targetCompletion.value = job.targetCompletion || "";
   form.actualCompletion.value = job.actualCompletion || "";
   form.primaryContact.value = job.primaryContact || "";
-  form.health.value = job.health || "On Track";
   form.notes.value = job.notes || "";
 }
 
