@@ -582,16 +582,13 @@ function renderSummary(jobs) {
   const precon = jobs.filter((job) =>
     ["preconstruction", "permitting"].includes(String(job.stage).toLowerCase())
   ).length;
-  const currentYear = new Date().getFullYear();
-  const closedThisYear = jobs.filter((job) => {
-    if (String(job.stage).toLowerCase() !== "closed") return false;
-    const completion = new Date(job.targetCompletion);
-    return completion.getFullYear() === currentYear;
-  }).length;
+  const closed = jobs.filter((job) =>
+    String(job.stage).toLowerCase() === "closed"
+  ).length;
 
   setText("summary-active", String(active));
   setText("summary-precon", String(precon));
-  setText("summary-closed", String(closedThisYear));
+  setText("summary-closed", String(closed));
 }
 
 function showTableLoading(tableBodyId, colspan = 7) {
