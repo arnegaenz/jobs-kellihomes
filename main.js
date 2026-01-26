@@ -1415,8 +1415,52 @@ function wireLineItemActions(tableBody) {
 }
 
 /**
+ * Debounced auto-save for line items
+ * Saves after 1 second of no changes to avoid excessive API calls
+ */
+let autoSaveTimeout = null;
+function triggerLineItemAutoSave() {
+  // Clear any pending save
+  if (autoSaveTimeout) {
+    clearTimeout(autoSaveTimeout);
+  }
+
+  // Show saving indicator
+  setMessage("line-items-message", "Saving...");
+
+  // Debounce: wait 1 second before actually saving
+  autoSaveTimeout = setTimeout(async () => {
+    const params = new URLSearchParams(window.location.search);
+    const jobId = params.get("jobId");
+    if (!jobId) return;
+
+    // Collect current data from tables
+    const lineItems = collectLineItemsFromTwoTables();
+    currentLineItems = lineItems;
+
+    try {
+      await saveJobLineItems(jobId, lineItems);
+      setMessage("line-items-message", "Saved.");
+
+      // Update Summary tab cards
+      renderFinancialSnapshot(lineItems);
+      renderJobSchedule(lineItems);
+      renderLineItemsSummary(lineItems);
+
+      // Clear message after 2 seconds
+      setTimeout(() => {
+        setMessage("line-items-message", "");
+      }, 2000);
+    } catch (error) {
+      console.error('Auto-save failed:', error);
+      setMessage("line-items-message", "Save failed. Please try again.", true);
+    }
+  }, 1000);
+}
+
+/**
  * Attach event listeners for the two-table line items view
- * Handles delete-line-item and add-increase actions
+ * Handles delete-line-item, add-increase actions, and auto-save on input changes
  */
 function attachLineItemEventListeners(tbodyId) {
   const tableBody = document.getElementById(tbodyId);
@@ -1424,7 +1468,7 @@ function attachLineItemEventListeners(tbodyId) {
 
   // Delete line item buttons
   tableBody.querySelectorAll('[data-action="delete-line-item"]').forEach(btn => {
-    btn.addEventListener('click', (e) => {
+    btn.addEventListener('click', async (e) => {
       const code = e.target.dataset.code;
       const item = currentLineItems.find(i => i.code === code);
       const itemName = item ? item.name : 'this item';
@@ -1432,6 +1476,8 @@ function attachLineItemEventListeners(tbodyId) {
         currentLineItems = currentLineItems.filter(item => item.code !== code);
         renderLineItemsTwoTables(currentLineItems);
         updateDeleteAllButtonVisibility();
+        // Auto-save after delete
+        triggerLineItemAutoSave();
       }
     });
   });
@@ -1441,6 +1487,13 @@ function attachLineItemEventListeners(tbodyId) {
     btn.addEventListener('click', (e) => {
       const code = e.target.dataset.code;
       showBudgetIncreaseModal(code);
+    });
+  });
+
+  // Auto-save on any input change
+  tableBody.querySelectorAll('input, select, textarea').forEach(input => {
+    input.addEventListener('change', () => {
+      triggerLineItemAutoSave();
     });
   });
 }
@@ -1458,13 +1511,15 @@ function updateDeleteAllButtonVisibility() {
 /**
  * Delete all line items
  */
-function deleteAllLineItems() {
+async function deleteAllLineItems() {
   if (currentLineItems.length === 0) return;
 
   if (confirm(`Delete all ${currentLineItems.length} line items? This cannot be undone.`)) {
     currentLineItems = [];
     renderLineItemsTwoTables(currentLineItems);
     updateDeleteAllButtonVisibility();
+    // Auto-save after delete all
+    triggerLineItemAutoSave();
   }
 }
 
@@ -1785,6 +1840,8 @@ function addLineItem(code) {
   currentLineItems.push(newItem);
   renderLineItemsTwoTables(currentLineItems);
   updateDeleteAllButtonVisibility();
+  // Auto-save after adding new item
+  triggerLineItemAutoSave();
 }
 
 // Modal handling for budget increases
@@ -1824,6 +1881,8 @@ function showBudgetIncreaseModal(code) {
         reason: reason
       });
       renderLineItemsTwoTables(currentLineItems);
+      // Auto-save after budget increase
+      triggerLineItemAutoSave();
     }
 
     modal.hidden = true;
@@ -2437,7 +2496,6 @@ async function initJobDetailPage() {
   const editCancel = document.getElementById("edit-job-cancel");
   const editForm = document.getElementById("job-edit-form");
   const deleteButton = document.getElementById("delete-job-button");
-  const saveLineItemsButton = document.getElementById("save-line-items");
   populateDocumentTypeSelect();
 
   if (editButton && editPanel) {
@@ -2524,33 +2582,6 @@ async function initJobDetailPage() {
       } catch (error) {
         handleError(error, "edit-job-message", "Failed to update job");
         resetButton(submitButton);
-      }
-    });
-  }
-
-  if (saveLineItemsButton) {
-    saveLineItemsButton.addEventListener("click", async () => {
-      setButtonLoading(saveLineItemsButton, "Saving...");
-      setMessage("line-items-message", "Saving line items...");
-
-      // Collect from both tables
-      const lineItems = collectLineItemsFromTwoTables();
-      currentLineItems = lineItems; // Update the global state
-
-      try {
-        await saveJobLineItems(jobId, lineItems);
-        setMessage("line-items-message", "Line items saved.");
-        resetButton(saveLineItemsButton);
-
-        // Update Summary tab cards with new line items data
-        renderFinancialSnapshot(lineItems);
-        renderJobSchedule(lineItems);
-
-        // Update the Line Items tab summary stats
-        renderLineItemsSummary(lineItems);
-      } catch (error) {
-        handleError(error, "line-items-message", "Unable to save line items");
-        resetButton(saveLineItemsButton);
       }
     });
   }
