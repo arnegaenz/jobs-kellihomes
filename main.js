@@ -301,6 +301,7 @@ const LINE_ITEM_CATALOG = [
 const LINE_ITEM_STATUSES = ["Not Started", "In Progress", "Complete", "On Hold"];
 
 const DOCUMENT_TYPES = [
+  { value: "Miscellaneous", icon: "file" },
   { value: "Approved Planset", icon: "blueprint" },
   { value: "Cabinet Plans", icon: "blueprint" },
   { value: "Permit", icon: "stamp" },
@@ -614,10 +615,6 @@ function populateDocumentTypeSelect() {
   if (!select) return;
 
   select.innerHTML = "";
-  const placeholder = document.createElement("option");
-  placeholder.value = "";
-  placeholder.textContent = "Select document type";
-  select.appendChild(placeholder);
 
   DOCUMENT_TYPES.forEach((type) => {
     const option = document.createElement("option");
@@ -625,6 +622,9 @@ function populateDocumentTypeSelect() {
     option.textContent = type.value;
     select.appendChild(option);
   });
+
+  // Default to Miscellaneous
+  select.value = "Miscellaneous";
 }
 
 async function updateSignedInUser() {
@@ -2656,12 +2656,8 @@ async function initJobDetailPage() {
     uploadInput.addEventListener("change", async (event) => {
       const file = event.target.files[0];
       if (!file) return;
-      const documentType = documentTypeSelect?.value || "";
-      if (!documentType) {
-        setMessage("documents-message", "Select a document type first.", true);
-        uploadInput.value = "";
-        return;
-      }
+      // Default to Miscellaneous if nothing selected
+      const documentType = documentTypeSelect?.value || "Miscellaneous";
 
       // Disable upload input during upload
       uploadInput.disabled = true;
@@ -2679,8 +2675,9 @@ async function initJobDetailPage() {
         });
         setMessage("documents-message", "Document uploaded.");
         uploadInput.value = "";
+        // Reset to Miscellaneous after upload
         if (documentTypeSelect) {
-          documentTypeSelect.value = "";
+          documentTypeSelect.value = "Miscellaneous";
         }
         await loadDocuments(jobId);
       } catch (error) {
