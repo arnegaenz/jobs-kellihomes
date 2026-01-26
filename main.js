@@ -1210,14 +1210,20 @@ function renderLineItemsSchedule(tbodyId, items = []) {
       </div>
     `;
 
-    // Schedule (start/end/actual dates) - compact inline layout
+    // Schedule (estimated and actual start/end dates) - compact grid layout
     const scheduleCell = document.createElement("td");
     const schedule = item.schedule || {};
     scheduleCell.innerHTML = `
-      <div class="kh-schedule-inline">
-        <span class="kh-schedule-field"><span class="kh-schedule-label">Start</span><input type="date" value="${schedule.startDate || ''}" data-field="schedule.startDate" /></span>
-        <span class="kh-schedule-field"><span class="kh-schedule-label">End</span><input type="date" value="${schedule.endDate || ''}" data-field="schedule.endDate" /></span>
-        <span class="kh-schedule-field"><span class="kh-schedule-label">Actual</span><input type="date" value="${schedule.actualEndDate || ''}" data-field="schedule.actualEndDate" /></span>
+      <div class="kh-schedule-grid">
+        <span></span>
+        <span class="kh-schedule-col-label">Start</span>
+        <span class="kh-schedule-col-label">End</span>
+        <span class="kh-schedule-row-label">Est.</span>
+        <input type="date" value="${schedule.startDate || ''}" data-field="schedule.startDate" title="Estimated Start" />
+        <input type="date" value="${schedule.endDate || ''}" data-field="schedule.endDate" title="Estimated End" />
+        <span class="kh-schedule-row-label">Act.</span>
+        <input type="date" value="${schedule.actualStartDate || ''}" data-field="schedule.actualStartDate" title="Actual Start" />
+        <input type="date" value="${schedule.actualEndDate || ''}" data-field="schedule.actualEndDate" title="Actual End" />
       </div>
     `;
 
@@ -1526,7 +1532,7 @@ function parseQuickBooksCSV(csvText) {
       currentBudget: estCost,
       actual: actCost,
       variance: estCost - actCost,
-      schedule: { startDate: null, endDate: null },
+      schedule: { startDate: null, endDate: null, actualStartDate: null, actualEndDate: null },
       notes: '',
       status: 'Not Started',
       vendor: ''
@@ -1686,8 +1692,9 @@ function collectLineItemsFromTwoTables() {
 
     const startDate = row.querySelector('[data-field="schedule.startDate"]')?.value || null;
     const endDate = row.querySelector('[data-field="schedule.endDate"]')?.value || null;
+    const actualStartDate = row.querySelector('[data-field="schedule.actualStartDate"]')?.value || null;
     const actualEndDate = row.querySelector('[data-field="schedule.actualEndDate"]')?.value || null;
-    item.schedule = { startDate, endDate, actualEndDate };
+    item.schedule = { startDate, endDate, actualStartDate, actualEndDate };
   });
 
   return Array.from(itemsMap.values());
@@ -1749,7 +1756,7 @@ function addLineItem(code) {
     currentBudget: 0,
     actual: 0,
     variance: 0,
-    schedule: { startDate: null, endDate: null },
+    schedule: { startDate: null, endDate: null, actualStartDate: null, actualEndDate: null },
     notes: '',
     status: 'Not Started',
     vendor: ''

@@ -5,7 +5,7 @@
 
 const express = require('express');
 const router = express.Router({ mergeParams: true }); // mergeParams to access :jobId
-const { pool } = require('../db');
+const { getPool } = require('../db');
 
 /**
  * GET /jobs/:jobId/line-items
@@ -15,6 +15,7 @@ router.get('/', async (req, res) => {
   const { jobId } = req.params;
 
   try {
+    const pool = getPool();
     const result = await pool.query(
       `SELECT
         code,
@@ -33,19 +34,30 @@ router.get('/', async (req, res) => {
     );
 
     // Transform database rows to frontend format
-    const lineItems = result.rows.map(row => ({
-      code: row.code,
-      name: row.name,
-      originalBudget: row.budget || 0,
-      budgetHistory: row.budget_history || [],
-      currentBudget: calculateCurrentBudget(row.budget, row.budget_history),
-      actual: row.actual || 0,
-      variance: calculateVariance(row.budget, row.budget_history, row.actual),
-      schedule: row.schedule || { startDate: null, endDate: null },
-      notes: row.notes || '',
-      status: row.status || 'Not Started',
-      vendor: row.vendor || ''
-    }));
+    const lineItems = result.rows.map(row => {
+      // budget_history stores the original budget and all increases
+      // First entry (if exists) with type 'original' is the original budget
+      // Or we calculate original by subtracting increases from current budget
+      const budgetHistory = row.budget_history || [];
+      const totalIncreases = budgetHistory.reduce((sum, inc) => sum + (parseFloat(inc.amount) || 0), 0);
+      const storedBudget = parseFloat(row.budget) || 0;
+      // Original budget = stored budget - increases (since we store currentBudget)
+      const originalBudget = storedBudget - totalIncreases;
+
+      return {
+        code: row.code,
+        name: row.name,
+        originalBudget: originalBudget,
+        budgetHistory: budgetHistory,
+        currentBudget: storedBudget,
+        actual: row.actual || 0,
+        variance: storedBudget - (parseFloat(row.actual) || 0),
+        schedule: row.schedule || { startDate: null, endDate: null, actualStartDate: null, actualEndDate: null },
+        notes: row.notes || '',
+        status: row.status || 'Not Started',
+        vendor: row.vendor || ''
+      };
+    });
 
     res.json(lineItems);
   } catch (error) {
@@ -72,6 +84,7 @@ router.put('/', async (req, res) => {
     });
   }
 
+  const pool = getPool();
   const client = await pool.connect();
 
   try {
@@ -109,7 +122,7 @@ router.put('/', async (req, res) => {
             currentBudget, // Store calculated current budget
             parseFloat(item.actual) || 0,
             JSON.stringify(item.budgetHistory || []),
-            JSON.stringify(item.schedule || { startDate: null, endDate: null }),
+            JSON.stringify(item.schedule || { startDate: null, endDate: null, actualStartDate: null, actualEndDate: null }),
             item.notes || '',
             item.status || 'Not Started',
             item.vendor || ''
@@ -137,26 +150,5 @@ router.put('/', async (req, res) => {
     client.release();
   }
 });
-
-/**
- * Helper: Calculate current budget (original + sum of increases)
- */
-function calculateCurrentBudget(originalBudget, budgetHistory) {
-  const original = parseFloat(originalBudget) || 0;
-  const increases = Array.isArray(budgetHistory)
-    ? budgetHistory.reduce((sum, inc) => sum + (parseFloat(inc.amount) || 0), 0)
-    : 0;
-  return original + increases;
-}
-
-/**
- * Helper: Calculate variance (currentBudget - actual)
- * Positive = under budget, Negative = over budget
- */
-function calculateVariance(originalBudget, budgetHistory, actual) {
-  const currentBudget = calculateCurrentBudget(originalBudget, budgetHistory);
-  const actualCost = parseFloat(actual) || 0;
-  return currentBudget - actualCost;
-}
 
 module.exports = router;
