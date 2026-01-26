@@ -201,7 +201,18 @@ router.post('/upload', async (req, res) => {
   try {
     const { jobId, filename, contentType, size, documentType } = req.body;
 
+    logger.info('Document upload request received', {
+      jobId,
+      filename,
+      contentType,
+      size,
+      documentType,
+      hasS3Bucket: !!S3_BUCKET,
+      hasAwsRegion: !!process.env.AWS_REGION
+    });
+
     if (!jobId || !filename || !documentType) {
+      logger.warn('Missing required fields for document upload', { jobId, filename, documentType });
       return res.status(400).json({ error: 'Job ID, filename, and document type are required' });
     }
 
@@ -231,13 +242,32 @@ router.post('/upload', async (req, res) => {
     const uploadUrl = await getSignedUrl(s3Client, uploadCommand, { expiresIn: 3600 });
 
     // Save document record to database
-    const result = await pool.query(
-      `INSERT INTO documents (job_id, storage_key, name, document_type, size, uploaded_by)
-       VALUES ($1, $2, $3, $4, $5, $6)
-       RETURNING id, job_id AS "jobId", storage_key AS "storageKey", name, document_type AS "documentType",
-                 size, created_at AS "createdAt"`,
-      [jobId, storageKey, filename, documentType, size, req.user.username]
-    );
+    // Note: uploaded_by column may not exist in older schemas, so we try with it first
+    // and fall back to without it if needed
+    let result;
+    try {
+      result = await pool.query(
+        `INSERT INTO documents (job_id, storage_key, name, document_type, size, uploaded_by)
+         VALUES ($1, $2, $3, $4, $5, $6)
+         RETURNING id, job_id AS "jobId", storage_key AS "storageKey", name, document_type AS "documentType",
+                   size, created_at AS "createdAt"`,
+        [jobId, storageKey, filename, documentType, size, req.user.username]
+      );
+    } catch (dbError) {
+      // If uploaded_by column doesn't exist, try without it
+      if (dbError.code === '42703') { // undefined_column error
+        logger.warn('uploaded_by column not found, inserting without it');
+        result = await pool.query(
+          `INSERT INTO documents (job_id, storage_key, name, document_type, size)
+           VALUES ($1, $2, $3, $4, $5)
+           RETURNING id, job_id AS "jobId", storage_key AS "storageKey", name, document_type AS "documentType",
+                     size, created_at AS "createdAt"`,
+          [jobId, storageKey, filename, documentType, size]
+        );
+      } else {
+        throw dbError;
+      }
+    }
 
     const doc = result.rows[0];
 
@@ -254,8 +284,12 @@ router.post('/upload', async (req, res) => {
       document: doc
     });
   } catch (error) {
-    logger.error('Error initiating document upload', { error: error.message });
-    res.status(500).json({ error: 'Failed to initiate document upload' });
+    logger.error('Error initiating document upload', {
+      error: error.message,
+      stack: error.stack,
+      code: error.code
+    });
+    res.status(500).json({ error: 'Failed to initiate document upload', details: error.message });
   }
 });
 

@@ -501,6 +501,12 @@ select.kh-input--compact {
   flex-wrap: wrap;
 }
 
+.kh-form-actions--toolbar {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--kh-border);
+}
+
 .kh-form-message {
   font-size: 13px;
   color: var(--kh-text-muted);

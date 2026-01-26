@@ -2682,7 +2682,8 @@ async function initJobDetailPage() {
         await loadDocuments(jobId);
       } catch (error) {
         console.error("Failed to upload document.", error);
-        setMessage("documents-message", "Unable to upload document.", true);
+        const errorMsg = error.message || "Unknown error";
+        setMessage("documents-message", `Failed to upload document.\nError: ${errorMsg}`, true);
       } finally {
         uploadInput.disabled = false;
         if (documentTypeSelect) {

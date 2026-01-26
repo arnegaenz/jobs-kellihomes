@@ -1,0 +1,31 @@
+,"Est. Cost","Act. Cost","($) Diff.","Est. Revenue","Act. Revenue","($) Diff."
+"Service","","",,"","",
+"01.00 Site Work","","",,"","",
+"01.01 Demolition (Removal of any structures)",4000.00,0.00,-4000.00,4000.00,0.00,-4000.00
+"Total 01.00 Site Work",4000.00,0.00,-4000.00,4000.00,0.00,-4000.00
+"03.00 Structural","","",,"","",
+"03.01 Framing Lumber|Materials (All Lumber and hardware needed for Framing)",2500.00,0.00,-2500.00,2500.00,0.00,-2500.00
+"03.03 Framing Labor (Framing Labor)",5500.00,0.00,-5500.00,5500.00,0.00,-5500.00
+"Total 03.00 Structural",8000.00,0.00,-8000.00,8000.00,0.00,-8000.00
+"05.00 Interior Infrastructure","","",,"","",
+"05.04 Electrical (Rough)",1500.00,0.00,-1500.00,1500.00,0.00,-1500.00
+"Total 05.00 Interior Infrastructure",1500.00,0.00,-1500.00,1500.00,0.00,-1500.00
+"06.00 Interior Enclosure","","",,"","",
+"06.01 Insulation",1500.00,0.00,-1500.00,1500.00,0.00,-1500.00
+"06.02 Drywall | Sheetrock",1500.00,0.00,-1500.00,1500.00,0.00,-1500.00
+"Total 06.00 Interior Enclosure",3000.00,0.00,-3000.00,3000.00,0.00,-3000.00
+"07.00 Interior Finish","","",,"","",
+"07.01 Painting Walls | Millwork",4500.00,0.00,-4500.00,4500.00,0.00,-4500.00
+"07.03 Cabinets | Hardware (Cabinets & Hardware)",9500.00,0.00,-9500.00,9500.00,0.00,-9500.00
+"07.04 Countertops (Kitchen | Bathrooms)",1500.00,0.00,-1500.00,1500.00,0.00,-1500.00
+"07.12 Plumbing Trim (Sinks | Faucets)",2000.00,0.00,-2000.00,2000.00,0.00,-2000.00
+"07.13 Electrical Trim (Plates | Switches | Can light trims)",1500.00,0.00,-1500.00,1500.00,0.00,-1500.00
+"07.15 Appliances (Kitchen | Laundry | All)",2500.00,0.00,-2500.00,2500.00,0.00,-2500.00
+"07.16 Carpet | Vinyl Flooring (Floor Coverings)",2500.00,0.00,-2500.00,2500.00,0.00,-2500.00
+"07.20 Hardwood Flooring (Labor & Materials)",4500.00,0.00,-4500.00,4500.00,0.00,-4500.00
+"Total 07.00 Interior Finish",28500.00,0.00,-28500.00,28500.00,0.00,-28500.00
+"09.00 Miscellaneous","","",,"","",
+"09.07 Building Insurance (Insurance for Building)",0.00,657.00,657.00,0.00,0.00,0.00
+"Total 09.00 Miscellaneous",0.00,657.00,657.00,0.00,0.00,0.00
+"Total Service",45000.00,657.00,-44343.00,45000.00,0.00,-45000.00
+"TOTAL",45000.00,657.00,-44343.00,45000.00,0.00,-45000.00

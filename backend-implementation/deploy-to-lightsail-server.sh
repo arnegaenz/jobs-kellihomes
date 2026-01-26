@@ -48,6 +48,15 @@ else
     echo -e "${YELLOW}⚠ business_documents migration file not found, skipping${NC}"
 fi
 
+# Run documents table migration
+if [ -f "$API_DIR/migrations/006_documents_table.sql" ]; then
+    echo -e "${YELLOW}Running documents table migration...${NC}"
+    PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -f "$API_DIR/migrations/006_documents_table.sql"
+    echo -e "${GREEN}✓ Documents table migration completed${NC}"
+else
+    echo -e "${YELLOW}⚠ documents table migration file not found, skipping${NC}"
+fi
+
 # Step 3: Verify migrations
 echo ""
 echo -e "${YELLOW}Step 3: Verifying migrations...${NC}"
@@ -60,6 +69,16 @@ if grep -q "s3_key" /tmp/business_docs_schema.txt && \
     echo -e "${GREEN}✓ business_documents table verified${NC}"
 else
     echo -e "${YELLOW}⚠ business_documents table verification failed (may already exist)${NC}"
+fi
+
+# Verify documents table exists
+PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -c "\d documents" > /tmp/documents_schema.txt 2>&1
+if grep -q "storage_key" /tmp/documents_schema.txt && \
+   grep -q "job_id" /tmp/documents_schema.txt && \
+   grep -q "document_type" /tmp/documents_schema.txt; then
+    echo -e "${GREEN}✓ documents table verified${NC}"
+else
+    echo -e "${RED}✗ documents table verification failed - check migration${NC}"
 fi
 
 # Step 4: server.js should already be updated from file copy
