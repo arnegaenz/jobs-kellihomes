@@ -1103,6 +1103,21 @@ html {
   font-size: 0.9rem;
 }
 
+/* Simple currency input without $ prefix */
+.kh-input-currency {
+  width: 70px;
+  text-align: right;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.9rem;
+  border: 1px solid var(--kh-border);
+  border-radius: 4px;
+}
+
+.kh-input-currency:focus {
+  outline: none;
+  border-color: var(--kh-accent);
+}
+
 .kh-variance-good {
   color: var(--kh-pill-ok);
   font-weight: 600;

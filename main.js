@@ -1070,10 +1070,10 @@ function renderLineItemsCosts(tbodyId, items = []) {
       </div>
     `;
 
-    // Original Budget (editable)
+    // Original Budget (editable) - whole dollars only
     const originalBudgetCell = document.createElement("td");
     originalBudgetCell.className = "kh-cell-currency";
-    originalBudgetCell.innerHTML = `<div class="kh-currency-input"><span>$</span><input type="number" step="0.01" min="0" value="${item.originalBudget || 0}" data-field="originalBudget" /></div>`;
+    originalBudgetCell.innerHTML = `<input type="number" step="1" min="0" value="${Math.round(item.originalBudget || 0)}" data-field="originalBudget" class="kh-input-currency" />`;
 
     // Budget Increases (button + display)
     const increasesCell = document.createElement("td");
@@ -1096,16 +1096,16 @@ function renderLineItemsCosts(tbodyId, items = []) {
     currentBudgetCell.innerHTML = `<strong>$${formatCurrency(currentBudget)}</strong>`;
     currentBudgetCell.className = "kh-cell-currency";
 
-    // Actual (editable)
+    // Actual (editable) - whole dollars only
     const actualCell = document.createElement("td");
     actualCell.className = "kh-cell-currency";
-    actualCell.innerHTML = `<div class="kh-currency-input"><span>$</span><input type="number" step="0.01" min="0" value="${item.actual || 0}" data-field="actual" /></div>`;
+    actualCell.innerHTML = `<input type="number" step="1" min="0" value="${Math.round(item.actual || 0)}" data-field="actual" class="kh-input-currency" />`;
 
-    // Variance (calculated, color-coded)
+    // Variance (calculated, color-coded) - no + for positive
     const varianceCell = document.createElement("td");
     const variance = currentBudget - parseFloat(item.actual || 0);
     const varianceClass = variance >= 0 ? "kh-variance-good" : "kh-variance-bad";
-    varianceCell.innerHTML = `<span class="${varianceClass}">${variance >= 0 ? '+' : ''}$${formatCurrency(variance)}</span>`;
+    varianceCell.innerHTML = `<span class="${varianceClass}">$${formatCurrency(variance)}</span>`;
     varianceCell.className = "kh-cell-currency";
 
     // Delete button
@@ -1231,10 +1231,10 @@ function renderLineItems(tbodyId, items = []) {
       </div>
     `;
 
-    // Original Budget (editable)
+    // Original Budget (editable) - whole dollars only
     const originalBudgetCell = document.createElement("td");
     originalBudgetCell.className = "kh-cell-currency";
-    originalBudgetCell.innerHTML = `<div class="kh-currency-input"><span>$</span><input type="number" step="0.01" min="0" value="${item.originalBudget || 0}" data-field="originalBudget" /></div>`;
+    originalBudgetCell.innerHTML = `<input type="number" step="1" min="0" value="${Math.round(item.originalBudget || 0)}" data-field="originalBudget" class="kh-input-currency" />`;
 
     // Budget Increases (button + display)
     const increasesCell = document.createElement("td");
@@ -1257,16 +1257,16 @@ function renderLineItems(tbodyId, items = []) {
     currentBudgetCell.innerHTML = `<strong>$${formatCurrency(currentBudget)}</strong>`;
     currentBudgetCell.className = "kh-cell-currency";
 
-    // Actual (editable)
+    // Actual (editable) - whole dollars only
     const actualCell = document.createElement("td");
     actualCell.className = "kh-cell-currency";
-    actualCell.innerHTML = `<div class="kh-currency-input"><span>$</span><input type="number" step="0.01" min="0" value="${item.actual || 0}" data-field="actual" /></div>`;
+    actualCell.innerHTML = `<input type="number" step="1" min="0" value="${Math.round(item.actual || 0)}" data-field="actual" class="kh-input-currency" />`;
 
-    // Variance (calculated, color-coded)
+    // Variance (calculated, color-coded) - no + for positive
     const varianceCell = document.createElement("td");
     const variance = currentBudget - parseFloat(item.actual || 0);
     const varianceClass = variance >= 0 ? "kh-variance-good" : "kh-variance-bad";
-    varianceCell.innerHTML = `<span class="${varianceClass}">${variance >= 0 ? '+' : ''}$${formatCurrency(variance)}</span>`;
+    varianceCell.innerHTML = `<span class="${varianceClass}">$${formatCurrency(variance)}</span>`;
     varianceCell.className = "kh-cell-currency";
 
     // Schedule (start/end/actual dates)
@@ -1548,7 +1548,7 @@ function handleCSVImport(file) {
 }
 
 function formatCurrency(value) {
-  return parseFloat(value || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  return Math.round(parseFloat(value || 0)).toLocaleString('en-US');
 }
 
 function collectLineItems(tbodyId) {
