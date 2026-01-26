@@ -1132,10 +1132,10 @@ function renderLineItemsCosts(tbodyId, items = []) {
       </div>
     `;
 
-    // Original Budget (editable) - whole dollars only
+    // Original Budget (editable) - whole dollars only, plain text input
     const originalBudgetCell = document.createElement("td");
     originalBudgetCell.className = "kh-cell-currency";
-    originalBudgetCell.innerHTML = `<input type="number" step="1" min="0" value="${Math.round(item.originalBudget || 0)}" data-field="originalBudget" class="kh-input-currency" />`;
+    originalBudgetCell.innerHTML = `<input type="text" inputmode="numeric" value="${Math.round(item.originalBudget || 0)}" data-field="originalBudget" class="kh-input-currency" />`;
 
     // Budget Increases (button + display)
     const increasesCell = document.createElement("td");
@@ -1161,7 +1161,7 @@ function renderLineItemsCosts(tbodyId, items = []) {
     // Actual (editable) - whole dollars only
     const actualCell = document.createElement("td");
     actualCell.className = "kh-cell-currency";
-    actualCell.innerHTML = `<input type="number" step="1" min="0" value="${Math.round(item.actual || 0)}" data-field="actual" class="kh-input-currency" />`;
+    actualCell.innerHTML = `<input type="text" inputmode="numeric" value="${Math.round(item.actual || 0)}" data-field="actual" class="kh-input-currency" />`;
 
     // Variance (calculated, color-coded) - no + for positive
     const varianceCell = document.createElement("td");
@@ -1299,10 +1299,10 @@ function renderLineItems(tbodyId, items = []) {
       </div>
     `;
 
-    // Original Budget (editable) - whole dollars only
+    // Original Budget (editable) - whole dollars only, plain text input
     const originalBudgetCell = document.createElement("td");
     originalBudgetCell.className = "kh-cell-currency";
-    originalBudgetCell.innerHTML = `<input type="number" step="1" min="0" value="${Math.round(item.originalBudget || 0)}" data-field="originalBudget" class="kh-input-currency" />`;
+    originalBudgetCell.innerHTML = `<input type="text" inputmode="numeric" value="${Math.round(item.originalBudget || 0)}" data-field="originalBudget" class="kh-input-currency" />`;
 
     // Budget Increases (button + display)
     const increasesCell = document.createElement("td");
@@ -1328,7 +1328,7 @@ function renderLineItems(tbodyId, items = []) {
     // Actual (editable) - whole dollars only
     const actualCell = document.createElement("td");
     actualCell.className = "kh-cell-currency";
-    actualCell.innerHTML = `<input type="number" step="1" min="0" value="${Math.round(item.actual || 0)}" data-field="actual" class="kh-input-currency" />`;
+    actualCell.innerHTML = `<input type="text" inputmode="numeric" value="${Math.round(item.actual || 0)}" data-field="actual" class="kh-input-currency" />`;
 
     // Variance (calculated, color-coded) - no + for positive
     const varianceCell = document.createElement("td");
