@@ -204,9 +204,10 @@
 
           <!-- Details Tab -->
           <div class="kh-tab-panel" data-tab-panel="details">
+            <!-- Job Costing Card -->
             <div class="kh-panel">
               <div class="kh-panel__title">
-                Line Items & Job Costing
+                Job Costing
                 <button class="kh-button kh-button--small" type="button" id="add-line-item-button">
                   + Add Line Item
                 </button>
@@ -224,6 +225,22 @@
                       <th>Current Budget</th>
                       <th>Actual</th>
                       <th>Variance</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody id="line-items-costs-body"></tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Schedule & Tracking Card -->
+            <div class="kh-panel">
+              <div class="kh-panel__title">Schedule & Tracking</div>
+              <div class="kh-table-wrap">
+                <table class="kh-table kh-table--line-items">
+                  <thead>
+                    <tr>
+                      <th>Item</th>
                       <th>Schedule</th>
                       <th>Status</th>
                       <th>Vendor</th>
@@ -231,7 +248,7 @@
                       <th></th>
                     </tr>
                   </thead>
-                  <tbody id="line-items-body"></tbody>
+                  <tbody id="line-items-schedule-body"></tbody>
                 </table>
               </div>
               <div class="kh-form-actions">

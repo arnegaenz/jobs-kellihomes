@@ -1037,6 +1037,178 @@ function buildLineItemsMap(items = []) {
 let currentLineItems = [];
 let currentEditingLineItemCode = null;
 
+function renderLineItemsTwoTables(items = []) {
+  renderLineItemsCosts("line-items-costs-body", items);
+  renderLineItemsSchedule("line-items-schedule-body", items);
+}
+
+function renderLineItemsCosts(tbodyId, items = []) {
+  const tableBody = document.getElementById(tbodyId);
+  const emptyState = document.getElementById("line-items-empty");
+  if (!tableBody) return;
+
+  currentLineItems = items;
+  tableBody.innerHTML = "";
+
+  if (emptyState) {
+    emptyState.hidden = items.length > 0;
+  }
+
+  if (items.length === 0) return;
+
+  items.forEach((item) => {
+    const row = document.createElement("tr");
+    row.dataset.code = item.code;
+
+    // Item name
+    const itemCell = document.createElement("td");
+    const catalogItem = LINE_ITEM_CATALOG.find(c => c.code === item.code);
+    itemCell.innerHTML = `
+      <div class="kh-job">
+        <div class="kh-job__name">${item.name}</div>
+        <div class="kh-job__meta">${catalogItem?.description || ""}</div>
+      </div>
+    `;
+
+    // Original Budget (editable)
+    const originalBudgetCell = document.createElement("td");
+    originalBudgetCell.className = "kh-cell-currency";
+    originalBudgetCell.innerHTML = `<div class="kh-currency-input"><span>$</span><input type="number" step="0.01" min="0" value="${item.originalBudget || 0}" data-field="originalBudget" /></div>`;
+
+    // Budget Increases (button + display)
+    const increasesCell = document.createElement("td");
+    const totalIncreases = (item.budgetHistory || []).reduce((sum, inc) => sum + parseFloat(inc.amount || 0), 0);
+    increasesCell.innerHTML = `
+      <button class="kh-link" data-action="add-increase" data-code="${item.code}">
+        ${totalIncreases > 0 ? `+$${formatCurrency(totalIncreases)}` : '+ Add'}
+      </button>
+    `;
+    if (item.budgetHistory && item.budgetHistory.length > 0) {
+      const historyHtml = item.budgetHistory.map(inc =>
+        `<div class="kh-budget-increase-item">+$${formatCurrency(inc.amount)}: ${inc.reason}</div>`
+      ).join('');
+      increasesCell.innerHTML += `<div class="kh-budget-history">${historyHtml}</div>`;
+    }
+
+    // Current Budget (calculated, read-only)
+    const currentBudgetCell = document.createElement("td");
+    const currentBudget = parseFloat(item.originalBudget || 0) + totalIncreases;
+    currentBudgetCell.innerHTML = `<strong>$${formatCurrency(currentBudget)}</strong>`;
+    currentBudgetCell.className = "kh-cell-currency";
+
+    // Actual (editable)
+    const actualCell = document.createElement("td");
+    actualCell.className = "kh-cell-currency";
+    actualCell.innerHTML = `<div class="kh-currency-input"><span>$</span><input type="number" step="0.01" min="0" value="${item.actual || 0}" data-field="actual" /></div>`;
+
+    // Variance (calculated, color-coded)
+    const varianceCell = document.createElement("td");
+    const variance = currentBudget - parseFloat(item.actual || 0);
+    const varianceClass = variance >= 0 ? "kh-variance-good" : "kh-variance-bad";
+    varianceCell.innerHTML = `<span class="${varianceClass}">${variance >= 0 ? '+' : ''}$${formatCurrency(variance)}</span>`;
+    varianceCell.className = "kh-cell-currency";
+
+    // Delete button
+    const actionsCell = document.createElement("td");
+    actionsCell.innerHTML = `<button class="kh-link kh-link--danger" data-action="delete-line-item" data-code="${item.code}">Remove</button>`;
+
+    row.appendChild(itemCell);
+    row.appendChild(originalBudgetCell);
+    row.appendChild(increasesCell);
+    row.appendChild(currentBudgetCell);
+    row.appendChild(actualCell);
+    row.appendChild(varianceCell);
+    row.appendChild(actionsCell);
+
+    tableBody.appendChild(row);
+  });
+
+  // Attach event listeners
+  attachLineItemEventListeners(tbodyId);
+}
+
+function renderLineItemsSchedule(tbodyId, items = []) {
+  const tableBody = document.getElementById(tbodyId);
+  if (!tableBody) return;
+
+  tableBody.innerHTML = "";
+  if (items.length === 0) return;
+
+  items.forEach((item) => {
+    const row = document.createElement("tr");
+    row.dataset.code = item.code;
+
+    // Item name
+    const itemCell = document.createElement("td");
+    const catalogItem = LINE_ITEM_CATALOG.find(c => c.code === item.code);
+    itemCell.innerHTML = `
+      <div class="kh-job">
+        <div class="kh-job__name">${item.name}</div>
+        <div class="kh-job__meta">${catalogItem?.description || ""}</div>
+      </div>
+    `;
+
+    // Schedule (start/end/actual dates)
+    const scheduleCell = document.createElement("td");
+    const schedule = item.schedule || {};
+    scheduleCell.innerHTML = `
+      <div class="kh-schedule">
+        <label>
+          <span>Start</span>
+          <input type="date" value="${schedule.startDate || ''}" data-field="schedule.startDate" />
+        </label>
+        <label>
+          <span>Scheduled End</span>
+          <input type="date" value="${schedule.endDate || ''}" data-field="schedule.endDate" />
+        </label>
+        <label>
+          <span>Actual End</span>
+          <input type="date" value="${schedule.actualEndDate || ''}" data-field="schedule.actualEndDate" />
+        </label>
+      </div>
+    `;
+
+    // Status dropdown
+    const statusCell = document.createElement("td");
+    const statusSelect = document.createElement("select");
+    statusSelect.dataset.field = "status";
+    LINE_ITEM_STATUSES.forEach((status) => {
+      const option = document.createElement("option");
+      option.value = status;
+      option.textContent = status;
+      if ((item.status || "Not Started") === status) {
+        option.selected = true;
+      }
+      statusSelect.appendChild(option);
+    });
+    statusCell.appendChild(statusSelect);
+
+    // Vendor (editable text input)
+    const vendorCell = document.createElement("td");
+    vendorCell.innerHTML = `<input type="text" value="${item.vendor || ''}" data-field="vendor" placeholder="Vendor name" />`;
+
+    // Notes (editable textarea)
+    const notesCell = document.createElement("td");
+    notesCell.innerHTML = `<textarea data-field="notes" placeholder="Notes...">${item.notes || ''}</textarea>`;
+
+    // Delete button
+    const actionsCell = document.createElement("td");
+    actionsCell.innerHTML = `<button class="kh-link kh-link--danger" data-action="delete-line-item" data-code="${item.code}">Remove</button>`;
+
+    row.appendChild(itemCell);
+    row.appendChild(scheduleCell);
+    row.appendChild(statusCell);
+    row.appendChild(vendorCell);
+    row.appendChild(notesCell);
+    row.appendChild(actionsCell);
+
+    tableBody.appendChild(row);
+  });
+
+  // Attach event listeners
+  attachLineItemEventListeners(tbodyId);
+}
+
 function renderLineItems(tbodyId, items = []) {
   const tableBody = document.getElementById(tbodyId);
   const emptyState = document.getElementById("line-items-empty");
@@ -2148,16 +2320,17 @@ async function initJobDetailPage() {
       renderJobOverview(job);
 
       try {
-        showTableLoading("line-items-body", 6);
+        showTableLoading("line-items-costs-body", 6);
+        showTableLoading("line-items-schedule-body", 6);
         const lineItems = await fetchJobLineItems(jobId);
-        renderLineItems("line-items-body", lineItems || []);
+        renderLineItemsTwoTables(lineItems || []);
 
         // NEW: Render Summary tab cards with line items data
         renderFinancialSnapshot(lineItems || []);
         renderJobSchedule(lineItems || []);
       } catch (error) {
         console.error("Failed to load line items.", error);
-        renderLineItems("line-items-body", []);
+        renderLineItemsTwoTables([]);
 
         // NEW: Render Summary tab cards with empty data
         renderFinancialSnapshot([]);
