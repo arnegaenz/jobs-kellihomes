@@ -38,13 +38,13 @@ app.use(helmet());
 app.use(cors({
   origin: process.env.FRONTEND_URL || 'https://jobs.kellihomes.com',
   credentials: true, // CRITICAL: Allow cookies to be sent
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  allowedHeaders: ['Content-Type']
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Accept']
 }));
 
 // Body parsing
 app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Cookie parsing
 app.use(cookieParser());
