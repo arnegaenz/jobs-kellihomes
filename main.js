@@ -1342,16 +1342,216 @@ function wireLineItemActions(tableBody) {
     });
   });
 
-  // Remove button
+  // Remove button (legacy single-table view)
   tableBody.querySelectorAll('[data-action="remove"]').forEach(btn => {
     btn.addEventListener('click', (e) => {
       const code = e.target.dataset.code;
       if (confirm('Remove this line item?')) {
         currentLineItems = currentLineItems.filter(item => item.code !== code);
-        renderLineItems('line-items-body', currentLineItems);
+        renderLineItemsTwoTables(currentLineItems);
+        updateDeleteAllButtonVisibility();
       }
     });
   });
+}
+
+/**
+ * Attach event listeners for the two-table line items view
+ * Handles delete-line-item and add-increase actions
+ */
+function attachLineItemEventListeners(tbodyId) {
+  const tableBody = document.getElementById(tbodyId);
+  if (!tableBody) return;
+
+  // Delete line item buttons
+  tableBody.querySelectorAll('[data-action="delete-line-item"]').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const code = e.target.dataset.code;
+      if (confirm('Remove this line item?')) {
+        currentLineItems = currentLineItems.filter(item => item.code !== code);
+        renderLineItemsTwoTables(currentLineItems);
+        updateDeleteAllButtonVisibility();
+      }
+    });
+  });
+
+  // Add budget increase buttons
+  tableBody.querySelectorAll('[data-action="add-increase"]').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const code = e.target.dataset.code;
+      showBudgetIncreaseModal(code);
+    });
+  });
+}
+
+/**
+ * Update Delete All button visibility based on whether there are line items
+ */
+function updateDeleteAllButtonVisibility() {
+  const deleteAllBtn = document.getElementById('delete-all-line-items');
+  if (deleteAllBtn) {
+    deleteAllBtn.hidden = currentLineItems.length === 0;
+  }
+}
+
+/**
+ * Delete all line items
+ */
+function deleteAllLineItems() {
+  if (currentLineItems.length === 0) return;
+
+  if (confirm(`Delete all ${currentLineItems.length} line items? This cannot be undone.`)) {
+    currentLineItems = [];
+    renderLineItemsTwoTables(currentLineItems);
+    updateDeleteAllButtonVisibility();
+  }
+}
+
+/**
+ * Parse QuickBooks CSV and import line items
+ * CSV format: Service name with code (XX.XX Name), Est. Cost, Act. Cost, ...
+ */
+function parseQuickBooksCSV(csvText) {
+  const lines = csvText.split('\n');
+  const parsedItems = [];
+
+  for (let i = 1; i < lines.length; i++) { // Skip header row
+    const line = lines[i].trim();
+    if (!line) continue;
+
+    // Parse CSV line (handle quoted fields)
+    const fields = parseCSVLine(line);
+    if (fields.length < 3) continue;
+
+    const itemName = fields[0];
+    const estCost = parseFloat(fields[1]) || 0;
+    const actCost = parseFloat(fields[2]) || 0;
+
+    // Skip rows that are totals, headers, or have no name
+    if (!itemName ||
+        itemName.toLowerCase().startsWith('total') ||
+        itemName.toLowerCase() === 'service' ||
+        itemName.toLowerCase() === 'total') continue;
+
+    // Skip group headers (XX.00 format with no data)
+    const codeMatch = itemName.match(/^(\d+\.\d+)/);
+    if (!codeMatch) continue;
+
+    const code = codeMatch[1];
+
+    // Skip if this is a group header (ends in .00 and has no estCost)
+    if (code.endsWith('.00') && estCost === 0) continue;
+
+    // Extract name and description
+    // Format: "01.01 Demolition (Removal of any structures)" or "01.01 Demolition"
+    // Or: "03.01 Framing Lumber|Materials (All Lumber...)"
+    let nameAndDesc = itemName.substring(code.length).trim();
+    let name = nameAndDesc;
+    let description = '';
+
+    // Check for description in parentheses
+    const parenMatch = nameAndDesc.match(/^([^(]+)\s*\(([^)]+)\)/);
+    if (parenMatch) {
+      name = parenMatch[1].trim();
+      description = parenMatch[2].trim();
+    }
+
+    // Check for description after pipe
+    const pipeIndex = name.indexOf('|');
+    if (pipeIndex > -1) {
+      name = name.substring(0, pipeIndex).trim();
+    }
+
+    parsedItems.push({
+      code: code,
+      name: name,
+      description: description,
+      originalBudget: estCost,
+      budgetHistory: [],
+      currentBudget: estCost,
+      actual: actCost,
+      variance: estCost - actCost,
+      schedule: { startDate: null, endDate: null },
+      notes: '',
+      status: 'Not Started',
+      vendor: ''
+    });
+  }
+
+  return parsedItems;
+}
+
+/**
+ * Parse a single CSV line, handling quoted fields
+ */
+function parseCSVLine(line) {
+  const fields = [];
+  let field = '';
+  let inQuotes = false;
+
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i];
+
+    if (char === '"') {
+      inQuotes = !inQuotes;
+    } else if (char === ',' && !inQuotes) {
+      fields.push(field.trim());
+      field = '';
+    } else {
+      field += char;
+    }
+  }
+  fields.push(field.trim()); // Don't forget the last field
+
+  return fields;
+}
+
+/**
+ * Handle CSV file import
+ */
+function handleCSVImport(file) {
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const csvText = e.target.result;
+      const importedItems = parseQuickBooksCSV(csvText);
+
+      if (importedItems.length === 0) {
+        alert('No valid line items found in CSV file.');
+        return;
+      }
+
+      // Merge with existing items (add new ones)
+      importedItems.forEach(newItem => {
+        // Check if item with same code already exists
+        const existingIndex = currentLineItems.findIndex(item => item.code === newItem.code);
+        if (existingIndex === -1) {
+          // Add new item
+          currentLineItems.push(newItem);
+        } else {
+          // Item exists - keep existing and add with modified code
+          // Or just skip? For now, let's add with a suffix
+          newItem.code = newItem.code + '-imp';
+          currentLineItems.push(newItem);
+        }
+      });
+
+      // Sort by code
+      currentLineItems.sort((a, b) => a.code.localeCompare(b.code));
+
+      renderLineItemsTwoTables(currentLineItems);
+      updateDeleteAllButtonVisibility();
+
+      alert(`Imported ${importedItems.length} line items from CSV.`);
+    } catch (error) {
+      console.error('Error parsing CSV:', error);
+      alert('Error parsing CSV file. Please check the format.');
+    }
+  };
+
+  reader.readAsText(file);
 }
 
 function formatCurrency(value) {
@@ -1456,7 +1656,8 @@ function addLineItem(code) {
   };
 
   currentLineItems.push(newItem);
-  renderLineItems('line-items-body', currentLineItems);
+  renderLineItemsTwoTables(currentLineItems);
+  updateDeleteAllButtonVisibility();
 }
 
 // Modal handling for budget increases
@@ -1495,7 +1696,7 @@ function showBudgetIncreaseModal(code) {
         date: new Date().toISOString().split('T')[0],
         reason: reason
       });
-      renderLineItems('line-items-body', currentLineItems);
+      renderLineItemsTwoTables(currentLineItems);
     }
 
     modal.hidden = true;
@@ -2227,6 +2428,24 @@ async function initJobDetailPage() {
     addLineItemButton.addEventListener("click", () => showAddLineItemModal());
   }
 
+  // Wire up Import CSV button
+  const importCSVInput = document.getElementById("import-csv-input");
+  if (importCSVInput) {
+    importCSVInput.addEventListener("change", (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        handleCSVImport(file);
+        e.target.value = ''; // Reset so same file can be imported again
+      }
+    });
+  }
+
+  // Wire up Delete All button
+  const deleteAllButton = document.getElementById("delete-all-line-items");
+  if (deleteAllButton) {
+    deleteAllButton.addEventListener("click", () => deleteAllLineItems());
+  }
+
   if (closeAddLineItem && addLineItemModal) {
     closeAddLineItem.addEventListener("click", () => {
       addLineItemModal.hidden = true;
@@ -2324,15 +2543,17 @@ async function initJobDetailPage() {
         showTableLoading("line-items-schedule-body", 6);
         const lineItems = await fetchJobLineItems(jobId);
         renderLineItemsTwoTables(lineItems || []);
+        updateDeleteAllButtonVisibility();
 
-        // NEW: Render Summary tab cards with line items data
+        // Render Summary tab cards with line items data
         renderFinancialSnapshot(lineItems || []);
         renderJobSchedule(lineItems || []);
       } catch (error) {
         console.error("Failed to load line items.", error);
         renderLineItemsTwoTables([]);
+        updateDeleteAllButtonVisibility();
 
-        // NEW: Render Summary tab cards with empty data
+        // Render Summary tab cards with empty data
         renderFinancialSnapshot([]);
         renderJobSchedule([]);
 

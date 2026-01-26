@@ -210,9 +210,18 @@
                 <h2 class="kh-line-items-title">Line Items</h2>
                 <p class="kh-line-items-subtitle">Each line item tracks both costs and schedule.</p>
               </div>
-              <button class="kh-button kh-button--small" type="button" id="add-line-item-button">
-                + Add Line Item
-              </button>
+              <div class="kh-line-items-actions">
+                <button class="kh-button kh-button--small kh-button--danger" type="button" id="delete-all-line-items" hidden>
+                  Delete All
+                </button>
+                <label class="kh-button kh-button--small kh-button--ghost">
+                  Import CSV
+                  <input type="file" id="import-csv-input" class="kh-file-input" accept=".csv" />
+                </label>
+                <button class="kh-button kh-button--small" type="button" id="add-line-item-button">
+                  + Add Line Item
+                </button>
+              </div>
             </div>
 
             <div id="line-items-empty" class="kh-empty-state" hidden>

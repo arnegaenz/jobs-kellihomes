@@ -1169,6 +1169,23 @@ html {
   margin: 0;
 }
 
+.kh-line-items-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.kh-button--danger {
+  background-color: var(--kh-pill-risk);
+  border-color: var(--kh-pill-risk);
+  color: white;
+}
+
+.kh-button--danger:hover {
+  background-color: #c53030;
+  border-color: #c53030;
+}
+
 .kh-empty-state {
   padding: 3rem 1rem;
   text-align: center;
