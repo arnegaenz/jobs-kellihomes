@@ -1568,13 +1568,21 @@ function parseCSVLine(line) {
 }
 
 /**
- * Handle CSV file import
+ * Handle CSV file import - parses CSV and auto-saves to database
  */
-function handleCSVImport(file) {
+async function handleCSVImport(file) {
   if (!file) return;
 
+  // Get jobId from URL
+  const params = new URLSearchParams(window.location.search);
+  const jobId = params.get("jobId");
+  if (!jobId) {
+    alert('Error: Could not determine job ID.');
+    return;
+  }
+
   const reader = new FileReader();
-  reader.onload = (e) => {
+  reader.onload = async (e) => {
     try {
       const csvText = e.target.result;
       const importedItems = parseQuickBooksCSV(csvText);
@@ -1593,7 +1601,6 @@ function handleCSVImport(file) {
           currentLineItems.push(newItem);
         } else {
           // Item exists - keep existing and add with modified code
-          // Or just skip? For now, let's add with a suffix
           newItem.code = newItem.code + '-imp';
           currentLineItems.push(newItem);
         }
@@ -1605,7 +1612,20 @@ function handleCSVImport(file) {
       renderLineItemsTwoTables(currentLineItems);
       updateDeleteAllButtonVisibility();
 
-      alert(`Imported ${importedItems.length} line items from CSV.`);
+      // Auto-save to database
+      setMessage("line-items-message", "Saving imported items...");
+      try {
+        await saveJobLineItems(jobId, currentLineItems);
+        setMessage("line-items-message", `Imported and saved ${importedItems.length} line items.`);
+
+        // Update Summary tab cards
+        renderFinancialSnapshot(currentLineItems);
+        renderJobSchedule(currentLineItems);
+        renderLineItemsSummary(currentLineItems);
+      } catch (saveError) {
+        console.error('Error saving imported items:', saveError);
+        setMessage("line-items-message", "Imported but failed to save. Please click Save.", true);
+      }
     } catch (error) {
       console.error('Error parsing CSV:', error);
       alert('Error parsing CSV file. Please check the format.');
