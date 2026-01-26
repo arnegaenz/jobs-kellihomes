@@ -204,17 +204,24 @@
 
           <!-- Details Tab -->
           <div class="kh-tab-panel" data-tab-panel="details">
+            <!-- Line Items Header -->
+            <div class="kh-line-items-header">
+              <div>
+                <h2 class="kh-line-items-title">Line Items</h2>
+                <p class="kh-line-items-subtitle">Each line item tracks both costs and schedule.</p>
+              </div>
+              <button class="kh-button kh-button--small" type="button" id="add-line-item-button">
+                + Add Line Item
+              </button>
+            </div>
+
+            <div id="line-items-empty" class="kh-empty-state" hidden>
+              <p>No line items yet. Add one to start tracking costs and schedule.</p>
+            </div>
+
             <!-- Job Costing Card -->
             <div class="kh-panel">
-              <div class="kh-panel__title">
-                Job Costing
-                <button class="kh-button kh-button--small" type="button" id="add-line-item-button">
-                  + Add Line Item
-                </button>
-              </div>
-              <div id="line-items-empty" class="kh-empty-state" hidden>
-                <p>No line items yet. Add one to start tracking costs and schedule.</p>
-              </div>
+              <div class="kh-panel__title">Job Costing</div>
               <div class="kh-table-wrap">
                 <table class="kh-table kh-table--line-items">
                   <thead>

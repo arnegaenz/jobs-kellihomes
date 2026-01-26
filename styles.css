@@ -1147,6 +1147,28 @@ html {
   gap: 1rem;
 }
 
+/* Line Items Header (above both cards) */
+.kh-line-items-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  padding: 0 4px;
+}
+
+.kh-line-items-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 0 0 4px 0;
+  color: var(--kh-text);
+}
+
+.kh-line-items-subtitle {
+  font-size: 0.875rem;
+  color: var(--kh-text-muted);
+  margin: 0;
+}
+
 .kh-empty-state {
   padding: 3rem 1rem;
   text-align: center;
