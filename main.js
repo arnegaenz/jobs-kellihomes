@@ -1148,23 +1148,14 @@ function renderLineItemsSchedule(tbodyId, items = []) {
       </div>
     `;
 
-    // Schedule (start/end/actual dates)
+    // Schedule (start/end/actual dates) - compact inline layout
     const scheduleCell = document.createElement("td");
     const schedule = item.schedule || {};
     scheduleCell.innerHTML = `
-      <div class="kh-schedule">
-        <label>
-          <span>Start</span>
-          <input type="date" value="${schedule.startDate || ''}" data-field="schedule.startDate" />
-        </label>
-        <label>
-          <span>Scheduled End</span>
-          <input type="date" value="${schedule.endDate || ''}" data-field="schedule.endDate" />
-        </label>
-        <label>
-          <span>Actual End</span>
-          <input type="date" value="${schedule.actualEndDate || ''}" data-field="schedule.actualEndDate" />
-        </label>
+      <div class="kh-schedule-inline">
+        <span class="kh-schedule-field"><span class="kh-schedule-label">Start</span><input type="date" value="${schedule.startDate || ''}" data-field="schedule.startDate" /></span>
+        <span class="kh-schedule-field"><span class="kh-schedule-label">End</span><input type="date" value="${schedule.endDate || ''}" data-field="schedule.endDate" /></span>
+        <span class="kh-schedule-field"><span class="kh-schedule-label">Actual</span><input type="date" value="${schedule.actualEndDate || ''}" data-field="schedule.actualEndDate" /></span>
       </div>
     `;
 
@@ -1367,7 +1358,9 @@ function attachLineItemEventListeners(tbodyId) {
   tableBody.querySelectorAll('[data-action="delete-line-item"]').forEach(btn => {
     btn.addEventListener('click', (e) => {
       const code = e.target.dataset.code;
-      if (confirm('Remove this line item?')) {
+      const item = currentLineItems.find(i => i.code === code);
+      const itemName = item ? item.name : 'this item';
+      if (confirm(`Remove "${itemName}" from both costing and schedule?`)) {
         currentLineItems = currentLineItems.filter(item => item.code !== code);
         renderLineItemsTwoTables(currentLineItems);
         updateDeleteAllButtonVisibility();
