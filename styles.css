@@ -1201,6 +1201,47 @@ html {
   border-color: #c53030;
 }
 
+/* Line Items Summary Stats */
+.kh-line-items-summary {
+  display: flex;
+  gap: 2rem;
+  padding: 0.75rem 1rem;
+  background: var(--kh-bg-muted);
+  border-radius: 6px;
+  margin-bottom: 1rem;
+}
+
+.kh-summary-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.kh-summary-stat__label {
+  font-size: 0.75rem;
+  color: var(--kh-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+}
+
+.kh-summary-stat__value {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--kh-text);
+}
+
+.kh-summary-stat__value--ok {
+  color: var(--kh-pill-ok);
+}
+
+.kh-summary-stat__value--warning {
+  color: var(--kh-pill-watch);
+}
+
+.kh-summary-stat__value--danger {
+  color: var(--kh-pill-risk);
+}
+
 .kh-empty-state {
   padding: 3rem 1rem;
   text-align: center;

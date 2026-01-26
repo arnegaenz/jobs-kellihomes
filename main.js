@@ -1040,6 +1040,68 @@ let currentEditingLineItemCode = null;
 function renderLineItemsTwoTables(items = []) {
   renderLineItemsCosts("line-items-costs-body", items);
   renderLineItemsSchedule("line-items-schedule-body", items);
+  renderLineItemsSummary(items);
+}
+
+/**
+ * Render quick summary stats at top of Line Items tab
+ * Shows budget, spent, remaining, and latest end date
+ */
+function renderLineItemsSummary(lineItems = []) {
+  const summaryEl = document.getElementById('line-items-summary');
+  if (!summaryEl) return;
+
+  // Show/hide based on whether there are items
+  summaryEl.hidden = lineItems.length === 0;
+  if (lineItems.length === 0) return;
+
+  // Calculate totals
+  let totalBudget = 0;
+  let totalSpent = 0;
+  let latestEndDate = null;
+
+  lineItems.forEach(item => {
+    const original = parseFloat(item.originalBudget) || 0;
+    const increases = (item.budgetHistory || []).reduce((sum, inc) => sum + (parseFloat(inc.amount) || 0), 0);
+    totalBudget += original + increases;
+    totalSpent += parseFloat(item.actual) || 0;
+
+    // Find latest scheduled end date
+    const schedule = item.schedule || {};
+    const endDate = schedule.endDate;
+    if (endDate) {
+      if (!latestEndDate || endDate > latestEndDate) {
+        latestEndDate = endDate;
+      }
+    }
+  });
+
+  const remaining = totalBudget - totalSpent;
+
+  // Update DOM
+  const budgetEl = document.getElementById('summary-budget');
+  const spentEl = document.getElementById('summary-spent');
+  const remainingEl = document.getElementById('summary-remaining');
+  const endDateEl = document.getElementById('summary-end-date');
+
+  if (budgetEl) budgetEl.textContent = `$${formatCurrency(totalBudget)}`;
+  if (spentEl) spentEl.textContent = `$${formatCurrency(totalSpent)}`;
+
+  if (remainingEl) {
+    remainingEl.textContent = `$${formatCurrency(remaining)}`;
+    // Color code
+    if (remaining < 0) {
+      remainingEl.className = 'kh-summary-stat__value kh-summary-stat__value--danger';
+    } else if (remaining < totalBudget * 0.1) {
+      remainingEl.className = 'kh-summary-stat__value kh-summary-stat__value--warning';
+    } else {
+      remainingEl.className = 'kh-summary-stat__value kh-summary-stat__value--ok';
+    }
+  }
+
+  if (endDateEl) {
+    endDateEl.textContent = latestEndDate ? formatDateDisplay(latestEndDate) : '—';
+  }
 }
 
 function renderLineItemsCosts(tbodyId, items = []) {
@@ -1586,6 +1648,51 @@ function collectLineItems(tbodyId) {
   });
 }
 
+/**
+ * Collect line items from the two-table layout
+ * Merges data from costs table and schedule table
+ */
+function collectLineItemsFromTwoTables() {
+  const costsBody = document.getElementById('line-items-costs-body');
+  const scheduleBody = document.getElementById('line-items-schedule-body');
+
+  if (!costsBody || !scheduleBody) return currentLineItems;
+
+  // Build a map from current line items
+  const itemsMap = new Map();
+  currentLineItems.forEach(item => {
+    itemsMap.set(item.code, { ...item });
+  });
+
+  // Collect cost data from costs table
+  costsBody.querySelectorAll('tr').forEach(row => {
+    const code = row.dataset.code;
+    if (!itemsMap.has(code)) return;
+
+    const item = itemsMap.get(code);
+    item.originalBudget = parseFloat(row.querySelector('[data-field="originalBudget"]')?.value || 0);
+    item.actual = parseFloat(row.querySelector('[data-field="actual"]')?.value || 0);
+  });
+
+  // Collect schedule data from schedule table
+  scheduleBody.querySelectorAll('tr').forEach(row => {
+    const code = row.dataset.code;
+    if (!itemsMap.has(code)) return;
+
+    const item = itemsMap.get(code);
+    item.status = row.querySelector('[data-field="status"]')?.value || "Not Started";
+    item.vendor = row.querySelector('[data-field="vendor"]')?.value || "";
+    item.notes = row.querySelector('[data-field="notes"]')?.value || "";
+
+    const startDate = row.querySelector('[data-field="schedule.startDate"]')?.value || null;
+    const endDate = row.querySelector('[data-field="schedule.endDate"]')?.value || null;
+    const actualEndDate = row.querySelector('[data-field="schedule.actualEndDate"]')?.value || null;
+    item.schedule = { startDate, endDate, actualEndDate };
+  });
+
+  return Array.from(itemsMap.values());
+}
+
 // Modal handling for adding line items
 function showAddLineItemModal() {
   const modal = document.getElementById('add-line-item-modal');
@@ -1771,6 +1878,10 @@ function renderFinancialSnapshot(lineItems = []) {
 
   const currentBudget = originalTotal + changeOrdersTotal;
   const remaining = currentBudget - actualTotal;
+
+  // Also update the Line Items tab summary
+  renderLineItemsSummary(lineItems);
+
 
   // Populate fields
   const finOriginal = document.getElementById('fin-original');
@@ -2394,7 +2505,11 @@ async function initJobDetailPage() {
     saveLineItemsButton.addEventListener("click", async () => {
       setButtonLoading(saveLineItemsButton, "Saving...");
       setMessage("line-items-message", "Saving line items...");
-      const lineItems = collectLineItems("line-items-body");
+
+      // Collect from both tables
+      const lineItems = collectLineItemsFromTwoTables();
+      currentLineItems = lineItems; // Update the global state
+
       try {
         await saveJobLineItems(jobId, lineItems);
         setMessage("line-items-message", "Line items saved.");
@@ -2403,6 +2518,9 @@ async function initJobDetailPage() {
         // Update Summary tab cards with new line items data
         renderFinancialSnapshot(lineItems);
         renderJobSchedule(lineItems);
+
+        // Update the Line Items tab summary stats
+        renderLineItemsSummary(lineItems);
       } catch (error) {
         handleError(error, "line-items-message", "Unable to save line items");
         resetButton(saveLineItemsButton);
