@@ -1083,6 +1083,8 @@ html {
 .kh-cell-currency {
   text-align: right;
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  width: 1%;  /* Shrink to fit content */
 }
 
 .kh-currency-input {
