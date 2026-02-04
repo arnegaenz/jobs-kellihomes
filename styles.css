@@ -1520,6 +1520,11 @@ html {
 
 .kh-cal__week {
   border-bottom: 1px solid var(--kh-border);
+  background: var(--kh-bg);
+}
+
+.kh-cal__week--alt {
+  background: var(--kh-bg-soft);
 }
 
 .kh-cal__week:last-child {
@@ -1582,6 +1587,10 @@ html {
 
 .kh-cal__swimlane:last-child {
   border-bottom: none;
+}
+
+.kh-cal__swimlane--empty {
+  /* Empty rows to maintain minimum height */
 }
 
 .kh-cal__item {

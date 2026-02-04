@@ -1093,18 +1093,21 @@ function renderCalendarGrid() {
   });
   html += '</div>';
 
+  // Track month for alternating backgrounds
+  let currentMonth = weeks[0][0].getMonth();
+  let monthColorIndex = 0;
+
   // Week rows
   weeks.forEach((weekDays, weekIdx) => {
-    // Check for month boundary in this week
-    let monthBoundary = null;
-    for (let i = 1; i < 7; i++) {
-      if (weekDays[i].getMonth() !== weekDays[i-1].getMonth()) {
-        monthBoundary = { day: i, month: weekDays[i].toLocaleDateString('en-US', { month: 'long' }) };
-        break;
-      }
+    // Check if we've entered a new month (based on Sunday of the week)
+    const weekMonth = weekDays[0].getMonth();
+    if (weekMonth !== currentMonth) {
+      currentMonth = weekMonth;
+      monthColorIndex++;
     }
+    const monthClass = monthColorIndex % 2 === 0 ? '' : 'kh-cal__week--alt';
 
-    html += '<div class="kh-cal__week">';
+    html += `<div class="kh-cal__week ${monthClass}">`;
 
     // Day cells with date numbers
     html += '<div class="kh-cal__days">';
@@ -1128,6 +1131,9 @@ function renderCalendarGrid() {
 
     // Swimlanes - one row per line item that appears this week
     html += '<div class="kh-cal__swimlanes">';
+
+    const MIN_ROWS = 4;
+    let rowCount = 0;
 
     selectedJobs.forEach((job) => {
       const jobIdx = jobIndexMap[job.id];
@@ -1163,8 +1169,15 @@ function renderCalendarGrid() {
                    <span class="kh-cal__item-text">${item.name}</span>
                  </div>`;
         html += '</div>'; // .kh-cal__swimlane
+        rowCount++;
       });
     });
+
+    // Add empty rows to reach minimum
+    while (rowCount < MIN_ROWS) {
+      html += '<div class="kh-cal__swimlane kh-cal__swimlane--empty"></div>';
+      rowCount++;
+    }
 
     html += '</div>'; // .kh-cal__swimlanes
     html += '</div>'; // .kh-cal__week
