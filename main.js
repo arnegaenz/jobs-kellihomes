@@ -1146,8 +1146,11 @@ function renderLineItemsCosts(tbodyId, items = []) {
       </button>
     `;
     if (item.budgetHistory && item.budgetHistory.length > 0) {
-      const historyHtml = item.budgetHistory.map(inc =>
-        `<div class="kh-budget-increase-item">+$${formatCurrency(inc.amount)}: ${inc.reason}</div>`
+      const historyHtml = item.budgetHistory.map((inc, idx) =>
+        `<div class="kh-budget-increase-item">
+          <span>+$${formatCurrency(inc.amount)}: ${inc.reason}</span>
+          <button class="kh-budget-increase-delete" data-action="delete-increase" data-code="${item.code}" data-index="${idx}" title="Delete">&times;</button>
+        </div>`
       ).join('');
       increasesCell.innerHTML += `<div class="kh-budget-history">${historyHtml}</div>`;
     }
@@ -1313,8 +1316,11 @@ function renderLineItems(tbodyId, items = []) {
       </button>
     `;
     if (item.budgetHistory && item.budgetHistory.length > 0) {
-      const historyHtml = item.budgetHistory.map(inc =>
-        `<div class="kh-budget-increase-item">+$${formatCurrency(inc.amount)}: ${inc.reason}</div>`
+      const historyHtml = item.budgetHistory.map((inc, idx) =>
+        `<div class="kh-budget-increase-item">
+          <span>+$${formatCurrency(inc.amount)}: ${inc.reason}</span>
+          <button class="kh-budget-increase-delete" data-action="delete-increase" data-code="${item.code}" data-index="${idx}" title="Delete">&times;</button>
+        </div>`
       ).join('');
       increasesCell.innerHTML += `<div class="kh-budget-history">${historyHtml}</div>`;
     }
@@ -1398,6 +1404,24 @@ function wireLineItemActions(tableBody) {
     btn.addEventListener('click', (e) => {
       const code = e.target.dataset.code;
       showBudgetIncreaseModal(code);
+    });
+  });
+
+  // Delete budget increase button
+  tableBody.querySelectorAll('[data-action="delete-increase"]').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const code = e.target.dataset.code;
+      const index = parseInt(e.target.dataset.index, 10);
+      const item = currentLineItems.find(i => i.code === code);
+      if (!item || !item.budgetHistory || !item.budgetHistory[index]) return;
+
+      const increase = item.budgetHistory[index];
+      if (confirm(`Delete budget increase of $${formatCurrency(increase.amount)}?\n\nReason: ${increase.reason}`)) {
+        item.budgetHistory.splice(index, 1);
+        renderLineItemsTwoTables(currentLineItems);
+        triggerLineItemAutoSave();
+      }
     });
   });
 
