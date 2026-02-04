@@ -158,12 +158,20 @@
               <div class="kh-panel__title">Jobs</div>
               <div class="kh-panel__subtitle">Snapshot of all current projects.</div>
             </div>
-            <label class="kh-checkbox-label">
-              <input type="checkbox" class="kh-checkbox" id="hide-closed-jobs" checked />
-              <span>Hide closed jobs</span>
-            </label>
+            <div class="kh-panel__controls">
+              <div class="kh-view-toggle">
+                <button class="kh-view-toggle__btn is-active" data-view="list">List</button>
+                <button class="kh-view-toggle__btn" data-view="calendar">Calendar</button>
+              </div>
+              <label class="kh-checkbox-label">
+                <input type="checkbox" class="kh-checkbox" id="hide-closed-jobs" checked />
+                <span>Hide closed jobs</span>
+              </label>
+            </div>
           </div>
-          <div class="kh-table-wrap">
+
+          <!-- List View -->
+          <div class="kh-table-wrap" id="jobs-list-view">
             <table class="kh-table">
               <thead>
                 <tr>
@@ -177,6 +185,21 @@
               </thead>
               <tbody id="jobs-table-body"></tbody>
             </table>
+          </div>
+
+          <!-- Calendar View -->
+          <div class="kh-calendar-view" id="jobs-calendar-view" hidden>
+            <div class="kh-calendar__controls">
+              <button class="kh-button kh-button--small" id="calendar-prev">Previous Week</button>
+              <span class="kh-calendar__range" id="calendar-range">Jan 27 - Feb 23, 2026</span>
+              <button class="kh-button kh-button--small" id="calendar-next">Next Week</button>
+            </div>
+            <div class="kh-calendar__filters" id="calendar-filters">
+              <!-- Job checkboxes will be rendered here -->
+            </div>
+            <div class="kh-calendar__grid" id="calendar-grid">
+              <!-- Calendar grid will be rendered here -->
+            </div>
           </div>
         </section>
 

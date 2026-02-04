@@ -794,6 +794,282 @@ function renderJobsTable(jobs) {
   });
 }
 
+// ============================================
+// CALENDAR VIEW
+// ============================================
+
+let calendarStartDate = getMonday(new Date()); // Start from current week's Monday
+let calendarJobs = [];
+let calendarJobLineItems = {}; // { jobId: [lineItems] }
+let calendarSelectedJobs = new Set(); // Track which jobs are selected
+
+function getMonday(date) {
+  const d = new Date(date);
+  const day = d.getDay();
+  const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Adjust when day is Sunday
+  return new Date(d.setDate(diff));
+}
+
+function addWeeks(date, weeks) {
+  const d = new Date(date);
+  d.setDate(d.getDate() + weeks * 7);
+  return d;
+}
+
+function formatWeekRange(startDate) {
+  const endDate = addWeeks(startDate, 4);
+  endDate.setDate(endDate.getDate() - 1); // End on Sunday
+  const opts = { month: 'short', day: 'numeric', year: 'numeric' };
+  return `${startDate.toLocaleDateString('en-US', opts)} - ${endDate.toLocaleDateString('en-US', opts)}`;
+}
+
+function formatWeekLabel(date) {
+  const opts = { month: 'short', day: 'numeric' };
+  return date.toLocaleDateString('en-US', opts);
+}
+
+function getWeekNumber(date, startDate) {
+  const diffTime = date - startDate;
+  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+  return Math.floor(diffDays / 7);
+}
+
+function isDateInWeek(itemDate, weekStart) {
+  if (!itemDate) return false;
+  const d = new Date(itemDate);
+  const weekEnd = new Date(weekStart);
+  weekEnd.setDate(weekEnd.getDate() + 6);
+  return d >= weekStart && d <= weekEnd;
+}
+
+function getItemDates(item) {
+  // Returns effective dates for calendar display
+  // Prefers actual dates over estimated, with flag to indicate which is being used
+  const schedule = item.schedule || {};
+
+  const estStart = schedule.startDate ? new Date(schedule.startDate) : null;
+  const estEnd = schedule.endDate ? new Date(schedule.endDate) : null;
+  const actStart = schedule.actualStartDate ? new Date(schedule.actualStartDate) : null;
+  const actEnd = schedule.actualEndDate ? new Date(schedule.actualEndDate) : null;
+
+  // Use actual if available, otherwise estimated
+  const startDate = actStart || estStart;
+  const endDate = actEnd || estEnd;
+  const isActual = !!(actStart || actEnd);
+
+  return { startDate, endDate, isActual };
+}
+
+function doesItemSpanWeek(item, weekStart) {
+  const { startDate, endDate } = getItemDates(item);
+
+  if (!startDate && !endDate) return false;
+
+  const weekEnd = new Date(weekStart);
+  weekEnd.setDate(weekEnd.getDate() + 6);
+
+  // Item spans week if: item starts before week ends AND item ends after week starts
+  const itemStart = startDate || endDate;
+  const itemEnd = endDate || startDate;
+
+  return itemStart <= weekEnd && itemEnd >= weekStart;
+}
+
+async function initCalendarView(jobs) {
+  calendarJobs = jobs.filter(j => j.stage !== 'Closed');
+
+  // Initialize all jobs as selected
+  calendarSelectedJobs = new Set(calendarJobs.map(j => j.id));
+
+  // Fetch line items for all jobs
+  calendarJobLineItems = {};
+  await Promise.all(calendarJobs.map(async (job) => {
+    try {
+      const lineItems = await fetchJobLineItems(job.id);
+      calendarJobLineItems[job.id] = lineItems || [];
+    } catch (e) {
+      calendarJobLineItems[job.id] = [];
+    }
+  }));
+
+  renderCalendarFilters();
+  renderCalendarGrid();
+  updateCalendarRange();
+}
+
+function renderCalendarFilters() {
+  const filtersContainer = document.getElementById('calendar-filters');
+  if (!filtersContainer) return;
+
+  filtersContainer.innerHTML = `
+    <label class="kh-checkbox-label">
+      <input type="checkbox" class="kh-checkbox" id="calendar-select-all" checked />
+      <span>All Jobs</span>
+    </label>
+    ${calendarJobs.map(job => `
+      <label class="kh-checkbox-label">
+        <input type="checkbox" class="kh-checkbox" data-job-id="${job.id}" ${calendarSelectedJobs.has(job.id) ? 'checked' : ''} />
+        <span>${job.name}</span>
+      </label>
+    `).join('')}
+  `;
+
+  // Wire up event listeners
+  const selectAll = document.getElementById('calendar-select-all');
+  if (selectAll) {
+    selectAll.addEventListener('change', (e) => {
+      if (e.target.checked) {
+        calendarSelectedJobs = new Set(calendarJobs.map(j => j.id));
+      } else {
+        calendarSelectedJobs = new Set();
+      }
+      // Update all checkboxes
+      filtersContainer.querySelectorAll('[data-job-id]').forEach(cb => {
+        cb.checked = e.target.checked;
+      });
+      renderCalendarGrid();
+    });
+  }
+
+  filtersContainer.querySelectorAll('[data-job-id]').forEach(cb => {
+    cb.addEventListener('change', (e) => {
+      const jobId = e.target.dataset.jobId;
+      if (e.target.checked) {
+        calendarSelectedJobs.add(jobId);
+      } else {
+        calendarSelectedJobs.delete(jobId);
+      }
+      // Update "All" checkbox
+      const allChecked = calendarSelectedJobs.size === calendarJobs.length;
+      if (selectAll) selectAll.checked = allChecked;
+      renderCalendarGrid();
+    });
+  });
+}
+
+function renderCalendarGrid() {
+  const gridContainer = document.getElementById('calendar-grid');
+  if (!gridContainer) return;
+
+  const selectedJobs = calendarJobs.filter(j => calendarSelectedJobs.has(j.id));
+
+  if (selectedJobs.length === 0) {
+    gridContainer.innerHTML = '<div class="kh-calendar__empty">Select jobs to display</div>';
+    return;
+  }
+
+  // Build 4 weeks of data
+  const weeks = [];
+  for (let i = 0; i < 4; i++) {
+    const weekStart = addWeeks(calendarStartDate, i);
+    weeks.push({
+      start: weekStart,
+      label: formatWeekLabel(weekStart)
+    });
+  }
+
+  // Build grid HTML
+  let html = '<div class="kh-calendar__table">';
+
+  // Header row with job names
+  html += '<div class="kh-calendar__row kh-calendar__row--header">';
+  html += '<div class="kh-calendar__cell kh-calendar__cell--week">Week</div>';
+  selectedJobs.forEach(job => {
+    html += `<div class="kh-calendar__cell kh-calendar__cell--job">${job.name}</div>`;
+  });
+  html += '</div>';
+
+  // Week rows
+  weeks.forEach(week => {
+    html += '<div class="kh-calendar__row">';
+    html += `<div class="kh-calendar__cell kh-calendar__cell--week">${week.label}</div>`;
+
+    selectedJobs.forEach(job => {
+      const lineItems = calendarJobLineItems[job.id] || [];
+      const itemsThisWeek = lineItems.filter(item => doesItemSpanWeek(item, week.start));
+
+      html += '<div class="kh-calendar__cell kh-calendar__cell--items">';
+      itemsThisWeek.forEach(item => {
+        const status = item.status || 'Not Started';
+        const statusClass = status.toLowerCase().replace(/\s+/g, '-');
+        const { isActual } = getItemDates(item);
+        const actualClass = isActual ? 'kh-calendar__item--actual' : 'kh-calendar__item--estimated';
+        const dateType = isActual ? 'Actual' : 'Estimated';
+        html += `<div class="kh-calendar__item kh-calendar__item--${statusClass} ${actualClass}" title="${item.name}: ${status} (${dateType})">${item.name}</div>`;
+      });
+      html += '</div>';
+    });
+
+    html += '</div>';
+  });
+
+  html += '</div>';
+  gridContainer.innerHTML = html;
+}
+
+function updateCalendarRange() {
+  const rangeEl = document.getElementById('calendar-range');
+  if (rangeEl) {
+    rangeEl.textContent = formatWeekRange(calendarStartDate);
+  }
+}
+
+function setupCalendarNavigation() {
+  const prevBtn = document.getElementById('calendar-prev');
+  const nextBtn = document.getElementById('calendar-next');
+
+  if (prevBtn) {
+    prevBtn.addEventListener('click', () => {
+      calendarStartDate = addWeeks(calendarStartDate, -1);
+      renderCalendarGrid();
+      updateCalendarRange();
+    });
+  }
+
+  if (nextBtn) {
+    nextBtn.addEventListener('click', () => {
+      calendarStartDate = addWeeks(calendarStartDate, 1);
+      renderCalendarGrid();
+      updateCalendarRange();
+    });
+  }
+}
+
+function setupViewToggle(allJobs) {
+  const listView = document.getElementById('jobs-list-view');
+  const calendarView = document.getElementById('jobs-calendar-view');
+  const toggleBtns = document.querySelectorAll('.kh-view-toggle__btn');
+
+  let calendarInitialized = false;
+
+  toggleBtns.forEach(btn => {
+    btn.addEventListener('click', async () => {
+      toggleBtns.forEach(b => b.classList.remove('is-active'));
+      btn.classList.add('is-active');
+
+      const view = btn.dataset.view;
+
+      if (view === 'list') {
+        if (listView) listView.hidden = false;
+        if (calendarView) calendarView.hidden = true;
+      } else if (view === 'calendar') {
+        if (listView) listView.hidden = true;
+        if (calendarView) calendarView.hidden = false;
+
+        if (!calendarInitialized) {
+          // Show loading state
+          const grid = document.getElementById('calendar-grid');
+          if (grid) grid.innerHTML = '<div class="kh-loading"><div class="kh-spinner"></div>Loading calendar...</div>';
+
+          await initCalendarView(allJobs);
+          setupCalendarNavigation();
+          calendarInitialized = true;
+        }
+      }
+    });
+  });
+}
+
 function populateDocumentFilters(jobs) {
   const jobSelect = document.getElementById("documents-filter-job");
   const typeSelect = document.getElementById("documents-filter-type");
@@ -2212,6 +2488,7 @@ async function initDashboardPage() {
     allJobs = jobs;
     renderSummary(jobs);
     applyJobFilters(); // Apply initial filter
+    setupViewToggle(allJobs); // Setup list/calendar toggle
     if (apiStatus) {
       apiStatus.hidden = true;
     }
