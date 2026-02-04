@@ -1543,7 +1543,7 @@ html {
 }
 
 .kh-cal__day--alt {
-  background: var(--kh-bg-soft);
+  background: #f0f0f0;
 }
 
 .kh-cal__day:last-child {
