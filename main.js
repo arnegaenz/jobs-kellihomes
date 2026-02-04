@@ -1093,29 +1093,31 @@ function renderCalendarGrid() {
   });
   html += '</div>';
 
-  // Track month for alternating backgrounds
-  let currentMonth = weeks[0][0].getMonth();
-  let monthColorIndex = 0;
+  // Track months for alternating backgrounds (per-day coloring)
+  const monthColorMap = {};
+  let monthColorCounter = 0;
+
+  function getMonthColorClass(date) {
+    const monthKey = `${date.getFullYear()}-${date.getMonth()}`;
+    if (!(monthKey in monthColorMap)) {
+      monthColorMap[monthKey] = monthColorCounter++;
+    }
+    return monthColorMap[monthKey] % 2 === 0 ? '' : 'kh-cal__day--alt';
+  }
 
   // Week rows
-  weeks.forEach((weekDays, weekIdx) => {
-    // Check if we've entered a new month (based on Sunday of the week)
-    const weekMonth = weekDays[0].getMonth();
-    if (weekMonth !== currentMonth) {
-      currentMonth = weekMonth;
-      monthColorIndex++;
-    }
-    const monthClass = monthColorIndex % 2 === 0 ? '' : 'kh-cal__week--alt';
-
-    html += `<div class="kh-cal__week ${monthClass}">`;
+  weeks.forEach((weekDays) => {
+    html += '<div class="kh-cal__week">';
 
     // Day cells with date numbers
     html += '<div class="kh-cal__days">';
-    weekDays.forEach((day, dayIdx) => {
+    weekDays.forEach((day) => {
       const isToday = isSameDay(day, today);
       const isFirstOfMonth = day.getDate() === 1;
+      const monthColorClass = getMonthColorClass(day);
       const classes = ['kh-cal__day'];
       if (isToday) classes.push('kh-cal__day--today');
+      if (monthColorClass) classes.push(monthColorClass);
 
       // Show month label on first of month
       const monthLabel = isFirstOfMonth ? day.toLocaleDateString('en-US', { month: 'short' }) : '';

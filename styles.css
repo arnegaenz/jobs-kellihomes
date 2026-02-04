@@ -1520,11 +1520,6 @@ html {
 
 .kh-cal__week {
   border-bottom: 1px solid var(--kh-border);
-  background: var(--kh-bg);
-}
-
-.kh-cal__week--alt {
-  background: var(--kh-bg-soft);
 }
 
 .kh-cal__week:last-child {
@@ -1544,6 +1539,11 @@ html {
   display: flex;
   align-items: center;
   gap: 4px;
+  background: var(--kh-bg);
+}
+
+.kh-cal__day--alt {
+  background: var(--kh-bg-soft);
 }
 
 .kh-cal__day:last-child {
