@@ -1469,25 +1469,28 @@ html {
   color: var(--kh-text-muted);
 }
 
-/* Job filter with color swatch */
+/* Job filter with color background */
 .kh-cal-filter {
   display: flex;
   align-items: center;
   gap: 6px;
   cursor: pointer;
   font-size: 14px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid;
+  border-color: transparent;
+  font-weight: 500;
 }
 
-.kh-cal-filter__color {
-  width: 14px;
-  height: 14px;
-  border-radius: 3px;
-  border: 2px solid;
-  flex-shrink: 0;
+.kh-cal-filter--all {
+  background: white;
+  border-color: var(--kh-border);
+  color: var(--kh-text);
 }
 
 .kh-cal-filter__label {
-  color: var(--kh-text);
+  color: inherit;
 }
 
 /* Calendar Grid */

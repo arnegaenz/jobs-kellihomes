@@ -967,16 +967,15 @@ function renderCalendarFilters() {
   const selectedJobsList = calendarJobs.filter(j => calendarSelectedJobs.has(j.id));
 
   filtersContainer.innerHTML = `
-    <label class="kh-cal-filter">
+    <label class="kh-cal-filter kh-cal-filter--all">
       <input type="checkbox" class="kh-checkbox" id="calendar-select-all" checked />
       <span class="kh-cal-filter__label">All Jobs</span>
     </label>
     ${calendarJobs.map((job, idx) => {
       const color = getJobColor(idx);
       return `
-        <label class="kh-cal-filter">
+        <label class="kh-cal-filter" style="background: ${color.bg}; border-color: ${color.border}; color: ${color.text};">
           <input type="checkbox" class="kh-checkbox" data-job-id="${job.id}" data-job-index="${idx}" ${calendarSelectedJobs.has(job.id) ? 'checked' : ''} />
-          <span class="kh-cal-filter__color" style="background: ${color.bg}; border-color: ${color.border};"></span>
           <span class="kh-cal-filter__label">${job.name}</span>
         </label>
       `;
