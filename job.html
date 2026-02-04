@@ -338,11 +338,11 @@
             <div class="kh-modal__body">
               <label class="kh-label">
                 <span>Increase Amount</span>
-                <input type="number" id="budget-increase-amount" class="kh-input" placeholder="0.00" step="0.01" />
+                <input type="text" inputmode="numeric" id="budget-increase-amount" class="kh-input" placeholder="0" />
               </label>
               <label class="kh-label">
                 <span>Reason for Increase</span>
-                <textarea id="budget-increase-reason" class="kh-input" placeholder="Why is the budget increasing?"></textarea>
+                <textarea id="budget-increase-reason" class="kh-input" rows="2" style="resize: none;" placeholder="Why is the budget increasing?"></textarea>
               </label>
               <div class="kh-form-actions">
                 <button class="kh-button" id="save-budget-increase">Add Increase</button>
