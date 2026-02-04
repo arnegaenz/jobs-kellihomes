@@ -1449,13 +1449,14 @@ html {
 .kh-calendar__range {
   font-weight: 600;
   font-size: 16px;
-  min-width: 160px;
+  min-width: 200px;
+  text-align: center;
 }
 
 .kh-calendar__filters {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px;
+  gap: 16px;
   padding: 12px 16px;
   background: var(--kh-bg-soft);
   border-radius: 8px;
@@ -1468,7 +1469,28 @@ html {
   color: var(--kh-text-muted);
 }
 
-/* Traditional Calendar Grid */
+/* Job filter with color swatch */
+.kh-cal-filter {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.kh-cal-filter__color {
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  border: 2px solid;
+  flex-shrink: 0;
+}
+
+.kh-cal-filter__label {
+  color: var(--kh-text);
+}
+
+/* Calendar Grid */
 .kh-cal {
   border: 1px solid var(--kh-border);
   border-radius: 8px;
@@ -1494,8 +1516,6 @@ html {
 
 .kh-cal__week {
   border-bottom: 1px solid var(--kh-border);
-  min-height: 100px;
-  position: relative;
 }
 
 .kh-cal__week:last-child {
@@ -1505,24 +1525,20 @@ html {
 .kh-cal__days {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
+  border-bottom: 1px solid var(--kh-border);
 }
 
 .kh-cal__day {
-  padding: 8px;
+  padding: 6px 8px;
   border-right: 1px solid var(--kh-border);
-  min-height: 28px;
+  min-height: 24px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .kh-cal__day:last-child {
   border-right: none;
-}
-
-.kh-cal__day--other-month {
-  background: var(--kh-bg-soft);
-}
-
-.kh-cal__day--other-month .kh-cal__day-num {
-  color: var(--kh-text-muted);
 }
 
 .kh-cal__day-num {
@@ -1530,27 +1546,45 @@ html {
   font-weight: 500;
 }
 
+.kh-cal__month-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--kh-primary);
+  text-transform: uppercase;
+}
+
 .kh-cal__day--today .kh-cal__day-num {
   background: var(--kh-primary);
   color: white;
-  width: 24px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
   border-radius: 50%;
   display: inline-flex;
   align-items: center;
   justify-content: center;
 }
 
-.kh-cal__items {
+/* Swimlanes - one row per job */
+.kh-cal__swimlanes {
+  display: flex;
+  flex-direction: column;
+}
+
+.kh-cal__swimlane {
   position: relative;
-  min-height: 60px;
-  padding: 4px 0;
+  height: 26px;
+  border-bottom: 1px solid var(--kh-border-light, #f0f0f0);
+}
+
+.kh-cal__swimlane:last-child {
+  border-bottom: none;
 }
 
 .kh-cal__item {
   position: absolute;
+  top: 2px;
   height: 22px;
-  margin: 2px 2px;
+  margin: 0 1px;
   padding: 2px 6px;
   border-radius: 4px;
   font-size: 11px;
@@ -1560,6 +1594,7 @@ html {
   overflow: hidden;
   cursor: default;
   box-sizing: border-box;
+  border: 1px solid;
 }
 
 .kh-cal__item-text {
@@ -1568,33 +1603,20 @@ html {
   text-overflow: ellipsis;
 }
 
-.kh-cal__item--not-started {
-  background: #e5e7eb;
-  color: var(--kh-text-muted);
-}
-
-.kh-cal__item--in-progress {
-  background: #fef3c7;
-  color: #92400e;
-}
-
-.kh-cal__item--complete {
-  background: #d1fae5;
-  color: #065f46;
-}
-
-/* Estimated vs Actual - border indicator */
+/* Estimated vs Actual - left border indicator */
 .kh-cal__item--estimated {
-  border-left: 3px solid #9ca3af;
+  border-left-width: 3px;
+  border-left-color: #9ca3af !important;
 }
 
 .kh-cal__item--actual {
-  border-left: 3px solid var(--kh-primary);
+  border-left-width: 3px;
+  border-left-color: var(--kh-primary) !important;
 }
 
 /* Continuation indicators */
 .kh-cal__item--continues-left {
-  border-left: none;
+  border-left-width: 1px;
   border-top-left-radius: 0;
   border-bottom-left-radius: 0;
   margin-left: 0;

@@ -795,19 +795,36 @@ function renderJobsTable(jobs) {
 }
 
 // ============================================
-// CALENDAR VIEW - Traditional Month Calendar
+// CALENDAR VIEW - Weekly Calendar with Job Swimlanes
 // ============================================
 
-let calendarCurrentMonth = new Date(); // Current month being displayed
+let calendarStartDate = getSundayOfWeek(new Date()); // Start from current week's Sunday
 let calendarJobs = [];
 let calendarJobLineItems = {}; // { jobId: [lineItems] }
 let calendarSelectedJobs = new Set(); // Track which jobs are selected
 let calendarInitialized = false;
 
-function getSunday(date) {
+// Color palette for jobs
+const JOB_COLORS = [
+  { bg: '#dbeafe', border: '#3b82f6', text: '#1e40af' }, // Blue
+  { bg: '#dcfce7', border: '#22c55e', text: '#166534' }, // Green
+  { bg: '#fef3c7', border: '#f59e0b', text: '#92400e' }, // Amber
+  { bg: '#fce7f3', border: '#ec4899', text: '#9d174d' }, // Pink
+  { bg: '#e0e7ff', border: '#6366f1', text: '#3730a3' }, // Indigo
+  { bg: '#ffedd5', border: '#f97316', text: '#9a3412' }, // Orange
+  { bg: '#d1fae5', border: '#10b981', text: '#065f46' }, // Emerald
+  { bg: '#ede9fe', border: '#8b5cf6', text: '#5b21b6' }, // Violet
+];
+
+function getJobColor(jobIndex) {
+  return JOB_COLORS[jobIndex % JOB_COLORS.length];
+}
+
+function getSundayOfWeek(date) {
   const d = new Date(date);
   const day = d.getDay();
   d.setDate(d.getDate() - day);
+  d.setHours(0, 0, 0, 0);
   return d;
 }
 
@@ -817,14 +834,21 @@ function addDays(date, days) {
   return d;
 }
 
+function addWeeks(date, weeks) {
+  return addDays(date, weeks * 7);
+}
+
 function isSameDay(d1, d2) {
   return d1.getFullYear() === d2.getFullYear() &&
          d1.getMonth() === d2.getMonth() &&
          d1.getDate() === d2.getDate();
 }
 
-function formatMonthYear(date) {
-  return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+function formatDateRange(startDate) {
+  const endDate = addDays(startDate, 34); // 5 weeks
+  const startMonth = startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  const endMonth = endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  return `${startMonth} - ${endMonth}`;
 }
 
 function getItemDates(item) {
@@ -834,7 +858,6 @@ function getItemDates(item) {
   const actStart = schedule.actualStartDate ? new Date(schedule.actualStartDate) : null;
   const actEnd = schedule.actualEndDate ? new Date(schedule.actualEndDate) : null;
 
-  // Use actual if available, otherwise estimated
   const startDate = actStart || estStart;
   const endDate = actEnd || estEnd;
   const isActual = !!(actStart || actEnd);
@@ -843,14 +866,8 @@ function getItemDates(item) {
 }
 
 function getCalendarWeeks() {
-  // Get first day of month
-  const firstOfMonth = new Date(calendarCurrentMonth.getFullYear(), calendarCurrentMonth.getMonth(), 1);
-  // Get the Sunday before or on the first of the month
-  const calendarStart = getSunday(firstOfMonth);
-
-  // Build 5 weeks (covers any month)
   const weeks = [];
-  let currentDay = new Date(calendarStart);
+  let currentDay = new Date(calendarStartDate);
 
   for (let w = 0; w < 5; w++) {
     const week = [];
@@ -864,44 +881,7 @@ function getCalendarWeeks() {
   return weeks;
 }
 
-function getAllLineItemsForCalendar() {
-  // Gather all line items from selected jobs
-  const items = [];
-  calendarJobs.forEach(job => {
-    if (!calendarSelectedJobs.has(job.id)) return;
-    const jobItems = calendarJobLineItems[job.id] || [];
-    jobItems.forEach(item => {
-      items.push({ ...item, jobName: job.name, jobId: job.id });
-    });
-  });
-  return items;
-}
-
-function getItemsForDay(items, day) {
-  return items.filter(item => {
-    const { startDate, endDate } = getItemDates(item);
-    if (!startDate && !endDate) return false;
-
-    const itemStart = startDate || endDate;
-    const itemEnd = endDate || startDate;
-
-    // Normalize to date only (no time)
-    const dayStart = new Date(day.getFullYear(), day.getMonth(), day.getDate());
-    const dayEnd = new Date(day.getFullYear(), day.getMonth(), day.getDate(), 23, 59, 59);
-
-    return itemStart <= dayEnd && itemEnd >= dayStart;
-  });
-}
-
-function isItemStartOnDay(item, day) {
-  const { startDate, endDate } = getItemDates(item);
-  const effectiveStart = startDate || endDate;
-  if (!effectiveStart) return false;
-  return isSameDay(effectiveStart, day);
-}
-
 function getItemSpanInWeek(item, weekDays) {
-  // Calculate how many days this item spans within this week
   const { startDate, endDate } = getItemDates(item);
   if (!startDate && !endDate) return { startCol: -1, span: 0 };
 
@@ -909,35 +889,50 @@ function getItemSpanInWeek(item, weekDays) {
   const itemEnd = endDate || startDate;
 
   const weekStart = weekDays[0];
-  const weekEnd = weekDays[6];
+  const weekEnd = addDays(weekDays[6], 1);
+
+  // Check if item overlaps this week at all
+  if (itemStart >= weekEnd || itemEnd < weekStart) {
+    return { startCol: -1, span: 0 };
+  }
 
   // Clamp item dates to this week
   const visibleStart = itemStart < weekStart ? weekStart : itemStart;
-  const visibleEnd = itemEnd > weekEnd ? weekEnd : itemEnd;
+  const visibleEnd = itemEnd > weekDays[6] ? weekDays[6] : itemEnd;
 
   // Find which column it starts on
-  let startCol = -1;
+  let startCol = 0;
   for (let i = 0; i < 7; i++) {
-    if (isSameDay(weekDays[i], visibleStart) || weekDays[i] >= visibleStart) {
+    if (isSameDay(weekDays[i], visibleStart) || weekDays[i] > visibleStart) {
       startCol = i;
       break;
     }
   }
-  if (startCol === -1) startCol = 0;
 
   // Calculate span
   const diffTime = visibleEnd - visibleStart;
   const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1;
-  const span = Math.min(diffDays, 7 - startCol);
+  const span = Math.min(Math.max(diffDays, 1), 7 - startCol);
 
   return { startCol, span };
+}
+
+function doesItemAppearInWeek(item, weekDays) {
+  const { startDate, endDate } = getItemDates(item);
+  if (!startDate && !endDate) return false;
+
+  const itemStart = startDate || endDate;
+  const itemEnd = endDate || startDate;
+  const weekStart = weekDays[0];
+  const weekEnd = addDays(weekDays[6], 1);
+
+  return itemStart < weekEnd && itemEnd >= weekStart;
 }
 
 async function initCalendarView(jobs) {
   calendarJobs = jobs.filter(j => j.stage !== 'Closed');
   calendarSelectedJobs = new Set(calendarJobs.map(j => j.id));
 
-  // Fetch line items for all jobs
   calendarJobLineItems = {};
   await Promise.all(calendarJobs.map(async (job) => {
     try {
@@ -959,17 +954,23 @@ function renderCalendarFilters() {
   const filtersContainer = document.getElementById('calendar-filters');
   if (!filtersContainer) return;
 
+  const selectedJobsList = calendarJobs.filter(j => calendarSelectedJobs.has(j.id));
+
   filtersContainer.innerHTML = `
-    <label class="kh-checkbox-label">
+    <label class="kh-cal-filter">
       <input type="checkbox" class="kh-checkbox" id="calendar-select-all" checked />
-      <span>All Jobs</span>
+      <span class="kh-cal-filter__label">All Jobs</span>
     </label>
-    ${calendarJobs.map(job => `
-      <label class="kh-checkbox-label">
-        <input type="checkbox" class="kh-checkbox" data-job-id="${job.id}" ${calendarSelectedJobs.has(job.id) ? 'checked' : ''} />
-        <span>${job.name}</span>
-      </label>
-    `).join('')}
+    ${calendarJobs.map((job, idx) => {
+      const color = getJobColor(idx);
+      return `
+        <label class="kh-cal-filter">
+          <input type="checkbox" class="kh-checkbox" data-job-id="${job.id}" data-job-index="${idx}" ${calendarSelectedJobs.has(job.id) ? 'checked' : ''} />
+          <span class="kh-cal-filter__color" style="background: ${color.bg}; border-color: ${color.border};"></span>
+          <span class="kh-cal-filter__label">${job.name}</span>
+        </label>
+      `;
+    }).join('')}
   `;
 
   const selectAll = document.getElementById('calendar-select-all');
@@ -1006,15 +1007,22 @@ function renderCalendarGrid() {
   const gridContainer = document.getElementById('calendar-grid');
   if (!gridContainer) return;
 
-  if (calendarSelectedJobs.size === 0) {
+  const selectedJobs = calendarJobs.filter(j => calendarSelectedJobs.has(j.id));
+
+  if (selectedJobs.length === 0) {
     gridContainer.innerHTML = '<div class="kh-calendar__empty">Select jobs to display</div>';
     return;
   }
 
   const weeks = getCalendarWeeks();
-  const allItems = getAllLineItemsForCalendar();
   const today = new Date();
   const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+  // Build a map of job index for color assignment (based on original order)
+  const jobIndexMap = {};
+  calendarJobs.forEach((job, idx) => {
+    jobIndexMap[job.id] = idx;
+  });
 
   let html = '<div class="kh-cal">';
 
@@ -1026,78 +1034,80 @@ function renderCalendarGrid() {
   html += '</div>';
 
   // Week rows
-  weeks.forEach(weekDays => {
-    // Find items that need to be rendered in this week
-    const weekItems = allItems.filter(item => {
-      const { startDate, endDate } = getItemDates(item);
-      if (!startDate && !endDate) return false;
-      const itemStart = startDate || endDate;
-      const itemEnd = endDate || startDate;
-      const weekStart = weekDays[0];
-      const weekEnd = addDays(weekDays[6], 1);
-      return itemStart < weekEnd && itemEnd >= weekStart;
-    });
-
-    // Track which items we've already placed
-    const placedItems = new Set();
+  weeks.forEach((weekDays, weekIdx) => {
+    // Check for month boundary in this week
+    let monthBoundary = null;
+    for (let i = 1; i < 7; i++) {
+      if (weekDays[i].getMonth() !== weekDays[i-1].getMonth()) {
+        monthBoundary = { day: i, month: weekDays[i].toLocaleDateString('en-US', { month: 'long' }) };
+        break;
+      }
+    }
 
     html += '<div class="kh-cal__week">';
 
     // Day cells with date numbers
     html += '<div class="kh-cal__days">';
-    weekDays.forEach(day => {
+    weekDays.forEach((day, dayIdx) => {
       const isToday = isSameDay(day, today);
-      const isCurrentMonth = day.getMonth() === calendarCurrentMonth.getMonth();
+      const isFirstOfMonth = day.getDate() === 1;
       const classes = ['kh-cal__day'];
       if (isToday) classes.push('kh-cal__day--today');
-      if (!isCurrentMonth) classes.push('kh-cal__day--other-month');
+
+      // Show month label on first of month
+      const monthLabel = isFirstOfMonth ? day.toLocaleDateString('en-US', { month: 'short' }) : '';
 
       html += `<div class="${classes.join(' ')}">`;
+      if (monthLabel) {
+        html += `<span class="kh-cal__month-label">${monthLabel}</span>`;
+      }
       html += `<span class="kh-cal__day-num">${day.getDate()}</span>`;
       html += '</div>';
     });
     html += '</div>';
 
-    // Items row - render spanning items
-    html += '<div class="kh-cal__items">';
+    // Swimlanes - one row per selected job
+    html += '<div class="kh-cal__swimlanes">';
 
-    // Sort items by start date so they render in order
-    weekItems.sort((a, b) => {
-      const aStart = getItemDates(a).startDate || getItemDates(a).endDate;
-      const bStart = getItemDates(b).startDate || getItemDates(b).endDate;
-      return (aStart || 0) - (bStart || 0);
+    selectedJobs.forEach((job) => {
+      const jobIdx = jobIndexMap[job.id];
+      const color = getJobColor(jobIdx);
+      const lineItems = calendarJobLineItems[job.id] || [];
+
+      html += `<div class="kh-cal__swimlane" data-job-id="${job.id}">`;
+
+      // Find items for this job that appear in this week
+      lineItems.forEach(item => {
+        if (!doesItemAppearInWeek(item, weekDays)) return;
+
+        const { startCol, span } = getItemSpanInWeek(item, weekDays);
+        if (span <= 0) return;
+
+        const { startDate, endDate, isActual } = getItemDates(item);
+        const itemStart = startDate || endDate;
+        const itemEnd = endDate || startDate;
+        const continuesFromPrev = itemStart < weekDays[0];
+        const continuesToNext = itemEnd > weekDays[6];
+
+        const status = item.status || 'Not Started';
+        const actualClass = isActual ? 'kh-cal__item--actual' : 'kh-cal__item--estimated';
+        const continueLeftClass = continuesFromPrev ? 'kh-cal__item--continues-left' : '';
+        const continueRightClass = continuesToNext ? 'kh-cal__item--continues-right' : '';
+
+        const leftPercent = (startCol / 7) * 100;
+        const widthPercent = (span / 7) * 100;
+
+        html += `<div class="kh-cal__item ${actualClass} ${continueLeftClass} ${continueRightClass}"
+                      style="left: ${leftPercent}%; width: ${widthPercent}%; background: ${color.bg}; border-color: ${color.border}; color: ${color.text};"
+                      title="${job.name}: ${item.name} (${status})">
+                   <span class="kh-cal__item-text">${item.name}</span>
+                 </div>`;
+      });
+
+      html += '</div>'; // .kh-cal__swimlane
     });
 
-    // Render items that start or continue into this week
-    weekItems.forEach(item => {
-      const itemKey = `${item.jobId}-${item.code}`;
-      const { startCol, span } = getItemSpanInWeek(item, weekDays);
-
-      if (span <= 0) return;
-
-      // Check if this item starts this week or continues from previous
-      const { startDate, endDate, isActual } = getItemDates(item);
-      const itemStart = startDate || endDate;
-      const continuesFromPrev = itemStart < weekDays[0];
-      const continuesToNext = (endDate || startDate) > weekDays[6];
-
-      const status = item.status || 'Not Started';
-      const statusClass = status.toLowerCase().replace(/\s+/g, '-');
-      const actualClass = isActual ? 'kh-cal__item--actual' : 'kh-cal__item--estimated';
-      const continueClass = continuesFromPrev ? 'kh-cal__item--continues-left' : '';
-      const continueRightClass = continuesToNext ? 'kh-cal__item--continues-right' : '';
-
-      const leftPercent = (startCol / 7) * 100;
-      const widthPercent = (span / 7) * 100;
-
-      html += `<div class="kh-cal__item kh-cal__item--${statusClass} ${actualClass} ${continueClass} ${continueRightClass}"
-                    style="left: ${leftPercent}%; width: ${widthPercent}%;"
-                    title="${item.jobName}: ${item.name} (${status})">
-                 <span class="kh-cal__item-text">${item.name}</span>
-               </div>`;
-    });
-
-    html += '</div>'; // .kh-cal__items
+    html += '</div>'; // .kh-cal__swimlanes
     html += '</div>'; // .kh-cal__week
   });
 
@@ -1108,7 +1118,7 @@ function renderCalendarGrid() {
 function updateCalendarRange() {
   const rangeEl = document.getElementById('calendar-range');
   if (rangeEl) {
-    rangeEl.textContent = formatMonthYear(calendarCurrentMonth);
+    rangeEl.textContent = formatDateRange(calendarStartDate);
   }
 }
 
@@ -1118,7 +1128,7 @@ function setupCalendarNavigation() {
 
   if (prevBtn) {
     prevBtn.addEventListener('click', () => {
-      calendarCurrentMonth = new Date(calendarCurrentMonth.getFullYear(), calendarCurrentMonth.getMonth() - 1, 1);
+      calendarStartDate = addWeeks(calendarStartDate, -1);
       renderCalendarGrid();
       updateCalendarRange();
     });
@@ -1126,7 +1136,7 @@ function setupCalendarNavigation() {
 
   if (nextBtn) {
     nextBtn.addEventListener('click', () => {
-      calendarCurrentMonth = new Date(calendarCurrentMonth.getFullYear(), calendarCurrentMonth.getMonth() + 1, 1);
+      calendarStartDate = addWeeks(calendarStartDate, 1);
       renderCalendarGrid();
       updateCalendarRange();
     });
