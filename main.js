@@ -804,16 +804,16 @@ let calendarJobLineItems = {}; // { jobId: [lineItems] }
 let calendarSelectedJobs = new Set(); // Track which jobs are selected
 let calendarInitialized = false;
 
-// Color palette for jobs
+// Color palette for jobs - chosen to be visually distinct
 const JOB_COLORS = [
   { bg: '#dbeafe', border: '#3b82f6', text: '#1e40af' }, // Blue
   { bg: '#dcfce7', border: '#22c55e', text: '#166534' }, // Green
   { bg: '#fef3c7', border: '#f59e0b', text: '#92400e' }, // Amber
   { bg: '#fce7f3', border: '#ec4899', text: '#9d174d' }, // Pink
-  { bg: '#e0e7ff', border: '#6366f1', text: '#3730a3' }, // Indigo
   { bg: '#ffedd5', border: '#f97316', text: '#9a3412' }, // Orange
-  { bg: '#d1fae5', border: '#10b981', text: '#065f46' }, // Emerald
-  { bg: '#ede9fe', border: '#8b5cf6', text: '#5b21b6' }, // Violet
+  { bg: '#e9d5ff', border: '#a855f7', text: '#6b21a8' }, // Purple
+  { bg: '#ccfbf1', border: '#14b8a6', text: '#0f766e' }, // Teal
+  { bg: '#fecaca', border: '#ef4444', text: '#991b1b' }, // Red
 ];
 
 function getJobColor(jobIndex) {
