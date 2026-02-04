@@ -881,37 +881,46 @@ function getCalendarWeeks() {
   return weeks;
 }
 
+function normalizeDate(date) {
+  // Normalize to midnight local time to avoid timezone issues
+  if (!date) return null;
+  const d = new Date(date);
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+}
+
 function getItemSpanInWeek(item, weekDays) {
   const { startDate, endDate } = getItemDates(item);
   if (!startDate && !endDate) return { startCol: -1, span: 0 };
 
-  const itemStart = startDate || endDate;
-  const itemEnd = endDate || startDate;
-
-  const weekStart = weekDays[0];
-  const weekEnd = addDays(weekDays[6], 1);
+  // Normalize all dates to midnight local time
+  const itemStart = normalizeDate(startDate || endDate);
+  const itemEnd = normalizeDate(endDate || startDate);
+  const weekStart = normalizeDate(weekDays[0]);
+  const weekSat = normalizeDate(weekDays[6]);
 
   // Check if item overlaps this week at all
-  if (itemStart >= weekEnd || itemEnd < weekStart) {
+  // Item must start on or before Saturday AND end on or after Sunday
+  if (itemStart > weekSat || itemEnd < weekStart) {
     return { startCol: -1, span: 0 };
   }
 
   // Clamp item dates to this week
   const visibleStart = itemStart < weekStart ? weekStart : itemStart;
-  const visibleEnd = itemEnd > weekDays[6] ? weekDays[6] : itemEnd;
+  const visibleEnd = itemEnd > weekSat ? weekSat : itemEnd;
 
   // Find which column it starts on
   let startCol = 0;
   for (let i = 0; i < 7; i++) {
-    if (isSameDay(weekDays[i], visibleStart) || weekDays[i] > visibleStart) {
+    const dayNorm = normalizeDate(weekDays[i]);
+    if (dayNorm.getTime() === visibleStart.getTime() || dayNorm > visibleStart) {
       startCol = i;
       break;
     }
   }
 
-  // Calculate span
-  const diffTime = visibleEnd - visibleStart;
-  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1;
+  // Calculate span (difference in days + 1 for inclusive)
+  const diffTime = visibleEnd.getTime() - visibleStart.getTime();
+  const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24)) + 1;
   const span = Math.min(Math.max(diffDays, 1), 7 - startCol);
 
   return { startCol, span };
@@ -921,12 +930,13 @@ function doesItemAppearInWeek(item, weekDays) {
   const { startDate, endDate } = getItemDates(item);
   if (!startDate && !endDate) return false;
 
-  const itemStart = startDate || endDate;
-  const itemEnd = endDate || startDate;
-  const weekStart = weekDays[0];
-  const weekEnd = addDays(weekDays[6], 1);
+  const itemStart = normalizeDate(startDate || endDate);
+  const itemEnd = normalizeDate(endDate || startDate);
+  const weekStart = normalizeDate(weekDays[0]);
+  const weekSat = normalizeDate(weekDays[6]);
 
-  return itemStart < weekEnd && itemEnd >= weekStart;
+  // Item appears if it starts on or before Saturday AND ends on or after Sunday
+  return itemStart <= weekSat && itemEnd >= weekStart;
 }
 
 async function initCalendarView(jobs) {
