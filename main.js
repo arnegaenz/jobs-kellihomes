@@ -844,8 +844,8 @@ function isSameDay(d1, d2) {
          d1.getDate() === d2.getDate();
 }
 
-function formatDateRange(startDate) {
-  const endDate = addDays(startDate, 34); // 5 weeks
+function formatDateRange(startDate, numWeeks) {
+  const endDate = addDays(startDate, numWeeks * 7 - 1);
   const startMonth = startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   const endMonth = endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   return `${startMonth} - ${endMonth}`;
@@ -865,11 +865,11 @@ function getItemDates(item) {
   return { startDate, endDate, isActual };
 }
 
-function getCalendarWeeks() {
+function getCalendarWeeks(numWeeks) {
   const weeks = [];
   let currentDay = new Date(calendarStartDate);
 
-  for (let w = 0; w < 5; w++) {
+  for (let w = 0; w < numWeeks; w++) {
     const week = [];
     for (let d = 0; d < 7; d++) {
       week.push(new Date(currentDay));
@@ -879,6 +879,52 @@ function getCalendarWeeks() {
   }
 
   return weeks;
+}
+
+// Calculate how many swimlanes would appear in each week
+function countSwimlanesPerWeek(selectedJobs, numWeeks) {
+  const weeks = getCalendarWeeks(numWeeks);
+  const counts = [];
+
+  weeks.forEach(weekDays => {
+    let count = 0;
+    selectedJobs.forEach(job => {
+      const lineItems = calendarJobLineItems[job.id] || [];
+      lineItems.forEach(item => {
+        if (doesItemAppearInWeek(item, weekDays)) {
+          count++;
+        }
+      });
+    });
+    counts.push(count);
+  });
+
+  return counts;
+}
+
+// Determine optimal number of weeks based on density
+function calculateOptimalWeeks(selectedJobs) {
+  // Try different week counts and find the best balance
+  // Max swimlanes thresholds (approximate visual comfort levels)
+  // More swimlanes = fewer weeks shown
+
+  const MIN_WEEKS = 2;
+  const MAX_WEEKS = 8;
+  const TARGET_MAX_SWIMLANES = 12; // Comfortable max per week
+
+  // Start with max weeks and reduce if too dense
+  for (let numWeeks = MAX_WEEKS; numWeeks >= MIN_WEEKS; numWeeks--) {
+    const counts = countSwimlanesPerWeek(selectedJobs, numWeeks);
+    const maxSwimlanes = Math.max(...counts, 0);
+
+    // If the busiest week has a manageable number of swimlanes, use this week count
+    if (maxSwimlanes <= TARGET_MAX_SWIMLANES) {
+      return numWeeks;
+    }
+  }
+
+  // If still too dense at minimum weeks, just use minimum
+  return MIN_WEEKS;
 }
 
 function normalizeDate(date) {
@@ -1023,8 +1069,13 @@ function renderCalendarGrid() {
     return;
   }
 
-  const weeks = getCalendarWeeks();
+  // Calculate optimal number of weeks based on density
+  const numWeeks = calculateOptimalWeeks(selectedJobs);
+  const weeks = getCalendarWeeks(numWeeks);
   const today = new Date();
+
+  // Update the date range display
+  updateCalendarRange(numWeeks);
   const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
   // Build a map of job index for color assignment (based on original order)
@@ -1123,10 +1174,15 @@ function renderCalendarGrid() {
   gridContainer.innerHTML = html;
 }
 
-function updateCalendarRange() {
+function updateCalendarRange(numWeeks) {
   const rangeEl = document.getElementById('calendar-range');
   if (rangeEl) {
-    rangeEl.textContent = formatDateRange(calendarStartDate);
+    // If numWeeks not provided, calculate it
+    if (!numWeeks) {
+      const selectedJobs = calendarJobs.filter(j => calendarSelectedJobs.has(j.id));
+      numWeeks = calculateOptimalWeeks(selectedJobs);
+    }
+    rangeEl.textContent = formatDateRange(calendarStartDate, numWeeks);
   }
 }
 
