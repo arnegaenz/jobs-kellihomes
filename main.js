@@ -1140,18 +1140,21 @@ function renderLineItemsCosts(tbodyId, items = []) {
     // Budget Increases (button + display)
     const increasesCell = document.createElement("td");
     const totalIncreases = (item.budgetHistory || []).reduce((sum, inc) => sum + parseFloat(inc.amount || 0), 0);
-    increasesCell.innerHTML = `
-      <button class="kh-link" data-action="add-increase" data-code="${item.code}">+ Add</button>
-    `;
+    let historyHtml = '';
     if (item.budgetHistory && item.budgetHistory.length > 0) {
-      const historyHtml = item.budgetHistory.map((inc, idx) =>
+      historyHtml = item.budgetHistory.map((inc, idx) =>
         `<div class="kh-budget-increase-item">
           <span>+$${formatCurrency(inc.amount)}: ${inc.reason}</span>
           <button class="kh-budget-increase-delete" data-action="delete-increase" data-code="${item.code}" data-index="${idx}" title="Delete">&times;</button>
         </div>`
       ).join('');
-      increasesCell.innerHTML += `<div class="kh-budget-history">${historyHtml}</div>`;
     }
+    increasesCell.innerHTML = `
+      <div class="kh-budget-increases">
+        <button class="kh-link" data-action="add-increase" data-code="${item.code}">+ Add</button>
+        ${historyHtml ? `<div class="kh-budget-history">${historyHtml}</div>` : ''}
+      </div>
+    `;
 
     // Current Budget (calculated, read-only)
     const currentBudgetCell = document.createElement("td");
@@ -1308,18 +1311,21 @@ function renderLineItems(tbodyId, items = []) {
     // Budget Increases (button + display)
     const increasesCell = document.createElement("td");
     const totalIncreases = (item.budgetHistory || []).reduce((sum, inc) => sum + parseFloat(inc.amount || 0), 0);
-    increasesCell.innerHTML = `
-      <button class="kh-link" data-action="add-increase" data-code="${item.code}">+ Add</button>
-    `;
+    let historyHtml = '';
     if (item.budgetHistory && item.budgetHistory.length > 0) {
-      const historyHtml = item.budgetHistory.map((inc, idx) =>
+      historyHtml = item.budgetHistory.map((inc, idx) =>
         `<div class="kh-budget-increase-item">
           <span>+$${formatCurrency(inc.amount)}: ${inc.reason}</span>
           <button class="kh-budget-increase-delete" data-action="delete-increase" data-code="${item.code}" data-index="${idx}" title="Delete">&times;</button>
         </div>`
       ).join('');
-      increasesCell.innerHTML += `<div class="kh-budget-history">${historyHtml}</div>`;
     }
+    increasesCell.innerHTML = `
+      <div class="kh-budget-increases">
+        <button class="kh-link" data-action="add-increase" data-code="${item.code}">+ Add</button>
+        ${historyHtml ? `<div class="kh-budget-history">${historyHtml}</div>` : ''}
+      </div>
+    `;
 
     // Current Budget (calculated, read-only)
     const currentBudgetCell = document.createElement("td");

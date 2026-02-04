@@ -1174,6 +1174,15 @@ html {
   padding: 0.25rem 0.5rem;
 }
 
+.kh-budget-increases {
+  display: flex;
+  flex-direction: column;
+}
+
+.kh-budget-increases > button {
+  align-self: flex-start;
+}
+
 .kh-budget-history {
   margin-top: 0.5rem;
   font-size: 0.75rem;
