@@ -1075,7 +1075,7 @@ function renderCalendarGrid() {
     });
     html += '</div>';
 
-    // Swimlanes - one row per selected job
+    // Swimlanes - one row per line item that appears this week
     html += '<div class="kh-cal__swimlanes">';
 
     selectedJobs.forEach((job) => {
@@ -1083,12 +1083,11 @@ function renderCalendarGrid() {
       const color = getJobColor(jobIdx);
       const lineItems = calendarJobLineItems[job.id] || [];
 
-      html += `<div class="kh-cal__swimlane" data-job-id="${job.id}">`;
+      // Filter to items that appear in this week
+      const itemsThisWeek = lineItems.filter(item => doesItemAppearInWeek(item, weekDays));
 
-      // Find items for this job that appear in this week
-      lineItems.forEach(item => {
-        if (!doesItemAppearInWeek(item, weekDays)) return;
-
+      // Each line item gets its own swimlane row
+      itemsThisWeek.forEach(item => {
         const { startCol, span } = getItemSpanInWeek(item, weekDays);
         if (span <= 0) return;
 
@@ -1106,14 +1105,14 @@ function renderCalendarGrid() {
         const leftPercent = (startCol / 7) * 100;
         const widthPercent = (span / 7) * 100;
 
+        html += `<div class="kh-cal__swimlane" data-job-id="${job.id}">`;
         html += `<div class="kh-cal__item ${actualClass} ${continueLeftClass} ${continueRightClass}"
                       style="left: ${leftPercent}%; width: ${widthPercent}%; background: ${color.bg}; border-color: ${color.border}; color: ${color.text};"
                       title="${job.name}: ${item.name} (${status})">
                    <span class="kh-cal__item-text">${item.name}</span>
                  </div>`;
+        html += '</div>'; // .kh-cal__swimlane
       });
-
-      html += '</div>'; // .kh-cal__swimlane
     });
 
     html += '</div>'; // .kh-cal__swimlanes
