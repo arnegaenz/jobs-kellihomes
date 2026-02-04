@@ -1132,10 +1132,10 @@ function renderLineItemsCosts(tbodyId, items = []) {
       </div>
     `;
 
-    // Original Budget (editable) - whole dollars only, plain text input
+    // Original Budget (read-only, set from import)
     const originalBudgetCell = document.createElement("td");
     originalBudgetCell.className = "kh-cell-currency";
-    originalBudgetCell.innerHTML = `<input type="text" inputmode="numeric" value="${Math.round(item.originalBudget || 0)}" data-field="originalBudget" class="kh-input-currency" />`;
+    originalBudgetCell.innerHTML = `<input type="text" inputmode="numeric" value="${Math.round(item.originalBudget || 0)}" data-field="originalBudget" class="kh-input-currency" readonly />`;
 
     // Budget Increases (button + display)
     const increasesCell = document.createElement("td");
@@ -1299,10 +1299,10 @@ function renderLineItems(tbodyId, items = []) {
       </div>
     `;
 
-    // Original Budget (editable) - whole dollars only, plain text input
+    // Original Budget (read-only, set from import)
     const originalBudgetCell = document.createElement("td");
     originalBudgetCell.className = "kh-cell-currency";
-    originalBudgetCell.innerHTML = `<input type="text" inputmode="numeric" value="${Math.round(item.originalBudget || 0)}" data-field="originalBudget" class="kh-input-currency" />`;
+    originalBudgetCell.innerHTML = `<input type="text" inputmode="numeric" value="${Math.round(item.originalBudget || 0)}" data-field="originalBudget" class="kh-input-currency" readonly />`;
 
     // Budget Increases (button + display)
     const increasesCell = document.createElement("td");
