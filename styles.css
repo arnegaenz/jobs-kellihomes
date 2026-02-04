@@ -1045,6 +1045,21 @@ html {
   overflow-y: auto;
 }
 
+.kh-modal__body .kh-label {
+  display: block;
+  margin-bottom: 1rem;
+}
+
+.kh-modal__body .kh-label span {
+  display: block;
+  font-weight: 500;
+  margin-bottom: 0.5rem;
+}
+
+.kh-modal__body .kh-label .kh-input {
+  width: 100%;
+}
+
 /* Catalog List */
 .kh-catalog-list {
   margin-top: 1rem;
