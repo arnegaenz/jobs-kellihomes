@@ -1141,9 +1141,7 @@ function renderLineItemsCosts(tbodyId, items = []) {
     const increasesCell = document.createElement("td");
     const totalIncreases = (item.budgetHistory || []).reduce((sum, inc) => sum + parseFloat(inc.amount || 0), 0);
     increasesCell.innerHTML = `
-      <button class="kh-link" data-action="add-increase" data-code="${item.code}">
-        ${totalIncreases > 0 ? `+$${formatCurrency(totalIncreases)}` : '+ Add'}
-      </button>
+      <button class="kh-link" data-action="add-increase" data-code="${item.code}">+ Add</button>
     `;
     if (item.budgetHistory && item.budgetHistory.length > 0) {
       const historyHtml = item.budgetHistory.map((inc, idx) =>
@@ -1311,9 +1309,7 @@ function renderLineItems(tbodyId, items = []) {
     const increasesCell = document.createElement("td");
     const totalIncreases = (item.budgetHistory || []).reduce((sum, inc) => sum + parseFloat(inc.amount || 0), 0);
     increasesCell.innerHTML = `
-      <button class="kh-link" data-action="add-increase" data-code="${item.code}">
-        ${totalIncreases > 0 ? `+$${formatCurrency(totalIncreases)}` : '+ Add'}
-      </button>
+      <button class="kh-link" data-action="add-increase" data-code="${item.code}">+ Add</button>
     `;
     if (item.budgetHistory && item.budgetHistory.length > 0) {
       const historyHtml = item.budgetHistory.map((inc, idx) =>
