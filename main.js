@@ -1132,10 +1132,10 @@ function renderLineItemsCosts(tbodyId, items = []) {
       </div>
     `;
 
-    // Original Budget (read-only, set from import)
+    // Original Budget (read-only label, set from import)
     const originalBudgetCell = document.createElement("td");
     originalBudgetCell.className = "kh-cell-currency";
-    originalBudgetCell.innerHTML = `<input type="text" inputmode="numeric" value="${Math.round(item.originalBudget || 0)}" data-field="originalBudget" class="kh-input-currency" readonly />`;
+    originalBudgetCell.innerHTML = `<span data-field="originalBudget" data-value="${item.originalBudget || 0}">$${formatCurrency(item.originalBudget || 0)}</span>`;
 
     // Budget Increases (button + display)
     const increasesCell = document.createElement("td");
@@ -1299,10 +1299,10 @@ function renderLineItems(tbodyId, items = []) {
       </div>
     `;
 
-    // Original Budget (read-only, set from import)
+    // Original Budget (read-only label, set from import)
     const originalBudgetCell = document.createElement("td");
     originalBudgetCell.className = "kh-cell-currency";
-    originalBudgetCell.innerHTML = `<input type="text" inputmode="numeric" value="${Math.round(item.originalBudget || 0)}" data-field="originalBudget" class="kh-input-currency" readonly />`;
+    originalBudgetCell.innerHTML = `<span data-field="originalBudget" data-value="${item.originalBudget || 0}">$${formatCurrency(item.originalBudget || 0)}</span>`;
 
     // Budget Increases (button + display)
     const increasesCell = document.createElement("td");
@@ -1704,7 +1704,8 @@ function collectLineItems(tbodyId) {
     const existingItem = currentLineItems.find(item => item.code === code);
 
     // Collect field values from DOM
-    const originalBudget = parseFloat(row.querySelector('[data-field="originalBudget"]')?.value || 0);
+    const originalBudgetEl = row.querySelector('[data-field="originalBudget"]');
+    const originalBudget = parseFloat(originalBudgetEl?.dataset?.value || originalBudgetEl?.value || 0);
     const actual = parseFloat(row.querySelector('[data-field="actual"]')?.value || 0);
     const status = row.querySelector('[data-field="status"]')?.value || "Not Started";
     const vendor = row.querySelector('[data-field="vendor"]')?.value || "";
@@ -1751,7 +1752,8 @@ function collectLineItemsFromTwoTables() {
     if (!itemsMap.has(code)) return;
 
     const item = itemsMap.get(code);
-    item.originalBudget = parseFloat(row.querySelector('[data-field="originalBudget"]')?.value || 0);
+    const originalBudgetEl = row.querySelector('[data-field="originalBudget"]');
+    item.originalBudget = parseFloat(originalBudgetEl?.dataset?.value || originalBudgetEl?.value || 0);
     item.actual = parseFloat(row.querySelector('[data-field="actual"]')?.value || 0);
   });
 
