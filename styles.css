@@ -1174,13 +1174,9 @@ html {
   padding: 0.25rem 0.5rem;
 }
 
-.kh-budget-increases {
-  display: flex;
-  flex-direction: column;
-}
-
-.kh-budget-increases > button {
-  align-self: flex-start;
+.kh-cell-increases {
+  vertical-align: top;
+  padding-top: 0.75rem;
 }
 
 .kh-budget-history {
