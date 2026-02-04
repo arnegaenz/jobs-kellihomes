@@ -1139,7 +1139,6 @@ function renderLineItemsCosts(tbodyId, items = []) {
 
     // Budget Increases (button + display)
     const increasesCell = document.createElement("td");
-    increasesCell.className = "kh-cell-increases";
     const totalIncreases = (item.budgetHistory || []).reduce((sum, inc) => sum + parseFloat(inc.amount || 0), 0);
     let historyHtml = '';
     if (item.budgetHistory && item.budgetHistory.length > 0) {
@@ -1309,7 +1308,6 @@ function renderLineItems(tbodyId, items = []) {
 
     // Budget Increases (button + display)
     const increasesCell = document.createElement("td");
-    increasesCell.className = "kh-cell-increases";
     const totalIncreases = (item.budgetHistory || []).reduce((sum, inc) => sum + parseFloat(inc.amount || 0), 0);
     let historyHtml = '';
     if (item.budgetHistory && item.budgetHistory.length > 0) {

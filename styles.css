@@ -547,6 +547,9 @@ select.kh-input--compact {
 .kh-table--line-items td,
 .kh-table--line-items th {
   padding-right: 16px;
+  vertical-align: top;
+  padding-top: 12px;
+  padding-bottom: 12px;
 }
 
 .kh-table--line-items input,
@@ -1172,11 +1175,6 @@ html {
 .kh-schedule input {
   font-size: 0.8rem;
   padding: 0.25rem 0.5rem;
-}
-
-.kh-cell-increases {
-  vertical-align: top;
-  padding-top: 0.75rem;
 }
 
 .kh-budget-history {
