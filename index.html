@@ -158,20 +158,12 @@
               <div class="kh-panel__title">Jobs</div>
               <div class="kh-panel__subtitle">Snapshot of all current projects.</div>
             </div>
-            <div class="kh-panel__controls">
-              <div class="kh-view-toggle">
-                <button class="kh-view-toggle__btn is-active" data-view="list">List</button>
-                <button class="kh-view-toggle__btn" data-view="calendar">Calendar</button>
-              </div>
-              <label class="kh-checkbox-label">
-                <input type="checkbox" class="kh-checkbox" id="hide-closed-jobs" checked />
-                <span>Hide closed jobs</span>
-              </label>
-            </div>
+            <label class="kh-checkbox-label">
+              <input type="checkbox" class="kh-checkbox" id="hide-closed-jobs" checked />
+              <span>Hide closed jobs</span>
+            </label>
           </div>
-
-          <!-- List View -->
-          <div class="kh-table-wrap" id="jobs-list-view">
+          <div class="kh-table-wrap">
             <table class="kh-table">
               <thead>
                 <tr>
@@ -186,20 +178,25 @@
               <tbody id="jobs-table-body"></tbody>
             </table>
           </div>
+        </section>
 
-          <!-- Calendar View -->
-          <div class="kh-calendar-view" id="jobs-calendar-view" hidden>
+        <section class="kh-panel" id="calendar-panel">
+          <div class="kh-panel__header">
+            <div>
+              <div class="kh-panel__title">Schedule Calendar</div>
+              <div class="kh-panel__subtitle">Line items across all jobs.</div>
+            </div>
             <div class="kh-calendar__controls">
-              <button class="kh-button kh-button--small" id="calendar-prev">Previous Week</button>
-              <span class="kh-calendar__range" id="calendar-range">Jan 27 - Feb 23, 2026</span>
-              <button class="kh-button kh-button--small" id="calendar-next">Next Week</button>
+              <button class="kh-button kh-button--small kh-button--ghost" id="calendar-prev">&larr; Prev</button>
+              <span class="kh-calendar__range" id="calendar-range">February 2026</span>
+              <button class="kh-button kh-button--small kh-button--ghost" id="calendar-next">Next &rarr;</button>
             </div>
-            <div class="kh-calendar__filters" id="calendar-filters">
-              <!-- Job checkboxes will be rendered here -->
-            </div>
-            <div class="kh-calendar__grid" id="calendar-grid">
-              <!-- Calendar grid will be rendered here -->
-            </div>
+          </div>
+          <div class="kh-calendar__filters" id="calendar-filters">
+            <!-- Job checkboxes will be rendered here -->
+          </div>
+          <div class="kh-calendar" id="calendar-grid">
+            <!-- Calendar grid will be rendered here -->
           </div>
         </section>
 
