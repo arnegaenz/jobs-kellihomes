@@ -2041,7 +2041,7 @@ function renderFinancialSnapshot(lineItems = []) {
 
 /**
  * Render Job Schedule Card (Summary Tab)
- * Shows line items with status and dates
+ * Shows line items with status and dates in a table layout
  */
 function renderJobSchedule(lineItems = []) {
   const scheduleList = document.getElementById('schedule-list');
@@ -2058,6 +2058,19 @@ function renderJobSchedule(lineItems = []) {
 
   if (emptyState) emptyState.hidden = true;
 
+  // Add header row
+  const header = document.createElement('li');
+  header.className = 'kh-schedule-item kh-schedule-item--header';
+  header.innerHTML = `
+    <div class="kh-schedule-item__name">Item</div>
+    <div class="kh-schedule-item__status-col">Status</div>
+    <div class="kh-schedule-item__date-col">Est. Start</div>
+    <div class="kh-schedule-item__date-col">Est. End</div>
+    <div class="kh-schedule-item__date-col">Act. Start</div>
+    <div class="kh-schedule-item__date-col">Act. End</div>
+  `;
+  scheduleList.appendChild(header);
+
   lineItems.forEach(item => {
     const li = document.createElement('li');
     li.className = 'kh-schedule-item';
@@ -2066,17 +2079,20 @@ function renderJobSchedule(lineItems = []) {
     const statusClass = status.toLowerCase().replace(/\s+/g, '-');
 
     const schedule = item.schedule || {};
-    const scheduledDate = schedule.endDate ? formatDateDisplay(schedule.endDate) : '—';
-    const actualDate = schedule.actualEndDate ? formatDateDisplay(schedule.actualEndDate) : null;
-
-    const datesHtml = actualDate
-      ? `Scheduled: ${scheduledDate}<br><span class="kh-schedule-item__date-actual">Actual: ${actualDate}</span>`
-      : `Scheduled: ${scheduledDate}`;
+    const estStart = schedule.startDate ? formatDateDisplay(schedule.startDate) : '—';
+    const estEnd = schedule.endDate ? formatDateDisplay(schedule.endDate) : '—';
+    const actStart = schedule.actualStartDate ? formatDateDisplay(schedule.actualStartDate) : '—';
+    const actEnd = schedule.actualEndDate ? formatDateDisplay(schedule.actualEndDate) : '—';
 
     li.innerHTML = `
       <div class="kh-schedule-item__name">${item.name}</div>
-      <span class="kh-schedule-item__status kh-schedule-item__status--${statusClass}">${status}</span>
-      <div class="kh-schedule-item__dates">${datesHtml}</div>
+      <div class="kh-schedule-item__status-col">
+        <span class="kh-schedule-item__status kh-schedule-item__status--${statusClass}">${status}</span>
+      </div>
+      <div class="kh-schedule-item__date-col">${estStart}</div>
+      <div class="kh-schedule-item__date-col">${estEnd}</div>
+      <div class="kh-schedule-item__date-col kh-schedule-item__date-col--actual">${actStart}</div>
+      <div class="kh-schedule-item__date-col kh-schedule-item__date-col--actual">${actEnd}</div>
     `;
 
     scheduleList.appendChild(li);

@@ -1367,29 +1367,61 @@ html {
 }
 
 .kh-schedule-item {
-  padding: 12px 0;
+  padding: 10px 0;
   border-bottom: 1px solid var(--kh-border);
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
 }
 
 .kh-schedule-item:last-child {
   border-bottom: none;
 }
 
+.kh-schedule-item--header {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--kh-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding-bottom: 8px;
+}
+
 .kh-schedule-item__name {
   font-weight: 500;
   color: var(--kh-text);
   flex: 1;
+  min-width: 120px;
+}
+
+.kh-schedule-item--header .kh-schedule-item__name {
+  font-weight: 600;
+}
+
+.kh-schedule-item__status-col {
+  width: 100px;
+  text-align: center;
+}
+
+.kh-schedule-item__date-col {
+  width: 90px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--kh-text-muted);
+}
+
+.kh-schedule-item__date-col--actual {
+  color: var(--kh-text);
+  font-weight: 500;
 }
 
 .kh-schedule-item__status {
-  padding: 4px 12px;
+  display: inline-block;
+  padding: 4px 10px;
   border-radius: 999px;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 500;
+  white-space: nowrap;
 }
 
 .kh-schedule-item__status--not-started {
@@ -1405,17 +1437,6 @@ html {
 .kh-schedule-item__status--complete {
   background: #d1fae5;
   color: #065f46;
-}
-
-.kh-schedule-item__dates {
-  font-size: 14px;
-  color: var(--kh-text-muted);
-  text-align: right;
-}
-
-.kh-schedule-item__date-actual {
-  color: var(--kh-pill-ok);
-  font-weight: 500;
 }
 
 /* Panel Section (for grouped content within panels) */
