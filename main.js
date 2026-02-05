@@ -902,28 +902,72 @@ function countSwimlanesPerWeek(selectedJobs, numWeeks) {
   return counts;
 }
 
-// Determine optimal number of weeks based on density
-function calculateOptimalWeeks(selectedJobs) {
-  // Try different week counts and find the best balance
-  // Max swimlanes thresholds (approximate visual comfort levels)
-  // More swimlanes = fewer weeks shown
+// Calculate how many weeks fit in the square calendar
+function calculateWeeksForSquare(selectedJobs) {
+  const gridContainer = document.getElementById('calendar-grid');
+  if (!gridContainer) return 4;
 
+  const containerWidth = gridContainer.offsetWidth;
+  if (containerWidth === 0) return 4; // Fallback if not rendered yet
+
+  // Check if we're on mobile (no aspect-ratio enforcement)
+  const isMobile = window.innerWidth < 768;
+  if (isMobile) {
+    // On mobile, use density-based calculation
+    return calculateOptimalWeeksByDensity(selectedJobs);
+  }
+
+  // On desktop, calendar is square so height = width
+  const availableHeight = containerWidth;
+
+  // Estimate heights (approximate based on CSS):
+  // - Header row: ~40px
+  // - Day row per week: ~36px
+  // - Swimlane row: ~27px (26px + 1px border)
+  // - Min 4 swimlanes per week
+  const HEADER_HEIGHT = 40;
+  const DAY_ROW_HEIGHT = 36;
+  const SWIMLANE_HEIGHT = 27;
+  const MIN_SWIMLANES = 4;
+
+  // Calculate swimlane counts per week for different week counts
+  const MIN_WEEKS = 2;
+  const MAX_WEEKS = 10;
+
+  for (let numWeeks = MAX_WEEKS; numWeeks >= MIN_WEEKS; numWeeks--) {
+    const counts = countSwimlanesPerWeek(selectedJobs, numWeeks);
+
+    // Calculate total height needed
+    let totalHeight = HEADER_HEIGHT;
+    for (let i = 0; i < numWeeks; i++) {
+      const swimlanesThisWeek = Math.max(counts[i] || 0, MIN_SWIMLANES);
+      totalHeight += DAY_ROW_HEIGHT + (swimlanesThisWeek * SWIMLANE_HEIGHT);
+    }
+
+    // If this fits in the square, use it
+    if (totalHeight <= availableHeight) {
+      return numWeeks;
+    }
+  }
+
+  return MIN_WEEKS;
+}
+
+// Fallback density-based calculation for mobile
+function calculateOptimalWeeksByDensity(selectedJobs) {
   const MIN_WEEKS = 2;
   const MAX_WEEKS = 8;
-  const TARGET_MAX_SWIMLANES = 12; // Comfortable max per week
+  const TARGET_MAX_SWIMLANES = 12;
 
-  // Start with max weeks and reduce if too dense
   for (let numWeeks = MAX_WEEKS; numWeeks >= MIN_WEEKS; numWeeks--) {
     const counts = countSwimlanesPerWeek(selectedJobs, numWeeks);
     const maxSwimlanes = Math.max(...counts, 0);
 
-    // If the busiest week has a manageable number of swimlanes, use this week count
     if (maxSwimlanes <= TARGET_MAX_SWIMLANES) {
       return numWeeks;
     }
   }
 
-  // If still too dense at minimum weeks, just use minimum
   return MIN_WEEKS;
 }
 
@@ -1069,8 +1113,8 @@ function renderCalendarGrid() {
     return;
   }
 
-  // Calculate optimal number of weeks based on density
-  const numWeeks = calculateOptimalWeeks(selectedJobs);
+  // Calculate weeks to fit in square (desktop) or by density (mobile)
+  const numWeeks = calculateWeeksForSquare(selectedJobs);
   const weeks = getCalendarWeeks(numWeeks);
   const today = new Date();
 
@@ -1092,6 +1136,9 @@ function renderCalendarGrid() {
     html += `<div class="kh-cal__header-cell">${name}</div>`;
   });
   html += '</div>';
+
+  // Weeks container for flex layout
+  html += '<div class="kh-cal__weeks">';
 
   // Track months for alternating backgrounds (per-day coloring)
   const monthColorMap = {};
@@ -1185,6 +1232,7 @@ function renderCalendarGrid() {
     html += '</div>'; // .kh-cal__week
   });
 
+  html += '</div>'; // .kh-cal__weeks
   html += '</div>'; // .kh-cal
   gridContainer.innerHTML = html;
 }
