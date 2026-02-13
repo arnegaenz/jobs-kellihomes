@@ -303,6 +303,7 @@ const LINE_ITEM_STATUSES = ["Not Started", "In Progress", "Complete", "On Hold"]
 const DOCUMENT_TYPES = [
   { value: "Miscellaneous", icon: "file" },
   { value: "Approved Planset", icon: "blueprint" },
+  { value: "Renderings / Drawings", icon: "blueprint" },
   { value: "Cabinet Plans", icon: "blueprint" },
   { value: "Permit", icon: "stamp" },
   { value: "Insurance Estimate", icon: "shield" },
