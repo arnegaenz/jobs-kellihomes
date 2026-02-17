@@ -1487,6 +1487,8 @@ function renderDocumentsTable(documents, jobs, onTypeChange) {
       let thumbHtml;
       if (isImageFile(doc.name) && doc.url && !doc.deletedAt) {
         thumbHtml = `<img src="${doc.url}" loading="lazy" alt="${doc.name || 'Document'}" />`;
+      } else if (isExcelFile(doc.name)) {
+        thumbHtml = getExcelThumbnailSvg();
       } else {
         thumbHtml = `<span class="kh-doc-icon--large">${getDocumentIcon(type.icon)}</span>`;
       }
@@ -1628,6 +1630,8 @@ function renderBusinessDocumentsTable(documents) {
       let thumbHtml;
       if (isImageFile(doc.file_name) && doc.url && !doc.deleted_at) {
         thumbHtml = `<img src="${doc.url}" loading="lazy" alt="${doc.file_name || 'Document'}" />`;
+      } else if (isExcelFile(doc.file_name)) {
+        thumbHtml = getExcelThumbnailSvg();
       } else {
         const icon = getDocumentIconForExtension(fileExtension);
         thumbHtml = `<span class="kh-doc-icon--large" style="font-size: 28px;">${icon}</span>`;
@@ -1787,6 +1791,56 @@ function isImageFile(filename) {
 function isPdfFile(filename) {
   if (!filename) return false;
   return filename.split('.').pop().toLowerCase() === 'pdf';
+}
+
+function isExcelFile(filename) {
+  if (!filename) return false;
+  const ext = filename.split('.').pop().toLowerCase();
+  return ['xls', 'xlsx', 'csv'].includes(ext);
+}
+
+function getExcelThumbnailSvg() {
+  return `<svg viewBox="0 0 180 140" fill="none" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%;">
+    <rect width="180" height="140" fill="#f0fdf4"/>
+    <rect x="8" y="8" width="164" height="20" rx="3" fill="#166534"/>
+    <text x="14" y="22" fill="#fff" font-size="11" font-family="system-ui">Job Costing Summary</text>
+    <rect x="8" y="32" width="60" height="14" fill="#dcfce7" stroke="#bbf7d0" stroke-width="0.5"/>
+    <text x="12" y="43" fill="#166534" font-size="9" font-family="system-ui" font-weight="600">Item</text>
+    <rect x="68" y="32" width="52" height="14" fill="#dcfce7" stroke="#bbf7d0" stroke-width="0.5"/>
+    <text x="72" y="43" fill="#166534" font-size="9" font-family="system-ui" font-weight="600">Budget</text>
+    <rect x="120" y="32" width="52" height="14" fill="#dcfce7" stroke="#bbf7d0" stroke-width="0.5"/>
+    <text x="124" y="43" fill="#166534" font-size="9" font-family="system-ui" font-weight="600">Actual</text>
+    <rect x="8" y="46" width="60" height="14" fill="#fff" stroke="#e5e7eb" stroke-width="0.5"/>
+    <text x="12" y="57" fill="#374151" font-size="8" font-family="system-ui">Foundation</text>
+    <rect x="68" y="46" width="52" height="14" fill="#fff" stroke="#e5e7eb" stroke-width="0.5"/>
+    <text x="72" y="57" fill="#374151" font-size="8" font-family="system-ui">$24,500</text>
+    <rect x="120" y="46" width="52" height="14" fill="#fff" stroke="#e5e7eb" stroke-width="0.5"/>
+    <text x="124" y="57" fill="#374151" font-size="8" font-family="system-ui">$23,800</text>
+    <rect x="8" y="60" width="60" height="14" fill="#f9fafb" stroke="#e5e7eb" stroke-width="0.5"/>
+    <text x="12" y="71" fill="#374151" font-size="8" font-family="system-ui">Framing</text>
+    <rect x="68" y="60" width="52" height="14" fill="#f9fafb" stroke="#e5e7eb" stroke-width="0.5"/>
+    <text x="72" y="71" fill="#374151" font-size="8" font-family="system-ui">$38,200</text>
+    <rect x="120" y="60" width="52" height="14" fill="#f9fafb" stroke="#e5e7eb" stroke-width="0.5"/>
+    <text x="124" y="71" fill="#374151" font-size="8" font-family="system-ui">$39,100</text>
+    <rect x="8" y="74" width="60" height="14" fill="#fff" stroke="#e5e7eb" stroke-width="0.5"/>
+    <text x="12" y="85" fill="#374151" font-size="8" font-family="system-ui">Electrical</text>
+    <rect x="68" y="74" width="52" height="14" fill="#fff" stroke="#e5e7eb" stroke-width="0.5"/>
+    <text x="72" y="85" fill="#374151" font-size="8" font-family="system-ui">$12,750</text>
+    <rect x="120" y="74" width="52" height="14" fill="#fff" stroke="#e5e7eb" stroke-width="0.5"/>
+    <text x="124" y="85" fill="#374151" font-size="8" font-family="system-ui">$11,200</text>
+    <rect x="8" y="88" width="60" height="14" fill="#f9fafb" stroke="#e5e7eb" stroke-width="0.5"/>
+    <text x="12" y="99" fill="#374151" font-size="8" font-family="system-ui">Plumbing</text>
+    <rect x="68" y="88" width="52" height="14" fill="#f9fafb" stroke="#e5e7eb" stroke-width="0.5"/>
+    <text x="72" y="99" fill="#374151" font-size="8" font-family="system-ui">$15,600</text>
+    <rect x="120" y="88" width="52" height="14" fill="#f9fafb" stroke="#e5e7eb" stroke-width="0.5"/>
+    <text x="124" y="99" fill="#374151" font-size="8" font-family="system-ui">$14,950</text>
+    <rect x="8" y="106" width="60" height="14" fill="#dcfce7" stroke="#bbf7d0" stroke-width="0.5"/>
+    <text x="12" y="117" fill="#166534" font-size="9" font-family="system-ui" font-weight="700">Total</text>
+    <rect x="68" y="106" width="52" height="14" fill="#dcfce7" stroke="#bbf7d0" stroke-width="0.5"/>
+    <text x="72" y="117" fill="#166534" font-size="9" font-family="system-ui" font-weight="700">$91,050</text>
+    <rect x="120" y="106" width="52" height="14" fill="#dcfce7" stroke="#bbf7d0" stroke-width="0.5"/>
+    <text x="124" y="117" fill="#166534" font-size="9" font-family="system-ui" font-weight="700">$89,050</text>
+  </svg>`;
 }
 
 function renderPdfThumbnail(url, container) {
@@ -3373,6 +3427,8 @@ function renderDocuments(jobId, documents) {
       const showPdfThumb = isPdfFile(doc.name) && doc.url && !doc.deletedAt;
       if (isImageFile(doc.name) && doc.url && !doc.deletedAt) {
         thumbHtml = `<img src="${doc.url}" loading="lazy" alt="${doc.name || 'Document'}" />`;
+      } else if (isExcelFile(doc.name)) {
+        thumbHtml = getExcelThumbnailSvg();
       } else {
         thumbHtml = `<span class="kh-doc-icon--large">${getDocumentIcon(type.icon)}</span>`;
       }
