@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS tasks (
   id SERIAL PRIMARY KEY,
   title VARCHAR(255) NOT NULL,
   description TEXT DEFAULT '',
-  job_id INTEGER REFERENCES jobs(id) ON DELETE SET NULL,
+  job_id TEXT REFERENCES jobs(id) ON DELETE SET NULL,
   priority VARCHAR(20) NOT NULL DEFAULT 'Medium',
   status VARCHAR(30) NOT NULL DEFAULT 'Not Started',
   start_date DATE,
