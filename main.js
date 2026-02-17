@@ -1483,6 +1483,7 @@ function renderDocumentsTable(documents, jobs, onTypeChange) {
       card.className = "kh-doc-grid-card";
       if (doc.deletedAt) card.classList.add("is-trashed");
 
+      const showPdfThumb = isPdfFile(doc.name) && doc.url && !doc.deletedAt;
       let thumbHtml;
       if (isImageFile(doc.name) && doc.url && !doc.deletedAt) {
         thumbHtml = `<img src="${doc.url}" loading="lazy" alt="${doc.name || 'Document'}" />`;
@@ -1504,6 +1505,10 @@ function renderDocumentsTable(documents, jobs, onTypeChange) {
         card.addEventListener("click", () => {
           window.open(doc.url, "_blank", "noopener");
         });
+      }
+
+      if (showPdfThumb) {
+        renderPdfThumbnail(doc.url, card.querySelector(".kh-doc-thumb"));
       }
 
       grid.appendChild(card);
@@ -1619,6 +1624,7 @@ function renderBusinessDocumentsTable(documents) {
       if (doc.deleted_at) card.classList.add("is-trashed");
 
       const fileExtension = doc.file_name?.split('.').pop()?.toLowerCase() || '';
+      const showPdfThumb = isPdfFile(doc.file_name) && doc.url && !doc.deleted_at;
       let thumbHtml;
       if (isImageFile(doc.file_name) && doc.url && !doc.deleted_at) {
         thumbHtml = `<img src="${doc.url}" loading="lazy" alt="${doc.file_name || 'Document'}" />`;
@@ -1641,6 +1647,10 @@ function renderBusinessDocumentsTable(documents) {
         card.addEventListener("click", () => {
           window.open(doc.url, "_blank", "noopener");
         });
+      }
+
+      if (showPdfThumb) {
+        renderPdfThumbnail(doc.url, card.querySelector(".kh-doc-thumb"));
       }
 
       grid.appendChild(card);
@@ -1772,6 +1782,44 @@ function isImageFile(filename) {
   if (!filename) return false;
   const ext = filename.split('.').pop().toLowerCase();
   return ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'].includes(ext);
+}
+
+function isPdfFile(filename) {
+  if (!filename) return false;
+  return filename.split('.').pop().toLowerCase() === 'pdf';
+}
+
+function renderPdfThumbnail(url, container) {
+  if (!window.pdfjsLib || !url) return;
+
+  const pdfjsLib = window.pdfjsLib;
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+  pdfjsLib.getDocument(url).promise.then(pdf => {
+    return pdf.getPage(1);
+  }).then(page => {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+
+    // Render at a size that fits the thumbnail container
+    const thumbWidth = container.clientWidth || 180;
+    const viewport = page.getViewport({ scale: 1 });
+    const scale = thumbWidth / viewport.width;
+    const scaledViewport = page.getViewport({ scale });
+
+    canvas.width = scaledViewport.width;
+    canvas.height = scaledViewport.height;
+
+    page.render({ canvasContext: ctx, viewport: scaledViewport }).promise.then(() => {
+      container.innerHTML = '';
+      canvas.style.width = '100%';
+      canvas.style.height = '100%';
+      canvas.style.objectFit = 'cover';
+      container.appendChild(canvas);
+    });
+  }).catch(() => {
+    // Silently fail - keep the icon placeholder
+  });
 }
 
 // Document view mode state
@@ -3322,6 +3370,7 @@ function renderDocuments(jobId, documents) {
     if (jobDocViewMode === "grid") {
       // Grid card layout
       let thumbHtml;
+      const showPdfThumb = isPdfFile(doc.name) && doc.url && !doc.deletedAt;
       if (isImageFile(doc.name) && doc.url && !doc.deletedAt) {
         thumbHtml = `<img src="${doc.url}" loading="lazy" alt="${doc.name || 'Document'}" />`;
       } else {
@@ -3345,6 +3394,9 @@ function renderDocuments(jobId, documents) {
         item.querySelector(".kh-doc-card-link").addEventListener("click", () => {
           window.open(doc.url, "_blank", "noopener");
         });
+      }
+      if (showPdfThumb) {
+        renderPdfThumbnail(doc.url, item.querySelector(".kh-doc-thumb"));
       }
     } else {
       // List layout (original)
