@@ -14,6 +14,7 @@
         </a>
         <nav class="kh-nav">
           <a href="index.html">Dashboard</a>
+          <a href="tasks.html">Tasks</a>
           <a href="documents.html">Documents</a>
         </nav>
         <div class="kh-user">
@@ -150,6 +151,7 @@
             <button class="kh-tab is-active" data-tab="summary">Summary</button>
             <button class="kh-tab" data-tab="details">Line Items & Costing</button>
             <button class="kh-tab" data-tab="documents">Documents</button>
+            <button class="kh-tab" data-tab="tasks">Tasks</button>
           </div>
         </section>
 
@@ -299,6 +301,7 @@
               <div class="kh-panel__title">Documents</div>
               <ul class="kh-documents" id="documents-list"></ul>
               <div class="kh-form-actions kh-form-actions--toolbar">
+                <div id="job-doc-view-toggle"></div>
                 <label class="kh-toggle">
                   <input type="checkbox" id="documents-show-trashed" />
                   <span>Show trash</span>
@@ -309,6 +312,32 @@
                   <input type="file" id="document-upload" class="kh-file-input" />
                 </label>
                 <div class="kh-form-message" id="documents-message"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tasks Tab -->
+          <div class="kh-tab-panel" data-tab-panel="tasks">
+            <div class="kh-panel">
+              <div class="kh-panel__header">
+                <div class="kh-panel__title">Tasks</div>
+                <button class="kh-button kh-button--small" id="add-job-task-button">+ Add Task</button>
+              </div>
+              <div class="kh-form-message" id="job-tasks-message"></div>
+              <div class="kh-table-wrap">
+                <table class="kh-table kh-table--tasks">
+                  <thead>
+                    <tr>
+                      <th>Task</th>
+                      <th>Priority</th>
+                      <th>Status</th>
+                      <th>Assignees</th>
+                      <th>Dates</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="job-tasks-table-body"></tbody>
+                </table>
               </div>
             </div>
           </div>
@@ -359,6 +388,68 @@
         <div>Private job management area · Not for public distribution.</div>
       </div>
     </footer>
+
+    <!-- Job Task Modal -->
+    <div class="kh-modal" id="job-task-modal" hidden>
+      <div class="kh-modal__overlay"></div>
+      <div class="kh-modal__content">
+        <div class="kh-modal__header">
+          <h3 id="job-task-modal-title">Add Task</h3>
+          <button class="kh-modal__close" id="close-job-task-modal">&times;</button>
+        </div>
+        <div class="kh-modal__body">
+          <form id="job-task-form">
+            <input type="hidden" id="job-task-form-id" />
+            <div class="kh-form-grid">
+              <label class="kh-field" style="grid-column: 1 / -1;">
+                <span>Title</span>
+                <input class="kh-input" id="job-task-form-title" name="title" required />
+              </label>
+              <label class="kh-field" style="grid-column: 1 / -1;">
+                <span>Description</span>
+                <textarea class="kh-input" id="job-task-form-description" name="description" rows="3"></textarea>
+              </label>
+              <label class="kh-field">
+                <span>Priority</span>
+                <select class="kh-input" id="job-task-form-priority" name="priority">
+                  <option>Low</option>
+                  <option selected>Medium</option>
+                  <option>High</option>
+                  <option>Urgent</option>
+                </select>
+              </label>
+              <label class="kh-field">
+                <span>Status</span>
+                <select class="kh-input" id="job-task-form-status" name="status">
+                  <option selected>Not Started</option>
+                  <option>In Progress</option>
+                  <option>Complete</option>
+                  <option>On Hold</option>
+                  <option>Cancelled</option>
+                </select>
+              </label>
+              <label class="kh-field">
+                <span>Start Date</span>
+                <input class="kh-input" type="date" id="job-task-form-start-date" name="startDate" />
+              </label>
+              <label class="kh-field">
+                <span>End Date</span>
+                <input class="kh-input" type="date" id="job-task-form-end-date" name="endDate" />
+              </label>
+              <fieldset class="kh-field" style="grid-column: 1 / -1; border: none; padding: 0; margin: 0;">
+                <legend style="font-size: 14px; font-weight: 500; margin-bottom: 8px;">Assignees</legend>
+                <div id="job-task-form-assignees" class="kh-checkbox-group"></div>
+              </fieldset>
+            </div>
+            <div class="kh-form-actions" style="margin-top: 1.5rem;">
+              <button class="kh-button" type="submit" id="job-task-form-submit">Add Task</button>
+              <button class="kh-button kh-button--secondary" type="button" id="cancel-job-task-modal">Cancel</button>
+              <div class="kh-form-message" id="job-task-form-message"></div>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
 
     <script src="config.js"></script>
     <script type="module" src="api.js"></script>

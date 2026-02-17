@@ -290,3 +290,51 @@ export async function restoreBusinessDocument(documentId) {
     method: "POST"
   });
 }
+
+// Tasks API
+export async function fetchTasks(filters = {}) {
+  const apiBaseUrl = getApiBaseUrl();
+  const params = new URLSearchParams();
+  if (filters.jobId) params.set('jobId', filters.jobId);
+  if (filters.status) params.set('status', filters.status);
+  if (filters.assignee) params.set('assignee', filters.assignee);
+  if (filters.priority) params.set('priority', filters.priority);
+  const query = params.toString() ? `?${params.toString()}` : '';
+  return fetchJsonDedup(`${apiBaseUrl}/tasks${query}`);
+}
+
+export async function fetchTaskById(taskId) {
+  const apiBaseUrl = getApiBaseUrl();
+  return fetchJsonDedup(`${apiBaseUrl}/tasks/${taskId}`);
+}
+
+export async function createTask(payload) {
+  const apiBaseUrl = getApiBaseUrl();
+  return fetchJson(`${apiBaseUrl}/tasks`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+}
+
+export async function updateTask(taskId, payload) {
+  const apiBaseUrl = getApiBaseUrl();
+  return fetchJson(`${apiBaseUrl}/tasks/${taskId}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+}
+
+export async function deleteTask(taskId) {
+  const apiBaseUrl = getApiBaseUrl();
+  return fetchJson(`${apiBaseUrl}/tasks/${taskId}`, {
+    method: "DELETE"
+  });
+}
+
+// Users API
+export async function fetchUsers() {
+  const apiBaseUrl = getApiBaseUrl();
+  return fetchJsonDedup(`${apiBaseUrl}/users`);
+}

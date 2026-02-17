@@ -14,6 +14,7 @@
         </a>
         <nav class="kh-nav">
           <a href="index.html">Dashboard</a>
+          <a href="tasks.html">Tasks</a>
           <a href="documents.html" class="is-active">Documents</a>
         </nav>
         <div class="kh-user">
@@ -54,6 +55,7 @@
               <div class="kh-panel__subtitle">Company-level documents (licenses, permits, insurance, etc.)</div>
             </div>
             <div style="display: flex; gap: 1rem; align-items: center;">
+              <div id="biz-doc-view-toggle"></div>
               <label class="kh-toggle">
                 <input type="checkbox" id="business-docs-filter-trashed" />
                 <span>Show trash</span>
@@ -86,6 +88,7 @@
               <div class="kh-panel__subtitle">All documents across active jobs.</div>
             </div>
             <div class="kh-filters">
+              <div id="job-docs-page-view-toggle"></div>
               <label class="kh-toggle">
                 <input type="checkbox" id="documents-filter-trashed" />
                 <span>Show trash</span>

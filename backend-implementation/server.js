@@ -27,6 +27,8 @@ const lineItemsRoutes = require('./routes/lineItems');
 const passwordRoutes = require('./routes/password');
 const documentsRoutes = require('./routes/documents');
 const businessDocumentsRoutes = require('./routes/businessDocuments');
+const tasksRoutes = require('./routes/tasks');
+const usersRoutes = require('./routes/users');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -96,6 +98,8 @@ app.use('/jobs/:jobId/line-items', authenticateToken, lineItemsRoutes);
 app.use('/password', authenticateToken, passwordRoutes);
 app.use('/documents', authenticateToken, documentsRoutes);
 app.use('/business-documents', authenticateToken, businessDocumentsRoutes);
+app.use('/tasks', authenticateToken, tasksRoutes);
+app.use('/users', authenticateToken, usersRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

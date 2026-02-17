@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Kelli Homes | Tasks</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="kh-header">
+      <div class="kh-container kh-header__inner">
+        <a class="kh-logo-link" href="index.html">
+          <img src="assets/kh-logo.png" alt="Kelli Homes" class="kh-logo" />
+        </a>
+        <nav class="kh-nav">
+          <a href="index.html">Dashboard</a>
+          <a href="tasks.html" class="is-active">Tasks</a>
+          <a href="documents.html">Documents</a>
+        </nav>
+        <div class="kh-user">
+          <span id="signed-in-user">Signed in as —</span>
+          <a href="change-password.html" class="kh-link" style="margin-left: 12px;">Change Password</a>
+          <button class="kh-link" id="logout-button" style="margin-left: 12px; cursor: pointer; background: none; border: none; font: inherit;">Logout</button>
+        </div>
+      </div>
+    </header>
+
+    <section class="kh-login" id="login-panel" hidden>
+      <div class="kh-login__card">
+        <img src="assets/kh-logo.png" alt="Kelli Homes" class="kh-login__logo" />
+        <h1 class="kh-login__title">Job Management</h1>
+        <p class="kh-login__subtitle">Sign in to view and manage active projects.</p>
+        <form class="kh-login__form" id="login-form">
+          <label class="kh-field">
+            <span>User ID</span>
+            <input class="kh-input" name="username" autocomplete="username" required />
+          </label>
+          <label class="kh-field">
+            <span>Password</span>
+            <input class="kh-input" name="password" type="password" autocomplete="current-password" required />
+          </label>
+          <button class="kh-button" type="submit">Sign in</button>
+          <div class="kh-form-message" id="login-message"></div>
+        </form>
+      </div>
+    </section>
+
+    <main class="kh-main" id="main-content">
+      <div class="kh-container">
+        <section class="kh-hero">
+          <div>
+            <h1 class="kh-hero__title">Tasks</h1>
+            <p class="kh-hero__subtitle">Manage and track tasks across all projects.</p>
+          </div>
+          <button class="kh-button" id="create-task-button">Create Task</button>
+        </section>
+
+        <!-- Filters -->
+        <section class="kh-filters" style="margin-bottom: 1.5rem;">
+          <select class="kh-select" id="tasks-filter-status">
+            <option value="">All Statuses</option>
+            <option value="Not Started">Not Started</option>
+            <option value="In Progress">In Progress</option>
+            <option value="Complete">Complete</option>
+            <option value="On Hold">On Hold</option>
+            <option value="Cancelled">Cancelled</option>
+          </select>
+          <select class="kh-select" id="tasks-filter-priority">
+            <option value="">All Priorities</option>
+            <option value="Low">Low</option>
+            <option value="Medium">Medium</option>
+            <option value="High">High</option>
+            <option value="Urgent">Urgent</option>
+          </select>
+          <select class="kh-select" id="tasks-filter-assignee">
+            <option value="">All Assignees</option>
+          </select>
+          <select class="kh-select" id="tasks-filter-job">
+            <option value="">All Jobs</option>
+          </select>
+          <label class="kh-toggle">
+            <input type="checkbox" id="tasks-hide-completed" />
+            <span>Hide completed</span>
+          </label>
+        </section>
+
+        <div class="kh-form-message" id="tasks-message"></div>
+
+        <!-- Tasks Table -->
+        <section class="kh-panel">
+          <div class="kh-table-wrap">
+            <table class="kh-table kh-table--tasks">
+              <thead>
+                <tr>
+                  <th>Task</th>
+                  <th>Priority</th>
+                  <th>Status</th>
+                  <th>Assignees</th>
+                  <th>Job</th>
+                  <th>Dates</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="tasks-table-body"></tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <footer class="kh-footer" id="page-footer">
+      <div class="kh-container kh-footer__inner">
+        <div>Copyright &copy; 2026 Kelli Homes - All Rights Reserved.</div>
+        <div>Private job management area &middot; Not for public distribution.</div>
+      </div>
+    </footer>
+
+    <!-- Task Modal -->
+    <div class="kh-modal" id="task-modal" hidden>
+      <div class="kh-modal__overlay"></div>
+      <div class="kh-modal__content">
+        <div class="kh-modal__header">
+          <h3 id="task-modal-title">Create Task</h3>
+          <button class="kh-modal__close" id="close-task-modal">&times;</button>
+        </div>
+        <div class="kh-modal__body">
+          <form id="task-form">
+            <input type="hidden" id="task-form-id" />
+            <div class="kh-form-grid">
+              <label class="kh-field" style="grid-column: 1 / -1;">
+                <span>Title</span>
+                <input class="kh-input" id="task-form-title" name="title" required />
+              </label>
+              <label class="kh-field" style="grid-column: 1 / -1;">
+                <span>Description</span>
+                <textarea class="kh-input" id="task-form-description" name="description" rows="3"></textarea>
+              </label>
+              <label class="kh-field">
+                <span>Priority</span>
+                <select class="kh-input" id="task-form-priority" name="priority">
+                  <option>Low</option>
+                  <option selected>Medium</option>
+                  <option>High</option>
+                  <option>Urgent</option>
+                </select>
+              </label>
+              <label class="kh-field">
+                <span>Status</span>
+                <select class="kh-input" id="task-form-status" name="status">
+                  <option selected>Not Started</option>
+                  <option>In Progress</option>
+                  <option>Complete</option>
+                  <option>On Hold</option>
+                  <option>Cancelled</option>
+                </select>
+              </label>
+              <label class="kh-field">
+                <span>Start Date</span>
+                <input class="kh-input" type="date" id="task-form-start-date" name="startDate" />
+              </label>
+              <label class="kh-field">
+                <span>End Date</span>
+                <input class="kh-input" type="date" id="task-form-end-date" name="endDate" />
+              </label>
+              <label class="kh-field" style="grid-column: 1 / -1;">
+                <span>Job (optional)</span>
+                <select class="kh-input" id="task-form-job" name="jobId">
+                  <option value="">No job linked</option>
+                </select>
+              </label>
+              <fieldset class="kh-field" style="grid-column: 1 / -1; border: none; padding: 0; margin: 0;">
+                <legend style="font-size: 14px; font-weight: 500; margin-bottom: 8px;">Assignees</legend>
+                <div id="task-form-assignees" class="kh-checkbox-group"></div>
+              </fieldset>
+            </div>
+            <div class="kh-form-actions" style="margin-top: 1.5rem;">
+              <button class="kh-button" type="submit" id="task-form-submit">Create Task</button>
+              <button class="kh-button kh-button--secondary" type="button" id="cancel-task-modal">Cancel</button>
+              <div class="kh-form-message" id="task-form-message"></div>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <script src="config.js"></script>
+    <script type="module" src="api.js"></script>
+    <script type="module" src="main.js"></script>
+  </body>
+</html>

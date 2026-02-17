@@ -16,7 +16,13 @@ import {
   uploadBusinessDocument,
   updateBusinessDocument,
   deleteBusinessDocument,
-  restoreBusinessDocument
+  restoreBusinessDocument,
+  fetchTasks,
+  fetchTaskById,
+  createTask,
+  updateTask,
+  deleteTask,
+  fetchUsers
 } from "./api.js";
 
 import {
@@ -389,6 +395,10 @@ function isJobDetailPage() {
 
 function isDocumentsPage() {
   return window.location.pathname.endsWith("documents.html");
+}
+
+function isTasksPage() {
+  return window.location.pathname.endsWith("tasks.html");
 }
 
 function formatDate(value) {
@@ -805,6 +815,12 @@ let calendarJobLineItems = {}; // { jobId: [lineItems] }
 let calendarSelectedJobs = new Set(); // Track which jobs are selected
 let calendarInitialized = false;
 
+// Calendar task state
+let calendarTasks = []; // All tasks with dates
+let calendarTasksByJob = {}; // { jobId: [tasks] }
+let calendarUnlinkedTasks = []; // Tasks with no job
+let calendarShowTasks = true; // Toggle for task visibility
+
 // Color palette for jobs - chosen to be visually distinct
 const JOB_COLORS = [
   { bg: '#dbeafe', border: '#3b82f6', text: '#1e40af' }, // Blue
@@ -896,7 +912,27 @@ function countSwimlanesPerWeek(selectedJobs, numWeeks) {
           count++;
         }
       });
+
+      // Count job-linked tasks
+      if (calendarShowTasks) {
+        const jobTasks = calendarTasksByJob[job.id] || [];
+        jobTasks.forEach(task => {
+          if (doesItemAppearInWeek(task, weekDays)) {
+            count++;
+          }
+        });
+      }
     });
+
+    // Count unlinked tasks
+    if (calendarShowTasks) {
+      calendarUnlinkedTasks.forEach(task => {
+        if (doesItemAppearInWeek(task, weekDays)) {
+          count++;
+        }
+      });
+    }
+
     counts.push(count);
   });
 
@@ -1035,14 +1071,43 @@ async function initCalendarView(jobs) {
   calendarSelectedJobs = new Set(calendarJobs.map(j => j.id));
 
   calendarJobLineItems = {};
-  await Promise.all(calendarJobs.map(async (job) => {
-    try {
-      const lineItems = await fetchJobLineItems(job.id);
-      calendarJobLineItems[job.id] = lineItems || [];
-    } catch (e) {
-      calendarJobLineItems[job.id] = [];
+
+  // Fetch line items and tasks in parallel
+  const [, allTasks] = await Promise.all([
+    Promise.all(calendarJobs.map(async (job) => {
+      try {
+        const lineItems = await fetchJobLineItems(job.id);
+        calendarJobLineItems[job.id] = lineItems || [];
+      } catch (e) {
+        calendarJobLineItems[job.id] = [];
+      }
+    })),
+    fetchTasks().catch(() => [])
+  ]);
+
+  // Process tasks - only include those with dates
+  calendarTasks = (allTasks || []).filter(t => t.startDate || t.endDate);
+
+  // Adapt tasks to have schedule shape compatible with calendar helpers
+  calendarTasks.forEach(t => {
+    t.schedule = {
+      startDate: t.startDate ? t.startDate.split('T')[0] : null,
+      endDate: t.endDate ? t.endDate.split('T')[0] : null
+    };
+    t.name = t.title; // For calendar item display
+  });
+
+  // Group by job
+  calendarTasksByJob = {};
+  calendarUnlinkedTasks = [];
+  calendarTasks.forEach(t => {
+    if (t.jobId) {
+      if (!calendarTasksByJob[t.jobId]) calendarTasksByJob[t.jobId] = [];
+      calendarTasksByJob[t.jobId].push(t);
+    } else {
+      calendarUnlinkedTasks.push(t);
     }
-  }));
+  });
 
   renderCalendarFilters();
   renderCalendarGrid();
@@ -1056,6 +1121,7 @@ function renderCalendarFilters() {
   if (!filtersContainer) return;
 
   const selectedJobsList = calendarJobs.filter(j => calendarSelectedJobs.has(j.id));
+  const hasCalendarTasks = calendarTasks.length > 0;
 
   filtersContainer.innerHTML = `
     <label class="kh-cal-filter kh-cal-filter--all">
@@ -1071,6 +1137,12 @@ function renderCalendarFilters() {
         </label>
       `;
     }).join('')}
+    ${hasCalendarTasks ? `
+      <label class="kh-cal-filter kh-cal-filter--tasks">
+        <input type="checkbox" class="kh-checkbox" id="calendar-toggle-tasks" ${calendarShowTasks ? 'checked' : ''} />
+        <span class="kh-cal-filter__label">Tasks</span>
+      </label>
+    ` : ''}
   `;
 
   const selectAll = document.getElementById('calendar-select-all');
@@ -1101,6 +1173,15 @@ function renderCalendarFilters() {
       renderCalendarGrid();
     });
   });
+
+  // Tasks toggle
+  const tasksToggle = document.getElementById('calendar-toggle-tasks');
+  if (tasksToggle) {
+    tasksToggle.addEventListener('change', (e) => {
+      calendarShowTasks = e.target.checked;
+      renderCalendarGrid();
+    });
+  }
 }
 
 function renderCalendarGrid() {
@@ -1108,8 +1189,9 @@ function renderCalendarGrid() {
   if (!gridContainer) return;
 
   const selectedJobs = calendarJobs.filter(j => calendarSelectedJobs.has(j.id));
+  const hasTasksToShow = calendarShowTasks && calendarTasks.length > 0;
 
-  if (selectedJobs.length === 0) {
+  if (selectedJobs.length === 0 && !hasTasksToShow) {
     gridContainer.innerHTML = '<div class="kh-calendar__empty">Select jobs to display</div>';
     return;
   }
@@ -1221,7 +1303,63 @@ function renderCalendarGrid() {
         html += '</div>'; // .kh-cal__swimlane
         rowCount++;
       });
+
+      // Job-linked tasks (dashed border, same job color)
+      if (calendarShowTasks) {
+        const jobTasks = (calendarTasksByJob[job.id] || []).filter(t => doesItemAppearInWeek(t, weekDays));
+        jobTasks.forEach(task => {
+          const { startCol, span } = getItemSpanInWeek(task, weekDays);
+          if (span <= 0) return;
+
+          const taskStart = normalizeDate(task.schedule.startDate || task.schedule.endDate);
+          const taskEnd = normalizeDate(task.schedule.endDate || task.schedule.startDate);
+          const continuesFromPrev = taskStart < weekDays[0];
+          const continuesToNext = taskEnd > weekDays[6];
+          const continueLeftClass = continuesFromPrev ? 'kh-cal__item--continues-left' : '';
+          const continueRightClass = continuesToNext ? 'kh-cal__item--continues-right' : '';
+
+          const leftPercent = (startCol / 7) * 100;
+          const widthPercent = (span / 7) * 100;
+
+          html += `<div class="kh-cal__swimlane" data-job-id="${job.id}">`;
+          html += `<div class="kh-cal__item kh-cal__item--task ${continueLeftClass} ${continueRightClass}"
+                        style="left: ${leftPercent}%; width: ${widthPercent}%; background: ${color.bg}; border-color: ${color.border}; color: ${color.text};"
+                        title="${job.name} task: ${task.name} (${task.status || 'Not Started'})">
+                     <span class="kh-cal__item-text">${task.name}</span>
+                   </div>`;
+          html += '</div>';
+          rowCount++;
+        });
+      }
     });
+
+    // Unlinked tasks (neutral gray)
+    if (calendarShowTasks) {
+      const unlinkedThisWeek = calendarUnlinkedTasks.filter(t => doesItemAppearInWeek(t, weekDays));
+      unlinkedThisWeek.forEach(task => {
+        const { startCol, span } = getItemSpanInWeek(task, weekDays);
+        if (span <= 0) return;
+
+        const taskStart = normalizeDate(task.schedule.startDate || task.schedule.endDate);
+        const taskEnd = normalizeDate(task.schedule.endDate || task.schedule.startDate);
+        const continuesFromPrev = taskStart < weekDays[0];
+        const continuesToNext = taskEnd > weekDays[6];
+        const continueLeftClass = continuesFromPrev ? 'kh-cal__item--continues-left' : '';
+        const continueRightClass = continuesToNext ? 'kh-cal__item--continues-right' : '';
+
+        const leftPercent = (startCol / 7) * 100;
+        const widthPercent = (span / 7) * 100;
+
+        html += `<div class="kh-cal__swimlane">`;
+        html += `<div class="kh-cal__item kh-cal__item--task ${continueLeftClass} ${continueRightClass}"
+                      style="left: ${leftPercent}%; width: ${widthPercent}%; background: #f0f0f0; border-color: #999; color: #555;"
+                      title="Task: ${task.name} (${task.status || 'Not Started'})">
+                   <span class="kh-cal__item-text">${task.name}</span>
+                 </div>`;
+        html += '</div>';
+        rowCount++;
+      });
+    }
 
     // Add empty rows to reach minimum
     while (rowCount < MIN_ROWS) {
@@ -1315,7 +1453,68 @@ function populateDocumentFilters(jobs) {
 
 function renderDocumentsTable(documents, jobs, onTypeChange) {
   const tableBody = document.getElementById("documents-table-body");
+  const tableWrap = tableBody?.closest(".kh-table-wrap");
   if (!tableBody) return;
+
+  if (docsPageJobViewMode === "grid") {
+    // Grid view
+    const gridContainer = tableWrap || tableBody.parentElement;
+    const table = tableBody.closest("table");
+    if (table) table.style.display = "none";
+
+    let grid = gridContainer.querySelector(".kh-table--documents-grid");
+    if (!grid) {
+      grid = document.createElement("div");
+      grid.className = "kh-table--documents-grid";
+      gridContainer.appendChild(grid);
+    }
+    grid.innerHTML = "";
+
+    if (!documents.length) {
+      grid.innerHTML = '<div style="padding: 1rem; color: var(--kh-text-muted);">No documents uploaded yet.</div>';
+      return;
+    }
+
+    const jobMap = new Map(jobs.map((job) => [job.id, job.name]));
+
+    documents.forEach((doc) => {
+      const type = getDocumentType(doc.documentType);
+      const card = document.createElement("div");
+      card.className = "kh-doc-grid-card";
+      if (doc.deletedAt) card.classList.add("is-trashed");
+
+      let thumbHtml;
+      if (isImageFile(doc.name) && doc.url && !doc.deletedAt) {
+        thumbHtml = `<img src="${doc.url}" loading="lazy" alt="${doc.name || 'Document'}" />`;
+      } else {
+        thumbHtml = `<span class="kh-doc-icon--large">${getDocumentIcon(type.icon)}</span>`;
+      }
+
+      card.innerHTML = `
+        <div class="kh-doc-thumb">${thumbHtml}</div>
+        <div class="kh-doc-grid-card__body">
+          <div class="kh-doc-grid-card__name">${doc.name || "Document"}</div>
+          <div class="kh-doc-grid-card__meta">${doc.documentType || "—"} · ${jobMap.get(doc.jobId) || "—"}</div>
+          <div class="kh-doc-grid-card__meta">${formatDate(doc.createdAt)}</div>
+        </div>
+      `;
+
+      if (doc.url && !doc.deletedAt) {
+        card.querySelector(".kh-doc-grid-card__name").addEventListener("click", () => {
+          window.open(doc.url, "_blank", "noopener");
+        });
+      }
+
+      grid.appendChild(card);
+    });
+    return;
+  }
+
+  // List view (original table)
+  const table = tableBody.closest("table");
+  if (table) table.style.display = "";
+  const grid = tableBody.closest(".kh-table-wrap")?.querySelector(".kh-table--documents-grid");
+  if (grid) grid.remove();
 
   tableBody.innerHTML = "";
   if (!documents.length) {
@@ -1393,6 +1592,66 @@ function renderBusinessDocumentsTable(documents) {
   const tableBody = document.getElementById("business-docs-table-body");
   if (!tableBody) return;
 
+  const tableWrap = tableBody.closest(".kh-table-wrap");
+
+  if (docsPageBizViewMode === "grid") {
+    // Grid view
+    const table = tableBody.closest("table");
+    if (table) table.style.display = "none";
+
+    let grid = tableWrap?.querySelector(".kh-table--documents-grid");
+    if (!grid) {
+      grid = document.createElement("div");
+      grid.className = "kh-table--documents-grid";
+      tableWrap.appendChild(grid);
+    }
+    grid.innerHTML = "";
+
+    if (!documents.length) {
+      grid.innerHTML = '<div style="padding: 1rem; color: var(--kh-text-muted);">No business documents uploaded yet.</div>';
+      return;
+    }
+
+    documents.forEach((doc) => {
+      const card = document.createElement("div");
+      card.className = "kh-doc-grid-card";
+      if (doc.deleted_at) card.classList.add("is-trashed");
+
+      const fileExtension = doc.file_name?.split('.').pop()?.toLowerCase() || '';
+      let thumbHtml;
+      if (isImageFile(doc.file_name) && doc.url && !doc.deleted_at) {
+        thumbHtml = `<img src="${doc.url}" loading="lazy" alt="${doc.file_name || 'Document'}" />`;
+      } else {
+        const icon = getDocumentIconForExtension(fileExtension);
+        thumbHtml = `<span class="kh-doc-icon--large" style="font-size: 28px;">${icon}</span>`;
+      }
+
+      card.innerHTML = `
+        <div class="kh-doc-thumb">${thumbHtml}</div>
+        <div class="kh-doc-grid-card__body">
+          <div class="kh-doc-grid-card__name">${doc.file_name || "Document"}</div>
+          <div class="kh-doc-grid-card__meta">${doc.type || "—"}</div>
+          <div class="kh-doc-grid-card__meta">${formatDate(doc.uploaded_at)}</div>
+        </div>
+      `;
+
+      if (doc.url && !doc.deleted_at) {
+        card.querySelector(".kh-doc-grid-card__name").addEventListener("click", () => {
+          window.open(doc.url, "_blank", "noopener");
+        });
+      }
+
+      grid.appendChild(card);
+    });
+    return;
+  }
+
+  // List view (original table)
+  const table = tableBody.closest("table");
+  if (table) table.style.display = "";
+  const grid = tableWrap?.querySelector(".kh-table--documents-grid");
+  if (grid) grid.remove();
+
   tableBody.innerHTML = "";
   if (!documents.length) {
     const row = document.createElement("tr");
@@ -1455,7 +1714,6 @@ function renderBusinessDocumentsTable(documents) {
         try {
           await restoreBusinessDocument(doc.id);
           setMessage("business-docs-message", "Document restored successfully.");
-          // Reload business documents
           const showTrashed = Boolean(document.getElementById("business-docs-filter-trashed")?.checked);
           const updatedDocs = await fetchBusinessDocuments({ showTrashed });
           renderBusinessDocumentsTable(updatedDocs);
@@ -1474,7 +1732,6 @@ function renderBusinessDocumentsTable(documents) {
         try {
           await deleteBusinessDocument(doc.id);
           setMessage("business-docs-message", "Document deleted successfully.");
-          // Reload business documents
           const showTrashed = Boolean(document.getElementById("business-docs-filter-trashed")?.checked);
           const updatedDocs = await fetchBusinessDocuments({ showTrashed });
           renderBusinessDocumentsTable(updatedDocs);
@@ -1507,6 +1764,54 @@ function getDocumentIconForExtension(ext) {
     xlsx: '📊',
   };
   return icons[ext] || '📎';
+}
+
+function isImageFile(filename) {
+  if (!filename) return false;
+  const ext = filename.split('.').pop().toLowerCase();
+  return ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'].includes(ext);
+}
+
+// Document view mode state
+let jobDocViewMode = 'list';
+let docsPageJobViewMode = 'list';
+let docsPageBizViewMode = 'list';
+
+function createViewToggle(currentMode, onToggle) {
+  const container = document.createElement('div');
+  container.className = 'kh-view-toggle';
+
+  const listBtn = document.createElement('button');
+  listBtn.className = `kh-view-toggle__btn${currentMode === 'list' ? ' is-active' : ''}`;
+  listBtn.type = 'button';
+  listBtn.title = 'List view';
+  listBtn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>';
+
+  const gridBtn = document.createElement('button');
+  gridBtn.className = `kh-view-toggle__btn${currentMode === 'grid' ? ' is-active' : ''}`;
+  gridBtn.type = 'button';
+  gridBtn.title = 'Grid view';
+  gridBtn.innerHTML = '<svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>';
+
+  listBtn.addEventListener('click', () => {
+    if (currentMode === 'list') return;
+    currentMode = 'list';
+    listBtn.classList.add('is-active');
+    gridBtn.classList.remove('is-active');
+    onToggle('list');
+  });
+
+  gridBtn.addEventListener('click', () => {
+    if (currentMode === 'grid') return;
+    currentMode = 'grid';
+    gridBtn.classList.add('is-active');
+    listBtn.classList.remove('is-active');
+    onToggle('grid');
+  });
+
+  container.appendChild(listBtn);
+  container.appendChild(gridBtn);
+  return container;
 }
 
 function buildLineItemsMap(items = []) {
@@ -2759,6 +3064,24 @@ async function initDocumentsPage() {
   // Debounced version for filter changes
   const debouncedFilter = debounce(applyDocumentFilters, 150);
 
+  // View toggle for job documents
+  const jobDocsToggleContainer = document.getElementById("job-docs-page-view-toggle");
+  if (jobDocsToggleContainer) {
+    jobDocsToggleContainer.appendChild(createViewToggle(docsPageJobViewMode, (mode) => {
+      docsPageJobViewMode = mode;
+      applyDocumentFilters();
+    }));
+  }
+
+  // View toggle for business documents
+  const bizDocsToggleContainer = document.getElementById("biz-doc-view-toggle");
+  if (bizDocsToggleContainer) {
+    bizDocsToggleContainer.appendChild(createViewToggle(docsPageBizViewMode, (mode) => {
+      docsPageBizViewMode = mode;
+      applyBusinessDocumentFilters();
+    }));
+  }
+
   const handleDocumentTypeChange = async (doc, nextType, select) => {
     if (!nextType || nextType === doc.documentType) return;
     const original = doc.documentType;
@@ -2977,6 +3300,9 @@ function renderDocuments(jobId, documents) {
   if (!list) return;
   list.innerHTML = "";
 
+  // Apply grid/list class
+  list.classList.toggle("kh-documents--grid", jobDocViewMode === "grid");
+
   if (!documents.length) {
     const empty = document.createElement("li");
     empty.textContent = "No documents uploaded yet.";
@@ -2990,16 +3316,40 @@ function renderDocuments(jobId, documents) {
     if (doc.deletedAt) {
       item.classList.add("is-trashed");
     }
-    item.innerHTML = `
-      <div class="kh-doc-title">
-        <span class="kh-doc-icon">${getDocumentIcon(type.icon)}</span>
-        <div>
+
+    if (jobDocViewMode === "grid") {
+      // Grid card layout
+      let thumbHtml;
+      if (isImageFile(doc.name) && doc.url && !doc.deletedAt) {
+        thumbHtml = `<img src="${doc.url}" loading="lazy" alt="${doc.name || 'Document'}" />`;
+      } else {
+        thumbHtml = `<span class="kh-doc-icon--large">${getDocumentIcon(type.icon)}</span>`;
+      }
+
+      item.innerHTML = `
+        <div class="kh-doc-thumb">${thumbHtml}</div>
+        <div class="kh-doc-card-body">
           <a href="${doc.url || "#"}" target="_blank" rel="noopener">${doc.name || "Document"}</a>
           <div class="kh-doc-meta">${doc.documentType || "—"} · ${formatDate(doc.createdAt)}</div>
         </div>
-      </div>
-      <button class="kh-link" data-doc-id="${doc.id}">${doc.deletedAt ? "Restore" : "Move to trash"}</button>
-    `;
+        <div class="kh-doc-card-footer">
+          <button class="kh-link" data-doc-id="${doc.id}">${doc.deletedAt ? "Restore" : "Trash"}</button>
+        </div>
+      `;
+    } else {
+      // List layout (original)
+      item.innerHTML = `
+        <div class="kh-doc-title">
+          <span class="kh-doc-icon">${getDocumentIcon(type.icon)}</span>
+          <div>
+            <a href="${doc.url || "#"}" target="_blank" rel="noopener">${doc.name || "Document"}</a>
+            <div class="kh-doc-meta">${doc.documentType || "—"} · ${formatDate(doc.createdAt)}</div>
+          </div>
+        </div>
+        <button class="kh-link" data-doc-id="${doc.id}">${doc.deletedAt ? "Restore" : "Move to trash"}</button>
+      `;
+    }
+
     item.querySelector("button").addEventListener("click", async (e) => {
       const btn = e.target;
       setButtonLoading(btn, doc.deletedAt ? "Restoring..." : "Deleting...");
@@ -3020,6 +3370,561 @@ function renderDocuments(jobId, documents) {
   });
 }
 
+// ==========================================
+// Tasks Page
+// ==========================================
+
+function getPriorityClass(priority) {
+  const map = { 'Low': 'low', 'Medium': 'medium', 'High': 'high', 'Urgent': 'urgent' };
+  return map[priority] || 'medium';
+}
+
+function getTaskStatusClass(status) {
+  const map = {
+    'Not Started': 'not-started',
+    'In Progress': 'in-progress',
+    'Complete': 'complete',
+    'On Hold': 'on-hold',
+    'Cancelled': 'cancelled'
+  };
+  return map[status] || 'not-started';
+}
+
+function renderTasksTable(tasks, containerId = "tasks-table-body") {
+  const tableBody = document.getElementById(containerId);
+  if (!tableBody) return;
+
+  tableBody.innerHTML = "";
+
+  if (!tasks.length) {
+    const row = document.createElement("tr");
+    row.innerHTML = '<td colspan="7">No tasks found.</td>';
+    tableBody.appendChild(row);
+    return;
+  }
+
+  tasks.forEach((task) => {
+    const row = document.createElement("tr");
+
+    // Task title + description
+    const titleCell = document.createElement("td");
+    titleCell.innerHTML = `
+      <div class="kh-task-title">${task.title}</div>
+      ${task.description ? `<div class="kh-task-desc" title="${task.description}">${task.description}</div>` : ''}
+    `;
+
+    // Priority pill
+    const priorityCell = document.createElement("td");
+    priorityCell.innerHTML = `<span class="kh-priority kh-priority--${getPriorityClass(task.priority)}">${task.priority}</span>`;
+
+    // Status pill
+    const statusCell = document.createElement("td");
+    statusCell.innerHTML = `<span class="kh-task-status kh-task-status--${getTaskStatusClass(task.status)}">${task.status}</span>`;
+
+    // Assignees
+    const assigneesCell = document.createElement("td");
+    const assignees = task.assignees || [];
+    if (assignees.length > 0) {
+      assigneesCell.innerHTML = `<div class="kh-assignee-list">${assignees.map(a => `<span class="kh-assignee-tag">${a}</span>`).join('')}</div>`;
+    } else {
+      assigneesCell.textContent = "—";
+    }
+
+    // Job
+    const jobCell = document.createElement("td");
+    if (task.jobId && task.jobName) {
+      const jobLink = document.createElement("a");
+      jobLink.href = `job.html?jobId=${task.jobId}`;
+      jobLink.className = "kh-link";
+      jobLink.textContent = task.jobName;
+      jobCell.appendChild(jobLink);
+    } else {
+      jobCell.textContent = "—";
+    }
+
+    // Dates
+    const datesCell = document.createElement("td");
+    const start = task.startDate ? formatDate(task.startDate) : "";
+    const end = task.endDate ? formatDate(task.endDate) : "";
+    if (start || end) {
+      datesCell.innerHTML = `<div style="font-size: 12px;">${start}${start && end ? ' — ' : ''}${end}</div>`;
+    } else {
+      datesCell.textContent = "—";
+    }
+
+    // Actions
+    const actionsCell = document.createElement("td");
+    const editBtn = document.createElement("button");
+    editBtn.className = "kh-button kh-button--secondary kh-button--small";
+    editBtn.textContent = "Edit";
+    editBtn.addEventListener("click", () => openTaskModal(task));
+
+    const deleteBtn = document.createElement("button");
+    deleteBtn.className = "kh-button kh-button--secondary kh-button--small";
+    deleteBtn.textContent = "Delete";
+    deleteBtn.style.marginLeft = "4px";
+    deleteBtn.addEventListener("click", async () => {
+      if (!confirm(`Delete task "${task.title}"?`)) return;
+      try {
+        await deleteTask(task.id);
+        setMessage("tasks-message", "Task deleted.");
+        refreshTasksList();
+      } catch (error) {
+        console.error("Failed to delete task:", error);
+        setMessage("tasks-message", "Failed to delete task.", true);
+      }
+    });
+
+    actionsCell.appendChild(editBtn);
+    actionsCell.appendChild(deleteBtn);
+
+    row.append(titleCell, priorityCell, statusCell, assigneesCell, jobCell, datesCell, actionsCell);
+    tableBody.appendChild(row);
+  });
+}
+
+let tasksPageJobs = [];
+let tasksPageUsers = [];
+let tasksPageAllTasks = [];
+
+function openTaskModal(task = null, presetJobId = null) {
+  const modal = document.getElementById("task-modal");
+  const form = document.getElementById("task-form");
+  const title = document.getElementById("task-modal-title");
+  const submitBtn = document.getElementById("task-form-submit");
+  const idField = document.getElementById("task-form-id");
+
+  if (!modal || !form) return;
+
+  form.reset();
+  idField.value = "";
+
+  // Populate job select
+  const jobSelect = document.getElementById("task-form-job");
+  if (jobSelect) {
+    jobSelect.innerHTML = '<option value="">No job linked</option>';
+    tasksPageJobs.forEach(job => {
+      const opt = document.createElement("option");
+      opt.value = job.id;
+      opt.textContent = job.name;
+      jobSelect.appendChild(opt);
+    });
+  }
+
+  // Populate assignees checkboxes
+  const assigneesContainer = document.getElementById("task-form-assignees");
+  if (assigneesContainer) {
+    assigneesContainer.innerHTML = "";
+    tasksPageUsers.forEach(username => {
+      const label = document.createElement("label");
+      const cb = document.createElement("input");
+      cb.type = "checkbox";
+      cb.value = username;
+      cb.name = "assignees";
+      label.appendChild(cb);
+      label.appendChild(document.createTextNode(username));
+      assigneesContainer.appendChild(label);
+    });
+  }
+
+  if (task) {
+    // Edit mode
+    title.textContent = "Edit Task";
+    submitBtn.textContent = "Save Changes";
+    idField.value = task.id;
+    document.getElementById("task-form-title").value = task.title || "";
+    document.getElementById("task-form-description").value = task.description || "";
+    document.getElementById("task-form-priority").value = task.priority || "Medium";
+    document.getElementById("task-form-status").value = task.status || "Not Started";
+    document.getElementById("task-form-start-date").value = task.startDate ? task.startDate.split('T')[0] : "";
+    document.getElementById("task-form-end-date").value = task.endDate ? task.endDate.split('T')[0] : "";
+    if (jobSelect) jobSelect.value = task.jobId || "";
+
+    // Check assignees
+    const assignees = task.assignees || [];
+    assigneesContainer?.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.checked = assignees.includes(cb.value);
+    });
+  } else {
+    // Create mode
+    title.textContent = "Create Task";
+    submitBtn.textContent = "Create Task";
+    if (presetJobId && jobSelect) {
+      jobSelect.value = presetJobId;
+    }
+  }
+
+  modal.removeAttribute("hidden");
+}
+
+function closeTaskModal() {
+  const modal = document.getElementById("task-modal");
+  if (modal) modal.setAttribute("hidden", "");
+}
+
+async function refreshTasksList() {
+  try {
+    tasksPageAllTasks = await fetchTasks() || [];
+    applyTasksFilters();
+  } catch (error) {
+    console.error("Failed to refresh tasks:", error);
+  }
+}
+
+function applyTasksFilters() {
+  const status = document.getElementById("tasks-filter-status")?.value || "";
+  const priority = document.getElementById("tasks-filter-priority")?.value || "";
+  const assignee = document.getElementById("tasks-filter-assignee")?.value || "";
+  const jobId = document.getElementById("tasks-filter-job")?.value || "";
+  const hideCompleted = document.getElementById("tasks-hide-completed")?.checked || false;
+
+  let filtered = tasksPageAllTasks;
+
+  if (status) filtered = filtered.filter(t => t.status === status);
+  if (priority) filtered = filtered.filter(t => t.priority === priority);
+  if (assignee) filtered = filtered.filter(t => (t.assignees || []).includes(assignee));
+  if (jobId) filtered = filtered.filter(t => String(t.jobId) === jobId);
+  if (hideCompleted) filtered = filtered.filter(t => t.status !== 'Complete' && t.status !== 'Cancelled');
+
+  renderTasksTable(filtered);
+}
+
+async function initTasksPage() {
+  // Load jobs, users, and tasks in parallel
+  try {
+    const [jobs, users, tasks] = await Promise.all([
+      fetchJobs(),
+      fetchUsers(),
+      fetchTasks()
+    ]);
+
+    tasksPageJobs = jobs || [];
+    tasksPageUsers = users || [];
+    tasksPageAllTasks = tasks || [];
+
+    // Populate filter dropdowns
+    const assigneeFilter = document.getElementById("tasks-filter-assignee");
+    if (assigneeFilter) {
+      tasksPageUsers.forEach(username => {
+        const opt = document.createElement("option");
+        opt.value = username;
+        opt.textContent = username;
+        assigneeFilter.appendChild(opt);
+      });
+    }
+
+    const jobFilter = document.getElementById("tasks-filter-job");
+    if (jobFilter) {
+      tasksPageJobs.forEach(job => {
+        const opt = document.createElement("option");
+        opt.value = job.id;
+        opt.textContent = job.name;
+        jobFilter.appendChild(opt);
+      });
+    }
+
+    // Apply initial filters
+    applyTasksFilters();
+  } catch (error) {
+    console.error("Failed to initialize tasks page:", error);
+    setMessage("tasks-message", "Failed to load tasks.", true);
+  }
+
+  // Wire up filter events
+  ["tasks-filter-status", "tasks-filter-priority", "tasks-filter-assignee", "tasks-filter-job", "tasks-hide-completed"].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener("change", applyTasksFilters);
+  });
+
+  // Wire up create button
+  const createBtn = document.getElementById("create-task-button");
+  if (createBtn) {
+    createBtn.addEventListener("click", () => openTaskModal());
+  }
+
+  // Wire up modal close
+  const closeBtn = document.getElementById("close-task-modal");
+  const cancelBtn = document.getElementById("cancel-task-modal");
+  if (closeBtn) closeBtn.addEventListener("click", closeTaskModal);
+  if (cancelBtn) cancelBtn.addEventListener("click", closeTaskModal);
+
+  const modal = document.getElementById("task-modal");
+  const overlay = modal?.querySelector(".kh-modal__overlay");
+  if (overlay) {
+    overlay.addEventListener("click", closeTaskModal);
+  }
+
+  // Wire up form submission
+  const form = document.getElementById("task-form");
+  if (form) {
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      const idField = document.getElementById("task-form-id");
+      const isEdit = Boolean(idField?.value);
+      const submitBtn = document.getElementById("task-form-submit");
+
+      // Collect assignees
+      const assignees = [];
+      document.querySelectorAll('#task-form-assignees input[type="checkbox"]:checked').forEach(cb => {
+        assignees.push(cb.value);
+      });
+
+      const payload = {
+        title: document.getElementById("task-form-title").value,
+        description: document.getElementById("task-form-description").value,
+        priority: document.getElementById("task-form-priority").value,
+        status: document.getElementById("task-form-status").value,
+        startDate: document.getElementById("task-form-start-date").value || null,
+        endDate: document.getElementById("task-form-end-date").value || null,
+        jobId: document.getElementById("task-form-job").value || null,
+        assignees
+      };
+
+      setButtonLoading(submitBtn, "Saving...");
+
+      try {
+        if (isEdit) {
+          await updateTask(idField.value, payload);
+          setMessage("tasks-message", "Task updated.");
+        } else {
+          await createTask(payload);
+          setMessage("tasks-message", "Task created.");
+        }
+        closeTaskModal();
+        refreshTasksList();
+      } catch (error) {
+        console.error("Failed to save task:", error);
+        setMessage("task-form-message", `Failed to ${isEdit ? 'update' : 'create'} task.`, true);
+      } finally {
+        resetButton(submitBtn);
+      }
+    });
+  }
+}
+
+// ==========================================
+// Job Detail - Tasks Tab
+// ==========================================
+
+let jobDetailUsers = [];
+
+function renderJobTasksTable(tasks, jobId) {
+  const tableBody = document.getElementById("job-tasks-table-body");
+  if (!tableBody) return;
+
+  tableBody.innerHTML = "";
+
+  if (!tasks.length) {
+    const row = document.createElement("tr");
+    row.innerHTML = '<td colspan="6">No tasks for this job.</td>';
+    tableBody.appendChild(row);
+    return;
+  }
+
+  tasks.forEach((task) => {
+    const row = document.createElement("tr");
+
+    const titleCell = document.createElement("td");
+    titleCell.innerHTML = `
+      <div class="kh-task-title">${task.title}</div>
+      ${task.description ? `<div class="kh-task-desc" title="${task.description}">${task.description}</div>` : ''}
+    `;
+
+    const priorityCell = document.createElement("td");
+    priorityCell.innerHTML = `<span class="kh-priority kh-priority--${getPriorityClass(task.priority)}">${task.priority}</span>`;
+
+    const statusCell = document.createElement("td");
+    statusCell.innerHTML = `<span class="kh-task-status kh-task-status--${getTaskStatusClass(task.status)}">${task.status}</span>`;
+
+    const assigneesCell = document.createElement("td");
+    const assignees = task.assignees || [];
+    if (assignees.length > 0) {
+      assigneesCell.innerHTML = `<div class="kh-assignee-list">${assignees.map(a => `<span class="kh-assignee-tag">${a}</span>`).join('')}</div>`;
+    } else {
+      assigneesCell.textContent = "—";
+    }
+
+    const datesCell = document.createElement("td");
+    const start = task.startDate ? formatDate(task.startDate) : "";
+    const end = task.endDate ? formatDate(task.endDate) : "";
+    if (start || end) {
+      datesCell.innerHTML = `<div style="font-size: 12px;">${start}${start && end ? ' — ' : ''}${end}</div>`;
+    } else {
+      datesCell.textContent = "—";
+    }
+
+    const actionsCell = document.createElement("td");
+    const editBtn = document.createElement("button");
+    editBtn.className = "kh-button kh-button--secondary kh-button--small";
+    editBtn.textContent = "Edit";
+    editBtn.addEventListener("click", () => openJobTaskModal(task, jobId));
+
+    const deleteBtn = document.createElement("button");
+    deleteBtn.className = "kh-button kh-button--secondary kh-button--small";
+    deleteBtn.textContent = "Delete";
+    deleteBtn.style.marginLeft = "4px";
+    deleteBtn.addEventListener("click", async () => {
+      if (!confirm(`Delete task "${task.title}"?`)) return;
+      try {
+        await deleteTask(task.id);
+        setMessage("job-tasks-message", "Task deleted.");
+        loadJobTasks(jobId);
+      } catch (error) {
+        console.error("Failed to delete task:", error);
+        setMessage("job-tasks-message", "Failed to delete task.", true);
+      }
+    });
+
+    actionsCell.appendChild(editBtn);
+    actionsCell.appendChild(deleteBtn);
+
+    row.append(titleCell, priorityCell, statusCell, assigneesCell, datesCell, actionsCell);
+    tableBody.appendChild(row);
+  });
+}
+
+async function loadJobTasks(jobId) {
+  try {
+    const tasks = await fetchTasks({ jobId });
+    renderJobTasksTable(tasks || [], jobId);
+  } catch (error) {
+    console.error("Failed to load job tasks:", error);
+    setMessage("job-tasks-message", "Failed to load tasks.", true);
+  }
+}
+
+function openJobTaskModal(task = null, jobId = null) {
+  const modal = document.getElementById("job-task-modal");
+  const form = document.getElementById("job-task-form");
+  const title = document.getElementById("job-task-modal-title");
+  const submitBtn = document.getElementById("job-task-form-submit");
+  const idField = document.getElementById("job-task-form-id");
+
+  if (!modal || !form) return;
+
+  form.reset();
+  idField.value = "";
+
+  // Populate assignees checkboxes
+  const assigneesContainer = document.getElementById("job-task-form-assignees");
+  if (assigneesContainer) {
+    assigneesContainer.innerHTML = "";
+    jobDetailUsers.forEach(username => {
+      const label = document.createElement("label");
+      const cb = document.createElement("input");
+      cb.type = "checkbox";
+      cb.value = username;
+      cb.name = "assignees";
+      label.appendChild(cb);
+      label.appendChild(document.createTextNode(username));
+      assigneesContainer.appendChild(label);
+    });
+  }
+
+  if (task) {
+    title.textContent = "Edit Task";
+    submitBtn.textContent = "Save Changes";
+    idField.value = task.id;
+    document.getElementById("job-task-form-title").value = task.title || "";
+    document.getElementById("job-task-form-description").value = task.description || "";
+    document.getElementById("job-task-form-priority").value = task.priority || "Medium";
+    document.getElementById("job-task-form-status").value = task.status || "Not Started";
+    document.getElementById("job-task-form-start-date").value = task.startDate ? task.startDate.split('T')[0] : "";
+    document.getElementById("job-task-form-end-date").value = task.endDate ? task.endDate.split('T')[0] : "";
+
+    const assignees = task.assignees || [];
+    assigneesContainer?.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.checked = assignees.includes(cb.value);
+    });
+  } else {
+    title.textContent = "Add Task";
+    submitBtn.textContent = "Add Task";
+  }
+
+  modal.removeAttribute("hidden");
+}
+
+function closeJobTaskModal() {
+  const modal = document.getElementById("job-task-modal");
+  if (modal) modal.setAttribute("hidden", "");
+}
+
+function initJobTasksTab(jobId) {
+  // Load users for assignee picker
+  fetchUsers().then(users => {
+    jobDetailUsers = users || [];
+  }).catch(() => {
+    jobDetailUsers = [];
+  });
+
+  // Load tasks
+  loadJobTasks(jobId);
+
+  // Wire up Add Task button
+  const addBtn = document.getElementById("add-job-task-button");
+  if (addBtn) {
+    addBtn.addEventListener("click", () => openJobTaskModal(null, jobId));
+  }
+
+  // Wire up modal close
+  const closeBtn = document.getElementById("close-job-task-modal");
+  const cancelBtn = document.getElementById("cancel-job-task-modal");
+  if (closeBtn) closeBtn.addEventListener("click", closeJobTaskModal);
+  if (cancelBtn) cancelBtn.addEventListener("click", closeJobTaskModal);
+
+  const modal = document.getElementById("job-task-modal");
+  const overlay = modal?.querySelector(".kh-modal__overlay");
+  if (overlay) overlay.addEventListener("click", closeJobTaskModal);
+
+  // Wire up form
+  const form = document.getElementById("job-task-form");
+  if (form) {
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      const idField = document.getElementById("job-task-form-id");
+      const isEdit = Boolean(idField?.value);
+      const submitBtn = document.getElementById("job-task-form-submit");
+
+      const assignees = [];
+      document.querySelectorAll('#job-task-form-assignees input[type="checkbox"]:checked').forEach(cb => {
+        assignees.push(cb.value);
+      });
+
+      const payload = {
+        title: document.getElementById("job-task-form-title").value,
+        description: document.getElementById("job-task-form-description").value,
+        priority: document.getElementById("job-task-form-priority").value,
+        status: document.getElementById("job-task-form-status").value,
+        startDate: document.getElementById("job-task-form-start-date").value || null,
+        endDate: document.getElementById("job-task-form-end-date").value || null,
+        jobId: jobId,
+        assignees
+      };
+
+      setButtonLoading(submitBtn, "Saving...");
+
+      try {
+        if (isEdit) {
+          await updateTask(idField.value, payload);
+          setMessage("job-tasks-message", "Task updated.");
+        } else {
+          await createTask(payload);
+          setMessage("job-tasks-message", "Task added.");
+        }
+        closeJobTaskModal();
+        loadJobTasks(jobId);
+      } catch (error) {
+        console.error("Failed to save task:", error);
+        setMessage("job-task-form-message", `Failed to ${isEdit ? 'update' : 'create'} task.`, true);
+      } finally {
+        resetButton(submitBtn);
+      }
+    });
+  }
+}
+
 async function initJobDetailPage() {
   const params = new URLSearchParams(window.location.search);
   const jobId = params.get("jobId");
@@ -3032,6 +3937,7 @@ async function initJobDetailPage() {
   // Initialize tab navigation
   initTabNavigation();
   initJobNotesModal();
+  initJobTasksTab(jobId);
 
   // Initialize address autocomplete for job edit form
   initAddressAutocomplete('job-address-edit', 'address-suggestions-edit');
@@ -3189,6 +4095,15 @@ async function initJobDetailPage() {
     });
   }
 
+  // Document view toggle
+  const docToggleContainer = document.getElementById("job-doc-view-toggle");
+  if (docToggleContainer) {
+    docToggleContainer.appendChild(createViewToggle(jobDocViewMode, (mode) => {
+      jobDocViewMode = mode;
+      loadDocuments(jobId);
+    }));
+  }
+
   const uploadInput = document.getElementById("document-upload");
   const documentTypeSelect = document.getElementById("document-type");
   const showTrashedToggle = document.getElementById("documents-show-trashed");
@@ -3306,6 +4221,8 @@ function showJobNotFound() {
   if (authReady) {
     if (isJobDetailPage()) {
       initJobDetailPage();
+    } else if (isTasksPage()) {
+      initTasksPage();
     } else if (isDocumentsPage()) {
       initDocumentsPage();
     } else {

@@ -1721,3 +1721,290 @@ html {
   border: 1px solid var(--kh-border);
   border-radius: 4px;
 }
+
+/* Document View Toggle */
+.kh-view-toggle {
+  display: inline-flex;
+  border: 1px solid var(--kh-border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.kh-view-toggle__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: #fff;
+  border: none;
+  cursor: pointer;
+  color: var(--kh-text-muted);
+  padding: 0;
+}
+
+.kh-view-toggle__btn + .kh-view-toggle__btn {
+  border-left: 1px solid var(--kh-border);
+}
+
+.kh-view-toggle__btn.is-active {
+  background: var(--kh-accent);
+  color: #fff;
+}
+
+.kh-view-toggle__btn svg {
+  width: 16px;
+  height: 16px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 2;
+}
+
+/* Document Grid View */
+.kh-documents--grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 16px;
+  margin-top: 12px;
+}
+
+.kh-documents--grid li {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--kh-border);
+  border-radius: 8px;
+  overflow: hidden;
+  font-size: 13px;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.kh-doc-thumb {
+  width: 100%;
+  height: 140px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f5f5f5;
+  overflow: hidden;
+}
+
+.kh-doc-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.kh-doc-thumb .kh-doc-icon--large {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: #eee;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--kh-accent);
+}
+
+.kh-doc-thumb .kh-doc-icon--large svg {
+  width: 28px;
+  height: 28px;
+  stroke: currentColor;
+}
+
+.kh-doc-card-body {
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+
+.kh-doc-card-body a {
+  color: var(--kh-text);
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.kh-doc-card-footer {
+  padding: 6px 10px;
+  border-top: 1px solid var(--kh-border);
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* Documents table grid mode */
+.kh-table--documents-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 16px;
+}
+
+.kh-doc-grid-card {
+  border: 1px solid var(--kh-border);
+  border-radius: 8px;
+  overflow: hidden;
+  font-size: 13px;
+}
+
+.kh-doc-grid-card.is-trashed {
+  opacity: 0.5;
+}
+
+.kh-doc-grid-card__body {
+  padding: 10px;
+}
+
+.kh-doc-grid-card__name {
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.kh-doc-grid-card__meta {
+  color: var(--kh-text-muted);
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+@media (max-width: 480px) {
+  .kh-documents--grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .kh-table--documents-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* Task Priority Pills */
+.kh-priority {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.kh-priority--low {
+  background: #f0f0f0;
+  color: #666;
+}
+
+.kh-priority--medium {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.kh-priority--high {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.kh-priority--urgent {
+  background: #fecaca;
+  color: #991b1b;
+}
+
+/* Task Status Pills */
+.kh-task-status {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.kh-task-status--not-started {
+  background: #f0f0f0;
+  color: #666;
+}
+
+.kh-task-status--in-progress {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.kh-task-status--complete {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.kh-task-status--on-hold {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.kh-task-status--cancelled {
+  background: #f0f0f0;
+  color: #999;
+  text-decoration: line-through;
+}
+
+/* Checkbox Group for Assignees */
+.kh-checkbox-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.kh-checkbox-group label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.kh-checkbox-group input[type="checkbox"] {
+  accent-color: var(--kh-accent);
+}
+
+/* Task assignee tags */
+.kh-assignee-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.kh-assignee-tag {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  background: #f0f0f0;
+  color: #333;
+}
+
+/* Tasks table styling */
+.kh-table--tasks td {
+  vertical-align: middle;
+}
+
+.kh-table--tasks .kh-task-title {
+  font-weight: 500;
+}
+
+.kh-table--tasks .kh-task-desc {
+  font-size: 12px;
+  color: var(--kh-text-muted);
+  max-width: 300px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Calendar task swimlanes */
+.kh-cal__item--task {
+  border-style: dashed !important;
+  border-width: 2px !important;
+}
+
+.kh-cal-filter--tasks {
+  background: #fef3c7 !important;
+  border-color: #f59e0b !important;
+  color: #92400e !important;
+}
