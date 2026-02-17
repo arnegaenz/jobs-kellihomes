@@ -1500,7 +1500,8 @@ function renderDocumentsTable(documents, jobs, onTypeChange) {
       `;
 
       if (doc.url && !doc.deletedAt) {
-        card.querySelector(".kh-doc-grid-card__name").addEventListener("click", () => {
+        card.style.cursor = "pointer";
+        card.addEventListener("click", () => {
           window.open(doc.url, "_blank", "noopener");
         });
       }
@@ -1636,7 +1637,8 @@ function renderBusinessDocumentsTable(documents) {
       `;
 
       if (doc.url && !doc.deleted_at) {
-        card.querySelector(".kh-doc-grid-card__name").addEventListener("click", () => {
+        card.style.cursor = "pointer";
+        card.addEventListener("click", () => {
           window.open(doc.url, "_blank", "noopener");
         });
       }
@@ -3327,15 +3329,23 @@ function renderDocuments(jobId, documents) {
       }
 
       item.innerHTML = `
-        <div class="kh-doc-thumb">${thumbHtml}</div>
-        <div class="kh-doc-card-body">
-          <a href="${doc.url || "#"}" target="_blank" rel="noopener">${doc.name || "Document"}</a>
-          <div class="kh-doc-meta">${doc.documentType || "—"} · ${formatDate(doc.createdAt)}</div>
+        <div class="kh-doc-card-link">
+          <div class="kh-doc-thumb">${thumbHtml}</div>
+          <div class="kh-doc-card-body">
+            <div class="kh-doc-card-name">${doc.name || "Document"}</div>
+            <div class="kh-doc-meta">${doc.documentType || "—"} · ${formatDate(doc.createdAt)}</div>
+          </div>
         </div>
         <div class="kh-doc-card-footer">
           <button class="kh-link" data-doc-id="${doc.id}">${doc.deletedAt ? "Restore" : "Trash"}</button>
         </div>
       `;
+      if (doc.url && !doc.deletedAt) {
+        item.querySelector(".kh-doc-card-link").style.cursor = "pointer";
+        item.querySelector(".kh-doc-card-link").addEventListener("click", () => {
+          window.open(doc.url, "_blank", "noopener");
+        });
+      }
     } else {
       // List layout (original)
       item.innerHTML = `

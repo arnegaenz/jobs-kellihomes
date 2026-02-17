@@ -1812,6 +1812,11 @@ html {
   stroke: currentColor;
 }
 
+.kh-doc-card-link {
+  cursor: pointer;
+  flex: 1;
+}
+
 .kh-doc-card-body {
   padding: 10px;
   display: flex;
@@ -1820,7 +1825,7 @@ html {
   flex: 1;
 }
 
-.kh-doc-card-body a {
+.kh-doc-card-name {
   color: var(--kh-text);
   font-weight: 500;
   overflow: hidden;
@@ -1847,6 +1852,12 @@ html {
   border-radius: 8px;
   overflow: hidden;
   font-size: 13px;
+  transition: box-shadow 0.15s ease;
+}
+
+.kh-doc-grid-card[style*="cursor: pointer"]:hover,
+.kh-documents--grid li:has(.kh-doc-card-link):hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .kh-doc-grid-card.is-trashed {
