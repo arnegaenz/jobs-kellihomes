@@ -22,7 +22,14 @@ import {
   createTask,
   updateTask,
   deleteTask,
-  fetchUsers
+  fetchUsers,
+  fetchInventoryItems,
+  createInventoryItem,
+  updateInventoryItem,
+  requestInventoryPhotoUpload,
+  deleteInventoryPhoto,
+  claimInventoryItem,
+  unclaimInventoryItem
 } from "./api.js";
 
 import {
@@ -401,6 +408,10 @@ function isTasksPage() {
   return window.location.pathname.endsWith("tasks.html");
 }
 
+function isWastelandPage() {
+  return window.location.pathname.endsWith("wasteland.html");
+}
+
 function formatDate(value) {
   if (!value) return "—";
   const date = new Date(value);
@@ -709,8 +720,12 @@ async function initLoginFlow() {
       // Initialize the appropriate page
       if (isJobDetailPage()) {
         initJobDetailPage();
+      } else if (isTasksPage()) {
+        initTasksPage();
       } else if (isDocumentsPage()) {
         initDocumentsPage();
+      } else if (isWastelandPage()) {
+        initWastelandPage();
       } else {
         initDashboardPage();
       }
@@ -4333,6 +4348,436 @@ function showJobNotFound() {
   `;
 }
 
+// ==========================================
+// Wasteland — Inventory Tracking
+// ==========================================
+
+const INVENTORY_CATEGORIES = [
+  "Tile", "Lumber", "Hardware", "Plumbing", "Electrical", "Paint",
+  "Flooring", "Roofing", "Insulation", "Drywall", "Fixtures", "Appliances", "Other"
+];
+
+let wastelandJobs = [];
+let wastelandAllItems = [];
+let wastelandViewMode = "grid";
+
+function applyInventoryFilters() {
+  const search = (document.getElementById("inventory-search")?.value || "").toLowerCase();
+  const status = document.getElementById("inventory-filter-status")?.value || "";
+  const category = document.getElementById("inventory-filter-category")?.value || "";
+
+  const filtered = wastelandAllItems.filter(item => {
+    if (status && item.status !== status) return false;
+    if (category && item.category !== category) return false;
+    if (search) {
+      const haystack = `${item.name} ${item.description || ""} ${item.notes || ""} ${item.category || ""}`.toLowerCase();
+      if (!haystack.includes(search)) return false;
+    }
+    return true;
+  });
+
+  renderInventory(filtered);
+}
+
+function renderInventory(items) {
+  const container = document.getElementById("inventory-content");
+  if (!container) return;
+
+  if (!items.length) {
+    container.innerHTML = '<div class="kh-empty-state" style="text-align:center;padding:3rem 1rem;color:#888;">No items found.</div>';
+    return;
+  }
+
+  if (wastelandViewMode === "grid") {
+    renderInventoryGrid(container, items);
+  } else {
+    renderInventoryTable(container, items);
+  }
+}
+
+function renderInventoryGrid(container, items) {
+  const grid = document.createElement("ul");
+  grid.className = "kh-documents--grid";
+  grid.style.listStyle = "none";
+  grid.style.padding = "0";
+
+  items.forEach(item => {
+    const li = document.createElement("li");
+    li.className = item.status === "Claimed" ? "kh-inv-claimed" : "";
+
+    const thumbHtml = item.photoUrl
+      ? `<img src="${item.photoUrl}" alt="${item.name}" />`
+      : `<div class="kh-inv-placeholder"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></div>`;
+
+    const statusClass = item.status === "Available" ? "kh-inv-status--available" : "kh-inv-status--claimed";
+
+    let metaLine = item.category || "";
+    if (item.quantity > 1) metaLine += ` · Qty: ${item.quantity}`;
+
+    let jobLine = "";
+    if (item.status === "Claimed" && item.destinationJobName) {
+      jobLine = `<div class="kh-inv-job">Claimed for: ${item.destinationJobName}</div>`;
+    } else if (item.sourceJobName) {
+      jobLine = `<div class="kh-inv-job">From: ${item.sourceJobName}</div>`;
+    }
+
+    li.innerHTML = `
+      <div class="kh-doc-card-link kh-inv-card-link">
+        <div class="kh-doc-thumb">${thumbHtml}</div>
+        <div class="kh-doc-card-body">
+          <div class="kh-doc-card-name">${item.name}</div>
+          <div class="kh-doc-meta">
+            <span class="kh-inv-status ${statusClass}">${item.status}</span>
+            ${metaLine ? ` · ${metaLine}` : ""}
+          </div>
+          ${jobLine}
+        </div>
+      </div>
+      <div class="kh-doc-card-footer kh-inv-actions"></div>
+    `;
+
+    const actions = li.querySelector(".kh-inv-actions");
+    renderItemActions(actions, item);
+
+    li.querySelector(".kh-inv-card-link").addEventListener("click", () => openInventoryModal(item));
+
+    container.appendChild(li);
+    grid.appendChild(li);
+  });
+
+  container.innerHTML = "";
+  container.appendChild(grid);
+}
+
+function renderInventoryTable(container, items) {
+  const html = `
+    <div class="kh-panel">
+      <div class="kh-table-wrap">
+        <table class="kh-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Category</th>
+              <th>Qty</th>
+              <th>Status</th>
+              <th>Source Job</th>
+              <th>Added</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="inventory-table-body"></tbody>
+        </table>
+      </div>
+    </div>
+  `;
+  container.innerHTML = html;
+
+  const tbody = document.getElementById("inventory-table-body");
+  if (!tbody) return;
+
+  items.forEach(item => {
+    const row = document.createElement("tr");
+    if (item.status === "Claimed") row.className = "kh-inv-claimed";
+
+    const statusClass = item.status === "Available" ? "kh-inv-status--available" : "kh-inv-status--claimed";
+
+    row.innerHTML = `
+      <td><a href="#" class="kh-link kh-inv-edit-link">${item.name}</a></td>
+      <td>${item.category || "—"}</td>
+      <td>${item.quantity || 1}</td>
+      <td><span class="kh-inv-status ${statusClass}">${item.status}</span></td>
+      <td>${item.status === "Claimed" ? (item.destinationJobName || "—") : (item.sourceJobName || "—")}</td>
+      <td>${formatDate(item.createdAt)}</td>
+      <td class="kh-inv-actions"></td>
+    `;
+
+    row.querySelector(".kh-inv-edit-link").addEventListener("click", (e) => {
+      e.preventDefault();
+      openInventoryModal(item);
+    });
+
+    const actions = row.querySelector(".kh-inv-actions");
+    renderItemActions(actions, item);
+
+    tbody.appendChild(row);
+  });
+}
+
+function renderItemActions(container, item) {
+  if (item.status === "Available") {
+    const claimBtn = document.createElement("button");
+    claimBtn.className = "kh-button kh-button--secondary kh-button--small";
+    claimBtn.textContent = "Claim";
+    claimBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      openClaimModal(item);
+    });
+    container.appendChild(claimBtn);
+  } else {
+    const unclaimBtn = document.createElement("button");
+    unclaimBtn.className = "kh-button kh-button--secondary kh-button--small";
+    unclaimBtn.textContent = "Unclaim";
+    unclaimBtn.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      try {
+        await unclaimInventoryItem(item.id);
+        setMessage("inventory-message", "Item unclaimed.");
+        refreshInventory();
+      } catch (err) {
+        console.error("Failed to unclaim:", err);
+        setMessage("inventory-message", "Failed to unclaim item.", true);
+      }
+    });
+    container.appendChild(unclaimBtn);
+  }
+}
+
+async function refreshInventory() {
+  try {
+    wastelandAllItems = await fetchInventoryItems() || [];
+    applyInventoryFilters();
+  } catch (err) {
+    console.error("Failed to refresh inventory:", err);
+  }
+}
+
+function openInventoryModal(item = null) {
+  const modal = document.getElementById("inventory-modal");
+  const title = document.getElementById("inventory-modal-title");
+  const submitBtn = document.getElementById("inventory-form-submit");
+  const form = document.getElementById("inventory-form");
+  const preview = document.getElementById("inventory-form-photo-preview");
+
+  if (!modal || !form) return;
+
+  form.reset();
+  document.getElementById("inventory-form-id").value = "";
+  if (preview) preview.innerHTML = "";
+
+  // Populate source job dropdown
+  const jobSelect = document.getElementById("inventory-form-source-job");
+  if (jobSelect) {
+    jobSelect.innerHTML = '<option value="">None</option>';
+    wastelandJobs.forEach(job => {
+      const opt = document.createElement("option");
+      opt.value = job.id;
+      opt.textContent = job.name;
+      jobSelect.appendChild(opt);
+    });
+  }
+
+  if (item) {
+    title.textContent = "Edit Item";
+    submitBtn.textContent = "Save Changes";
+    document.getElementById("inventory-form-id").value = item.id;
+    document.getElementById("inventory-form-name").value = item.name || "";
+    document.getElementById("inventory-form-quantity").value = item.quantity || 1;
+    document.getElementById("inventory-form-category").value = item.category || "Other";
+    document.getElementById("inventory-form-description").value = item.description || "";
+    document.getElementById("inventory-form-notes").value = item.notes || "";
+    if (jobSelect && item.sourceJobId) jobSelect.value = item.sourceJobId;
+    if (preview && item.photoUrl) {
+      preview.innerHTML = `<img src="${item.photoUrl}" style="max-width:200px;max-height:120px;border-radius:6px;" />`;
+    }
+  } else {
+    title.textContent = "Add Item";
+    submitBtn.textContent = "Add Item";
+  }
+
+  modal.hidden = false;
+}
+
+function closeInventoryModal() {
+  const modal = document.getElementById("inventory-modal");
+  if (modal) modal.hidden = true;
+}
+
+function openClaimModal(item) {
+  const modal = document.getElementById("claim-modal");
+  if (!modal) return;
+
+  document.getElementById("claim-form-item-id").value = item.id;
+  document.getElementById("claim-item-name").textContent = item.name;
+
+  const jobSelect = document.getElementById("claim-form-job");
+  if (jobSelect) {
+    jobSelect.innerHTML = '<option value="">Select a job...</option>';
+    wastelandJobs.forEach(job => {
+      const opt = document.createElement("option");
+      opt.value = job.id;
+      opt.textContent = job.name;
+      jobSelect.appendChild(opt);
+    });
+  }
+
+  document.getElementById("claim-form-message").textContent = "";
+  modal.hidden = false;
+}
+
+function closeClaimModal() {
+  const modal = document.getElementById("claim-modal");
+  if (modal) modal.hidden = true;
+}
+
+async function initWastelandPage() {
+  // Load jobs and inventory in parallel
+  try {
+    const [jobs, items] = await Promise.all([
+      fetchJobs(),
+      fetchInventoryItems()
+    ]);
+
+    wastelandJobs = jobs || [];
+    wastelandAllItems = items || [];
+
+    applyInventoryFilters();
+  } catch (error) {
+    console.error("Failed to initialize Wasteland page:", error);
+    setMessage("inventory-message", "Failed to load inventory.", true);
+  }
+
+  // Wire up filters
+  const searchInput = document.getElementById("inventory-search");
+  if (searchInput) {
+    searchInput.addEventListener("input", debounce(() => applyInventoryFilters(), 200));
+  }
+
+  ["inventory-filter-status", "inventory-filter-category"].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener("change", applyInventoryFilters);
+  });
+
+  // Wire up view toggle
+  const gridBtn = document.getElementById("inventory-view-grid");
+  const listBtn = document.getElementById("inventory-view-list");
+  if (gridBtn) {
+    gridBtn.addEventListener("click", () => {
+      wastelandViewMode = "grid";
+      gridBtn.classList.add("is-active");
+      listBtn?.classList.remove("is-active");
+      applyInventoryFilters();
+    });
+  }
+  if (listBtn) {
+    listBtn.addEventListener("click", () => {
+      wastelandViewMode = "list";
+      listBtn.classList.add("is-active");
+      gridBtn?.classList.remove("is-active");
+      applyInventoryFilters();
+    });
+  }
+
+  // Wire up add button
+  const addBtn = document.getElementById("add-inventory-button");
+  if (addBtn) addBtn.addEventListener("click", () => openInventoryModal());
+
+  // Wire up inventory modal close
+  const closeBtn = document.getElementById("close-inventory-modal");
+  const cancelBtn = document.getElementById("cancel-inventory-modal");
+  if (closeBtn) closeBtn.addEventListener("click", closeInventoryModal);
+  if (cancelBtn) cancelBtn.addEventListener("click", closeInventoryModal);
+
+  const modal = document.getElementById("inventory-modal");
+  const overlay = modal?.querySelector(".kh-modal__overlay");
+  if (overlay) overlay.addEventListener("click", closeInventoryModal);
+
+  // Wire up inventory form submission
+  const form = document.getElementById("inventory-form");
+  if (form) {
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const idField = document.getElementById("inventory-form-id");
+      const isEdit = Boolean(idField?.value);
+      const submitBtn = document.getElementById("inventory-form-submit");
+
+      const payload = {
+        name: document.getElementById("inventory-form-name").value,
+        quantity: parseInt(document.getElementById("inventory-form-quantity").value) || 1,
+        category: document.getElementById("inventory-form-category").value,
+        sourceJobId: document.getElementById("inventory-form-source-job").value || null,
+        description: document.getElementById("inventory-form-description").value,
+        notes: document.getElementById("inventory-form-notes").value
+      };
+
+      setButtonLoading(submitBtn, "Saving...");
+
+      try {
+        let savedItem;
+        if (isEdit) {
+          savedItem = await updateInventoryItem(idField.value, payload);
+        } else {
+          savedItem = await createInventoryItem(payload);
+        }
+
+        // Handle photo upload if file selected
+        const photoInput = document.getElementById("inventory-form-photo");
+        const file = photoInput?.files[0];
+        if (file && savedItem?.id) {
+          try {
+            const { uploadUrl } = await requestInventoryPhotoUpload(savedItem.id, file);
+            await fetch(uploadUrl, {
+              method: "PUT",
+              headers: { "Content-Type": file.type },
+              body: file
+            });
+          } catch (photoErr) {
+            console.error("Photo upload failed:", photoErr);
+            setMessage("inventory-message", "Item saved, but photo upload failed.", true);
+          }
+        }
+
+        closeInventoryModal();
+        setMessage("inventory-message", isEdit ? "Item updated." : "Item added.");
+        refreshInventory();
+      } catch (error) {
+        console.error("Failed to save item:", error);
+        setMessage("inventory-form-message", `Failed to ${isEdit ? 'update' : 'add'} item.`, true);
+      } finally {
+        resetButton(submitBtn);
+      }
+    });
+  }
+
+  // Wire up claim modal
+  const closeClaimBtn = document.getElementById("close-claim-modal");
+  const cancelClaimBtn = document.getElementById("cancel-claim-modal");
+  if (closeClaimBtn) closeClaimBtn.addEventListener("click", closeClaimModal);
+  if (cancelClaimBtn) cancelClaimBtn.addEventListener("click", closeClaimModal);
+
+  const claimModal = document.getElementById("claim-modal");
+  const claimOverlay = claimModal?.querySelector(".kh-modal__overlay");
+  if (claimOverlay) claimOverlay.addEventListener("click", closeClaimModal);
+
+  const claimForm = document.getElementById("claim-form");
+  if (claimForm) {
+    claimForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const itemId = document.getElementById("claim-form-item-id").value;
+      const jobId = document.getElementById("claim-form-job").value;
+      const submitBtn = document.getElementById("claim-form-submit");
+
+      if (!jobId) {
+        setMessage("claim-form-message", "Please select a job.", true);
+        return;
+      }
+
+      setButtonLoading(submitBtn, "Claiming...");
+
+      try {
+        await claimInventoryItem(itemId, jobId);
+        closeClaimModal();
+        setMessage("inventory-message", "Item claimed.");
+        refreshInventory();
+      } catch (error) {
+        console.error("Failed to claim item:", error);
+        setMessage("claim-form-message", "Failed to claim item.", true);
+      } finally {
+        resetButton(submitBtn);
+      }
+    });
+  }
+}
+
 // Initialize authentication and page
 (async () => {
   const authReady = await initLoginFlow();
@@ -4343,6 +4788,8 @@ function showJobNotFound() {
       initTasksPage();
     } else if (isDocumentsPage()) {
       initDocumentsPage();
+    } else if (isWastelandPage()) {
+      initWastelandPage();
     } else {
       initDashboardPage();
     }

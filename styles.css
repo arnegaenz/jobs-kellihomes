@@ -2020,3 +2020,86 @@ html {
   border-color: #f59e0b !important;
   color: #92400e !important;
 }
+
+/* ==========================================
+   Wasteland — Inventory Styles
+   ========================================== */
+
+.kh-inv-status {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.kh-inv-status--available {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.kh-inv-status--claimed {
+  background: #fff7ed;
+  color: #9a3412;
+}
+
+.kh-inv-claimed {
+  opacity: 0.7;
+}
+
+.kh-inv-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  color: #cbd5e1;
+  background: #f8fafc;
+}
+
+.kh-inv-job {
+  font-size: 11px;
+  color: #64748b;
+  margin-top: 2px;
+}
+
+.kh-inv-card-link {
+  cursor: pointer;
+}
+
+/* View toggle */
+.kh-view-toggle {
+  display: inline-flex;
+  border: 1px solid var(--kh-border);
+  border-radius: 6px;
+  overflow: hidden;
+  margin-left: auto;
+}
+
+.kh-view-toggle__btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  background: #fff;
+  border: none;
+  cursor: pointer;
+  color: #94a3b8;
+  transition: background 0.15s, color 0.15s;
+}
+
+.kh-view-toggle__btn:not(:last-child) {
+  border-right: 1px solid var(--kh-border);
+}
+
+.kh-view-toggle__btn.is-active {
+  background: var(--kh-primary);
+  color: #fff;
+}
+
+.kh-view-toggle__btn:hover:not(.is-active) {
+  background: #f1f5f9;
+}

@@ -29,6 +29,7 @@ const documentsRoutes = require('./routes/documents');
 const businessDocumentsRoutes = require('./routes/businessDocuments');
 const tasksRoutes = require('./routes/tasks');
 const usersRoutes = require('./routes/users');
+const inventoryRoutes = require('./routes/inventory');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -100,6 +101,7 @@ app.use('/documents', authenticateToken, documentsRoutes);
 app.use('/business-documents', authenticateToken, businessDocumentsRoutes);
 app.use('/tasks', authenticateToken, tasksRoutes);
 app.use('/users', authenticateToken, usersRoutes);
+app.use('/inventory', authenticateToken, inventoryRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Kelli Homes | Wasteland</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="kh-header">
+      <div class="kh-container kh-header__inner">
+        <a class="kh-logo-link" href="index.html">
+          <img src="assets/kh-logo.png" alt="Kelli Homes" class="kh-logo" />
+        </a>
+        <nav class="kh-nav">
+          <a href="index.html">Dashboard</a>
+          <a href="tasks.html">Tasks</a>
+          <a href="documents.html">Documents</a>
+          <a href="wasteland.html" class="is-active">Wasteland</a>
+        </nav>
+        <div class="kh-user">
+          <span id="signed-in-user">Signed in as —</span>
+          <a href="change-password.html" class="kh-link" style="margin-left: 12px;">Change Password</a>
+          <button class="kh-link" id="logout-button" style="margin-left: 12px; cursor: pointer; background: none; border: none; font: inherit;">Logout</button>
+        </div>
+      </div>
+    </header>
+
+    <section class="kh-login" id="login-panel" hidden>
+      <div class="kh-login__card">
+        <img src="assets/kh-logo.png" alt="Kelli Homes" class="kh-login__logo" />
+        <h1 class="kh-login__title">Job Management</h1>
+        <p class="kh-login__subtitle">Sign in to view and manage active projects.</p>
+        <form class="kh-login__form" id="login-form">
+          <label class="kh-field">
+            <span>User ID</span>
+            <input class="kh-input" name="username" autocomplete="username" required />
+          </label>
+          <label class="kh-field">
+            <span>Password</span>
+            <input class="kh-input" name="password" type="password" autocomplete="current-password" required />
+          </label>
+          <button class="kh-button" type="submit">Sign in</button>
+          <div class="kh-form-message" id="login-message"></div>
+        </form>
+      </div>
+    </section>
+
+    <main class="kh-main" id="main-content">
+      <div class="kh-container">
+        <section class="kh-hero">
+          <div>
+            <h1 class="kh-hero__title">Wasteland</h1>
+            <p class="kh-hero__subtitle">Leftover materials &amp; parts in storage. Reuse before you rebuy.</p>
+          </div>
+          <button class="kh-button" id="add-inventory-button">Add Item</button>
+        </section>
+
+        <!-- Filters -->
+        <section class="kh-filters" style="margin-bottom: 1.5rem;">
+          <input class="kh-input" id="inventory-search" type="text" placeholder="Search items..." style="max-width: 240px;" />
+          <select class="kh-select" id="inventory-filter-status">
+            <option value="">All Statuses</option>
+            <option value="Available" selected>Available</option>
+            <option value="Claimed">Claimed</option>
+          </select>
+          <select class="kh-select" id="inventory-filter-category">
+            <option value="">All Categories</option>
+            <option>Tile</option>
+            <option>Lumber</option>
+            <option>Hardware</option>
+            <option>Plumbing</option>
+            <option>Electrical</option>
+            <option>Paint</option>
+            <option>Flooring</option>
+            <option>Roofing</option>
+            <option>Insulation</option>
+            <option>Drywall</option>
+            <option>Fixtures</option>
+            <option>Appliances</option>
+            <option>Other</option>
+          </select>
+          <div class="kh-view-toggle">
+            <button class="kh-view-toggle__btn is-active" id="inventory-view-grid" title="Grid view">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><rect x="1" y="1" width="6" height="6" rx="1"/><rect x="9" y="1" width="6" height="6" rx="1"/><rect x="1" y="9" width="6" height="6" rx="1"/><rect x="9" y="9" width="6" height="6" rx="1"/></svg>
+            </button>
+            <button class="kh-view-toggle__btn" id="inventory-view-list" title="List view">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><rect x="1" y="2" width="14" height="2.5" rx="1"/><rect x="1" y="6.75" width="14" height="2.5" rx="1"/><rect x="1" y="11.5" width="14" height="2.5" rx="1"/></svg>
+            </button>
+          </div>
+        </section>
+
+        <div class="kh-form-message" id="inventory-message"></div>
+
+        <!-- Grid / List content -->
+        <section id="inventory-content"></section>
+      </div>
+    </main>
+
+    <footer class="kh-footer" id="page-footer">
+      <div class="kh-container kh-footer__inner">
+        <div>Copyright &copy; 2026 Kelli Homes - All Rights Reserved.</div>
+        <div>Private job management area &middot; Not for public distribution.</div>
+      </div>
+    </footer>
+
+    <!-- Add/Edit Item Modal -->
+    <div class="kh-modal" id="inventory-modal" hidden>
+      <div class="kh-modal__overlay"></div>
+      <div class="kh-modal__content">
+        <div class="kh-modal__header">
+          <h3 id="inventory-modal-title">Add Item</h3>
+          <button class="kh-modal__close" id="close-inventory-modal">&times;</button>
+        </div>
+        <div class="kh-modal__body">
+          <form id="inventory-form">
+            <input type="hidden" id="inventory-form-id" />
+            <div class="kh-form-grid">
+              <label class="kh-field" style="grid-column: 1 / -1;">
+                <span>Name *</span>
+                <input class="kh-input" id="inventory-form-name" name="name" required />
+              </label>
+              <label class="kh-field">
+                <span>Quantity</span>
+                <input class="kh-input" id="inventory-form-quantity" name="quantity" type="number" min="1" value="1" />
+              </label>
+              <label class="kh-field">
+                <span>Category</span>
+                <select class="kh-input" id="inventory-form-category" name="category">
+                  <option>Tile</option>
+                  <option>Lumber</option>
+                  <option>Hardware</option>
+                  <option>Plumbing</option>
+                  <option>Electrical</option>
+                  <option>Paint</option>
+                  <option>Flooring</option>
+                  <option>Roofing</option>
+                  <option>Insulation</option>
+                  <option>Drywall</option>
+                  <option>Fixtures</option>
+                  <option>Appliances</option>
+                  <option selected>Other</option>
+                </select>
+              </label>
+              <label class="kh-field" style="grid-column: 1 / -1;">
+                <span>Source Job (where it came from)</span>
+                <select class="kh-input" id="inventory-form-source-job" name="sourceJobId">
+                  <option value="">None</option>
+                </select>
+              </label>
+              <label class="kh-field" style="grid-column: 1 / -1;">
+                <span>Description</span>
+                <textarea class="kh-input" id="inventory-form-description" name="description" rows="2"></textarea>
+              </label>
+              <label class="kh-field" style="grid-column: 1 / -1;">
+                <span>Notes</span>
+                <textarea class="kh-input" id="inventory-form-notes" name="notes" rows="2"></textarea>
+              </label>
+              <label class="kh-field" style="grid-column: 1 / -1;">
+                <span>Photo</span>
+                <input class="kh-input" id="inventory-form-photo" name="photo" type="file" accept="image/*" />
+                <div id="inventory-form-photo-preview" style="margin-top: 8px;"></div>
+              </label>
+            </div>
+            <div class="kh-form-actions" style="margin-top: 1.5rem;">
+              <button class="kh-button" type="submit" id="inventory-form-submit">Add Item</button>
+              <button class="kh-button kh-button--secondary" type="button" id="cancel-inventory-modal">Cancel</button>
+              <div class="kh-form-message" id="inventory-form-message"></div>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- Claim Modal -->
+    <div class="kh-modal" id="claim-modal" hidden>
+      <div class="kh-modal__overlay"></div>
+      <div class="kh-modal__content" style="max-width: 420px;">
+        <div class="kh-modal__header">
+          <h3 id="claim-modal-title">Claim Item</h3>
+          <button class="kh-modal__close" id="close-claim-modal">&times;</button>
+        </div>
+        <div class="kh-modal__body">
+          <form id="claim-form">
+            <input type="hidden" id="claim-form-item-id" />
+            <p id="claim-item-name" style="margin-bottom: 1rem; font-weight: 500;"></p>
+            <label class="kh-field">
+              <span>Destination Job *</span>
+              <select class="kh-input" id="claim-form-job" name="destinationJobId" required>
+                <option value="">Select a job...</option>
+              </select>
+            </label>
+            <div class="kh-form-actions" style="margin-top: 1.5rem;">
+              <button class="kh-button" type="submit" id="claim-form-submit">Claim</button>
+              <button class="kh-button kh-button--secondary" type="button" id="cancel-claim-modal">Cancel</button>
+              <div class="kh-form-message" id="claim-form-message"></div>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <script src="config.js"></script>
+    <script type="module" src="api.js"></script>
+    <script type="module" src="main.js"></script>
+  </body>
+</html>

@@ -338,3 +338,72 @@ export async function fetchUsers() {
   const apiBaseUrl = getApiBaseUrl();
   return fetchJsonDedup(`${apiBaseUrl}/users`);
 }
+
+// Inventory API (Wasteland)
+export async function fetchInventoryItems(filters = {}) {
+  const apiBaseUrl = getApiBaseUrl();
+  const params = new URLSearchParams();
+  if (filters.status) params.set('status', filters.status);
+  if (filters.category) params.set('category', filters.category);
+  if (filters.search) params.set('search', filters.search);
+  const query = params.toString() ? `?${params.toString()}` : '';
+  return fetchJsonDedup(`${apiBaseUrl}/inventory${query}`);
+}
+
+export async function fetchInventoryItem(id) {
+  const apiBaseUrl = getApiBaseUrl();
+  return fetchJsonDedup(`${apiBaseUrl}/inventory/${id}`);
+}
+
+export async function createInventoryItem(payload) {
+  const apiBaseUrl = getApiBaseUrl();
+  return fetchJson(`${apiBaseUrl}/inventory`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(sanitizeObject(payload))
+  });
+}
+
+export async function updateInventoryItem(id, payload) {
+  const apiBaseUrl = getApiBaseUrl();
+  return fetchJson(`${apiBaseUrl}/inventory/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(sanitizeObject(payload))
+  });
+}
+
+export async function requestInventoryPhotoUpload(id, file) {
+  const apiBaseUrl = getApiBaseUrl();
+  return fetchJson(`${apiBaseUrl}/inventory/${id}/photo`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      filename: file.name,
+      contentType: file.type
+    })
+  });
+}
+
+export async function deleteInventoryPhoto(id) {
+  const apiBaseUrl = getApiBaseUrl();
+  return fetchJson(`${apiBaseUrl}/inventory/${id}/photo`, {
+    method: "DELETE"
+  });
+}
+
+export async function claimInventoryItem(id, destinationJobId) {
+  const apiBaseUrl = getApiBaseUrl();
+  return fetchJson(`${apiBaseUrl}/inventory/${id}/claim`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ destinationJobId })
+  });
+}
+
+export async function unclaimInventoryItem(id) {
+  const apiBaseUrl = getApiBaseUrl();
+  return fetchJson(`${apiBaseUrl}/inventory/${id}/unclaim`, {
+    method: "POST"
+  });
+}
