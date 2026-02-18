@@ -2027,8 +2027,10 @@ html {
 
 /* Wasteland Hero Branding */
 .kh-wasteland-hero {
-  background: linear-gradient(135deg, #faf6f0 0%, #f3ead8 50%, #ede0c8 100%);
-  border: 1px solid #d4c4a8;
+  background:
+    url("data:image/svg+xml,%3Csvg width='40' height='40' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 0h40v40H0z' fill='none'/%3E%3Cpath d='M20 0v2M0 20h2M40 20h-2M20 40v-2' stroke='%238b6914' stroke-width='.5' opacity='.06'/%3E%3C/svg%3E"),
+    linear-gradient(135deg, #f5efe3 0%, #ebe0ca 40%, #e2d4b8 100%);
+  border: 1px solid #c4a872;
   position: relative;
   overflow: hidden;
 }
@@ -2037,100 +2039,158 @@ html {
   content: '';
   position: absolute;
   top: 0;
+  left: 0;
   right: 0;
-  width: 200px;
-  height: 100%;
-  background: repeating-linear-gradient(
-    -45deg,
-    transparent,
-    transparent 8px,
-    rgba(139, 105, 20, 0.03) 8px,
-    rgba(139, 105, 20, 0.03) 16px
-  );
+  bottom: 0;
+  background:
+    repeating-linear-gradient(
+      -45deg,
+      transparent,
+      transparent 12px,
+      rgba(139, 105, 20, 0.04) 12px,
+      rgba(139, 105, 20, 0.04) 24px
+    );
   pointer-events: none;
+}
+
+.kh-wasteland-hero::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: repeating-linear-gradient(
+    90deg,
+    #8b6914 0px,
+    #8b6914 8px,
+    transparent 8px,
+    transparent 12px
+  );
+  opacity: 0.4;
 }
 
 .kh-wasteland-hero__icon {
   flex-shrink: 0;
-  width: 64px;
-  height: 64px;
-  background: rgba(255, 255, 255, 0.7);
-  border-radius: 14px;
+  width: 72px;
+  height: 72px;
+  background: rgba(255, 255, 255, 0.55);
+  border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 2px 8px rgba(139, 105, 20, 0.1);
-  border: 1px solid rgba(194, 129, 82, 0.2);
-}
-
-.kh-wasteland-hero__text {
-  flex: 1;
-}
-
-.kh-wasteland-hero__title {
-  color: #5c4a1e;
-  letter-spacing: 0.5px;
-}
-
-.kh-wasteland-hero__btn {
-  background: #8b6914;
-  border-color: #7a5c12;
+  box-shadow:
+    0 2px 12px rgba(139, 105, 20, 0.12),
+    inset 0 0 0 1px rgba(139, 105, 20, 0.15);
   position: relative;
   z-index: 1;
 }
 
+.kh-wasteland-hero__text {
+  flex: 1;
+  position: relative;
+  z-index: 1;
+}
+
+.kh-wasteland-hero__title {
+  color: #3d2e0a;
+  letter-spacing: 3px;
+  font-size: 26px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.kh-wasteland-hero__tagline {
+  color: #8b6914;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  margin-top: 2px;
+  margin-bottom: 6px;
+}
+
+.kh-wasteland-hero__btn {
+  background: #6b4f0e;
+  border-color: #5a4210;
+  position: relative;
+  z-index: 1;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-weight: 600;
+  font-size: 13px;
+}
+
 .kh-wasteland-hero__btn:hover {
-  background: #705510;
+  background: #4a370a;
 }
 
 /* Wasteland Empty State */
 .kh-wasteland-empty {
   text-align: center;
-  padding: 4rem 1rem;
-  background: linear-gradient(180deg, #faf8f4 0%, #fff 100%);
-  border: 1px dashed #d4c4a8;
+  padding: 5rem 1rem;
+  background:
+    url("data:image/svg+xml,%3Csvg width='40' height='40' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 0h40v40H0z' fill='none'/%3E%3Cpath d='M20 0v2M0 20h2M40 20h-2M20 40v-2' stroke='%238b6914' stroke-width='.5' opacity='.04'/%3E%3C/svg%3E"),
+    linear-gradient(180deg, #faf8f4 0%, #fff 100%);
+  border: 2px dashed #c4a872;
   border-radius: var(--kh-radius);
   margin-top: 1rem;
 }
 
+/* Status stamps */
 .kh-inv-status {
   display: inline-block;
   padding: 2px 8px;
-  border-radius: 10px;
-  font-size: 11px;
-  font-weight: 600;
+  font-size: 10px;
+  font-weight: 800;
   text-transform: uppercase;
-  letter-spacing: 0.3px;
+  letter-spacing: 1.2px;
 }
 
 .kh-inv-status--available {
-  background: #dcfce7;
-  color: #166534;
+  background: none;
+  color: #2d6a1e;
+  border: 2px solid #3a8a28;
+  border-radius: 3px;
+  transform: rotate(-2deg);
+  box-shadow: 0 0 0 1px rgba(58, 138, 40, 0.15);
 }
 
 .kh-inv-status--claimed {
-  background: #fff7ed;
+  background: none;
   color: #9a3412;
+  border: 2px solid #c2453d;
+  border-radius: 3px;
+  transform: rotate(1deg);
+  box-shadow: 0 0 0 1px rgba(194, 69, 61, 0.15);
 }
 
 .kh-inv-claimed {
-  opacity: 0.7;
+  opacity: 0.6;
 }
 
+/* Card placeholder with category icon */
 .kh-inv-placeholder {
   display: flex;
   align-items: center;
   justify-content: center;
   width: 100%;
   height: 100%;
-  color: #cbd5e1;
-  background: #f8fafc;
+  background:
+    repeating-linear-gradient(
+      45deg,
+      #f5f0e6,
+      #f5f0e6 6px,
+      #efe8d8 6px,
+      #efe8d8 12px
+    );
 }
 
 .kh-inv-job {
   font-size: 11px;
-  color: #64748b;
+  color: #7a6b4e;
   margin-top: 2px;
+  font-style: italic;
 }
 
 .kh-inv-card-link {
@@ -2164,7 +2224,7 @@ html {
 }
 
 .kh-view-toggle__btn.is-active {
-  background: var(--kh-primary);
+  background: #6b4f0e;
   color: #fff;
 }
 

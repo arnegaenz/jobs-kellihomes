@@ -4386,14 +4386,21 @@ function renderInventory(items) {
   if (!items.length) {
     container.innerHTML = `
       <div class="kh-wasteland-empty">
-        <svg width="64" height="64" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M6 44V22L24 10L42 22V44H6Z" fill="#d4a574" opacity="0.1"/>
-          <path d="M6 44V22L24 10L42 22V44" stroke="#ccc" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          <line x1="6" y1="44" x2="42" y2="44" stroke="#ccc" stroke-width="2" stroke-linecap="round"/>
-          <rect x="18" y="30" width="12" height="14" rx="1" fill="#e8e8e8" stroke="#ccc" stroke-width="1.5"/>
+        <svg width="80" height="60" viewBox="0 0 80 60" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <!-- Ground line -->
+          <path d="M0 52c10-2 20 1 30-1s20-3 30 0 15 2 20-1" stroke="#c4a872" stroke-width="1.5" fill="none"/>
+          <!-- Distant crate outline -->
+          <rect x="20" y="34" width="14" height="12" rx="1" stroke="#c4a872" stroke-width="1.2" opacity="0.4" stroke-dasharray="3 2"/>
+          <!-- Tumbleweed -->
+          <circle cx="55" cy="44" r="6" stroke="#c4a872" stroke-width="1" opacity="0.3" stroke-dasharray="2 2"/>
+          <circle cx="55" cy="44" r="3" stroke="#c4a872" stroke-width="0.8" opacity="0.2" stroke-dasharray="1.5 1.5"/>
+          <!-- Wind lines -->
+          <line x1="10" y1="28" x2="22" y2="28" stroke="#c4a872" stroke-width="0.8" opacity="0.2" stroke-linecap="round"/>
+          <line x1="14" y1="32" x2="28" y2="31" stroke="#c4a872" stroke-width="0.8" opacity="0.15" stroke-linecap="round"/>
+          <line x1="50" y1="26" x2="62" y2="25" stroke="#c4a872" stroke-width="0.8" opacity="0.15" stroke-linecap="round"/>
         </svg>
-        <p style="margin-top:12px;font-weight:500;color:#666;">The wasteland is empty</p>
-        <p style="color:#999;font-size:13px;">Add your first leftover item to start tracking.</p>
+        <p style="margin-top:16px;font-weight:700;color:#5c4a1e;letter-spacing:1.5px;text-transform:uppercase;font-size:14px;">Nothing in the wasteland</p>
+        <p style="color:#8b7a55;font-size:13px;margin-top:4px;">Salvage your first leftover to stock the yard.</p>
       </div>`;
     return;
   }
@@ -4403,6 +4410,25 @@ function renderInventory(items) {
   } else {
     renderInventoryTable(container, items);
   }
+}
+
+function getCategoryIcon(category) {
+  const s = 'stroke="#8b6914" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none"';
+  const icons = {
+    Tile:        `<svg width="36" height="36" viewBox="0 0 36 36" ${s}><rect x="6" y="6" width="10" height="10" rx="1"/><rect x="20" y="6" width="10" height="10" rx="1"/><rect x="6" y="20" width="10" height="10" rx="1"/><rect x="20" y="20" width="10" height="10" rx="1"/></svg>`,
+    Lumber:      `<svg width="36" height="36" viewBox="0 0 36 36" ${s}><rect x="4" y="14" width="28" height="8" rx="2"/><line x1="10" y1="14" x2="10" y2="22"/><line x1="18" y1="14" x2="18" y2="22"/><line x1="26" y1="14" x2="26" y2="22"/><circle cx="14" cy="18" r="1.5" fill="#8b6914" opacity="0.3"/></svg>`,
+    Hardware:    `<svg width="36" height="36" viewBox="0 0 36 36" ${s}><circle cx="18" cy="14" r="3"/><path d="M18 17v6"/><path d="M14 28l4-5 4 5"/><path d="M12 10l-3-3M24 10l3-3"/></svg>`,
+    Plumbing:    `<svg width="36" height="36" viewBox="0 0 36 36" ${s}><path d="M10 8v10a4 4 0 004 4h8a4 4 0 004-4V8"/><line x1="10" y1="8" x2="26" y2="8"/><path d="M18 22v8"/><circle cx="18" cy="30" r="2" fill="#8b6914" opacity="0.2"/></svg>`,
+    Electrical:  `<svg width="36" height="36" viewBox="0 0 36 36" ${s}><path d="M20 4L14 18h8L16 32" stroke-width="2.2"/></svg>`,
+    Paint:       `<svg width="36" height="36" viewBox="0 0 36 36" ${s}><rect x="8" y="14" width="20" height="16" rx="2"/><path d="M12 14V10a2 2 0 012-2h8a2 2 0 012 2v4"/><path d="M14 22c0-2 4-2 4 0s4 2 4 0" stroke-width="1.5"/></svg>`,
+    Flooring:    `<svg width="36" height="36" viewBox="0 0 36 36" ${s}><path d="M4 28L18 8l14 20H4z"/><line x1="11" y1="18" x2="25" y2="18"/><line x1="18" y1="8" x2="18" y2="28"/></svg>`,
+    Roofing:     `<svg width="36" height="36" viewBox="0 0 36 36" ${s}><path d="M4 20L18 8l14 12"/><path d="M7 18.5L18 10l11 8.5"/><line x1="8" y1="20" x2="8" y2="30"/><line x1="28" y1="20" x2="28" y2="30"/><line x1="8" y1="30" x2="28" y2="30"/></svg>`,
+    Insulation:  `<svg width="36" height="36" viewBox="0 0 36 36" ${s}><path d="M8 10c4 0 4 4 8 4s4-4 8-4"/><path d="M8 18c4 0 4 4 8 4s4-4 8-4"/><path d="M8 26c4 0 4 4 8 4s4-4 8-4"/></svg>`,
+    Drywall:     `<svg width="36" height="36" viewBox="0 0 36 36" ${s}><rect x="6" y="8" width="24" height="20" rx="1"/><line x1="6" y1="18" x2="30" y2="18"/><circle cx="10" cy="12" r="1" fill="#8b6914" opacity="0.4"/><circle cx="26" cy="12" r="1" fill="#8b6914" opacity="0.4"/><circle cx="10" cy="24" r="1" fill="#8b6914" opacity="0.4"/><circle cx="26" cy="24" r="1" fill="#8b6914" opacity="0.4"/></svg>`,
+    Fixtures:    `<svg width="36" height="36" viewBox="0 0 36 36" ${s}><circle cx="18" cy="14" r="6"/><path d="M14 20l-2 10h12l-2-10"/><line x1="18" y1="8" x2="18" y2="12"/><line x1="12" y1="10" x2="14" y2="12.5"/><line x1="24" y1="10" x2="22" y2="12.5"/></svg>`,
+    Appliances:  `<svg width="36" height="36" viewBox="0 0 36 36" ${s}><rect x="8" y="6" width="20" height="24" rx="2"/><line x1="8" y1="14" x2="28" y2="14"/><circle cx="18" cy="10" r="2"/><rect x="12" y="18" width="12" height="8" rx="1" fill="#8b6914" opacity="0.08"/></svg>`,
+  };
+  return icons[category] || `<svg width="36" height="36" viewBox="0 0 36 36" ${s}><rect x="8" y="12" width="20" height="16" rx="2"/><path d="M12 12V9a2 2 0 012-2h8a2 2 0 012 2v3"/><line x1="14" y1="20" x2="22" y2="20"/></svg>`;
 }
 
 function renderInventoryGrid(container, items) {
@@ -4415,15 +4441,10 @@ function renderInventoryGrid(container, items) {
     const li = document.createElement("li");
     li.className = item.status === "Claimed" ? "kh-inv-claimed" : "";
 
+    const catIcon = getCategoryIcon(item.category);
     const thumbHtml = item.photoUrl
       ? `<img src="${item.photoUrl}" alt="${item.name}" />`
-      : `<div class="kh-inv-placeholder">
-          <svg width="36" height="36" viewBox="0 0 48 48" fill="none">
-            <rect x="12" y="18" width="24" height="18" rx="2" fill="#d4a574" opacity="0.18" stroke="#c4a882" stroke-width="1.5"/>
-            <path d="M16 18V14a2 2 0 012-2h12a2 2 0 012 2v4" stroke="#c4a882" stroke-width="1.5" stroke-linecap="round"/>
-            <line x1="18" y1="26" x2="30" y2="26" stroke="#c4a882" stroke-width="1.5" stroke-linecap="round"/>
-          </svg>
-        </div>`;
+      : `<div class="kh-inv-placeholder">${catIcon}</div>`;
 
     const statusClass = item.status === "Available" ? "kh-inv-status--available" : "kh-inv-status--claimed";
 
