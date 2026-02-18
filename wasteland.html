@@ -48,12 +48,33 @@
 
     <main class="kh-main" id="main-content">
       <div class="kh-container">
-        <section class="kh-hero">
-          <div>
-            <h1 class="kh-hero__title">Wasteland</h1>
-            <p class="kh-hero__subtitle">Leftover materials &amp; parts in storage. Reuse before you rebuy.</p>
+        <section class="kh-hero kh-wasteland-hero">
+          <div class="kh-wasteland-hero__icon">
+            <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <!-- Warehouse/storage shed -->
+              <path d="M6 44V22L24 10L42 22V44H6Z" fill="#d4a574" opacity="0.15"/>
+              <path d="M6 44V22L24 10L42 22V44" stroke="#8b6914" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+              <line x1="6" y1="44" x2="42" y2="44" stroke="#8b6914" stroke-width="2.5" stroke-linecap="round"/>
+              <!-- Door -->
+              <rect x="18" y="30" width="12" height="14" rx="1" fill="#d4a574" opacity="0.3" stroke="#8b6914" stroke-width="2"/>
+              <!-- Boxes inside -->
+              <rect x="10" y="34" width="6" height="6" rx="1" fill="#c28152" opacity="0.5" stroke="#8b6914" stroke-width="1.5"/>
+              <rect x="32" y="34" width="6" height="6" rx="1" fill="#c28152" opacity="0.5" stroke="#8b6914" stroke-width="1.5"/>
+              <rect x="33" y="28" width="4" height="5" rx="1" fill="#c28152" opacity="0.35" stroke="#8b6914" stroke-width="1.2"/>
+              <!-- Recycle arrows in roof -->
+              <path d="M20 18L24 15L28 18" stroke="#8b6914" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M24 15V21" stroke="#8b6914" stroke-width="1.5" stroke-linecap="round"/>
+              <path d="M21 20L24 21L27 20" stroke="#8b6914" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
           </div>
-          <button class="kh-button" id="add-inventory-button">Add Item</button>
+          <div class="kh-wasteland-hero__text">
+            <h1 class="kh-hero__title kh-wasteland-hero__title">The Wasteland</h1>
+            <p class="kh-hero__subtitle">Salvage yard for leftover materials. Track it, photo it, reuse it.</p>
+          </div>
+          <button class="kh-button kh-wasteland-hero__btn" id="add-inventory-button">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" style="vertical-align: -2px; margin-right: 4px;"><path d="M8 2a1 1 0 011 1v4h4a1 1 0 110 2H9v4a1 1 0 11-2 0V9H3a1 1 0 110-2h4V3a1 1 0 011-1z"/></svg>
+            Add Item
+          </button>
         </section>
 
         <!-- Filters -->

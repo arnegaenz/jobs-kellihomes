@@ -4384,7 +4384,17 @@ function renderInventory(items) {
   if (!container) return;
 
   if (!items.length) {
-    container.innerHTML = '<div class="kh-empty-state" style="text-align:center;padding:3rem 1rem;color:#888;">No items found.</div>';
+    container.innerHTML = `
+      <div class="kh-wasteland-empty">
+        <svg width="64" height="64" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M6 44V22L24 10L42 22V44H6Z" fill="#d4a574" opacity="0.1"/>
+          <path d="M6 44V22L24 10L42 22V44" stroke="#ccc" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <line x1="6" y1="44" x2="42" y2="44" stroke="#ccc" stroke-width="2" stroke-linecap="round"/>
+          <rect x="18" y="30" width="12" height="14" rx="1" fill="#e8e8e8" stroke="#ccc" stroke-width="1.5"/>
+        </svg>
+        <p style="margin-top:12px;font-weight:500;color:#666;">The wasteland is empty</p>
+        <p style="color:#999;font-size:13px;">Add your first leftover item to start tracking.</p>
+      </div>`;
     return;
   }
 
@@ -4407,7 +4417,13 @@ function renderInventoryGrid(container, items) {
 
     const thumbHtml = item.photoUrl
       ? `<img src="${item.photoUrl}" alt="${item.name}" />`
-      : `<div class="kh-inv-placeholder"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></div>`;
+      : `<div class="kh-inv-placeholder">
+          <svg width="36" height="36" viewBox="0 0 48 48" fill="none">
+            <rect x="12" y="18" width="24" height="18" rx="2" fill="#d4a574" opacity="0.18" stroke="#c4a882" stroke-width="1.5"/>
+            <path d="M16 18V14a2 2 0 012-2h12a2 2 0 012 2v4" stroke="#c4a882" stroke-width="1.5" stroke-linecap="round"/>
+            <line x1="18" y1="26" x2="30" y2="26" stroke="#c4a882" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+        </div>`;
 
     const statusClass = item.status === "Available" ? "kh-inv-status--available" : "kh-inv-status--claimed";
 

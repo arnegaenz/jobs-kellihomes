@@ -2025,6 +2025,74 @@ html {
    Wasteland — Inventory Styles
    ========================================== */
 
+/* Wasteland Hero Branding */
+.kh-wasteland-hero {
+  background: linear-gradient(135deg, #faf6f0 0%, #f3ead8 50%, #ede0c8 100%);
+  border: 1px solid #d4c4a8;
+  position: relative;
+  overflow: hidden;
+}
+
+.kh-wasteland-hero::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 200px;
+  height: 100%;
+  background: repeating-linear-gradient(
+    -45deg,
+    transparent,
+    transparent 8px,
+    rgba(139, 105, 20, 0.03) 8px,
+    rgba(139, 105, 20, 0.03) 16px
+  );
+  pointer-events: none;
+}
+
+.kh-wasteland-hero__icon {
+  flex-shrink: 0;
+  width: 64px;
+  height: 64px;
+  background: rgba(255, 255, 255, 0.7);
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(139, 105, 20, 0.1);
+  border: 1px solid rgba(194, 129, 82, 0.2);
+}
+
+.kh-wasteland-hero__text {
+  flex: 1;
+}
+
+.kh-wasteland-hero__title {
+  color: #5c4a1e;
+  letter-spacing: 0.5px;
+}
+
+.kh-wasteland-hero__btn {
+  background: #8b6914;
+  border-color: #7a5c12;
+  position: relative;
+  z-index: 1;
+}
+
+.kh-wasteland-hero__btn:hover {
+  background: #705510;
+}
+
+/* Wasteland Empty State */
+.kh-wasteland-empty {
+  text-align: center;
+  padding: 4rem 1rem;
+  background: linear-gradient(180deg, #faf8f4 0%, #fff 100%);
+  border: 1px dashed #d4c4a8;
+  border-radius: var(--kh-radius);
+  margin-top: 1rem;
+}
+
 .kh-inv-status {
   display: inline-block;
   padding: 2px 8px;
@@ -2102,4 +2170,19 @@ html {
 
 .kh-view-toggle__btn:hover:not(.is-active) {
   background: #f1f5f9;
+}
+
+/* Wasteland nav accent */
+.kh-nav a[href="wasteland.html"] {
+  color: #8b6914;
+}
+
+.kh-nav a[href="wasteland.html"].is-active {
+  border-bottom-color: #8b6914;
+}
+
+@media (max-width: 768px) {
+  .kh-wasteland-hero__icon {
+    display: none;
+  }
 }
