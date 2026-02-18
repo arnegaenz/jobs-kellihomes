@@ -2232,12 +2232,9 @@ html {
   background: #f1f5f9;
 }
 
-/* Wasteland nav accent */
-.kh-nav a[href="wasteland.html"] {
-  color: #8b6914;
-}
-
+/* Wasteland nav accent — gold only when active */
 .kh-nav a[href="wasteland.html"].is-active {
+  color: #8b6914;
   border-bottom-color: #8b6914;
 }
 
