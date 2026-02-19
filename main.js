@@ -1204,6 +1204,12 @@ function renderCalendarGrid() {
   const gridContainer = document.getElementById('calendar-grid');
   if (!gridContainer) return;
 
+  // On mobile, render agenda view instead
+  if (isMobile()) {
+    renderCalendarAgenda();
+    return;
+  }
+
   const selectedJobs = calendarJobs.filter(j => calendarSelectedJobs.has(j.id));
   const hasTasksToShow = calendarShowTasks && calendarTasks.length > 0;
 
@@ -3835,6 +3841,12 @@ function renderTasksTable(tasks, containerId = "tasks-table-body") {
   const tableBody = document.getElementById(containerId);
   if (!tableBody) return;
 
+  // On mobile, render card view instead (only for the main tasks page table)
+  if (isMobile() && containerId === "tasks-table-body") {
+    renderTasksCards(tasks);
+    return;
+  }
+
   // Clean up any body-appended kebab menus from previous render
   document.querySelectorAll("body > .kh-kebab__menu").forEach(m => m.remove());
   tableBody.innerHTML = "";
@@ -5072,6 +5084,11 @@ async function initWastelandPage() {
     });
   }
 
+  // Force grid mode on mobile
+  if (isMobile()) {
+    wastelandViewMode = "grid";
+  }
+
   // Wire up add button
   const addBtn = document.getElementById("add-inventory-button");
   if (addBtn) addBtn.addEventListener("click", () => openInventoryModal());
@@ -5200,6 +5217,354 @@ async function initWastelandPage() {
     }
   }
 })();
+
+// ==========================================
+// Mobile Responsive Support
+// ==========================================
+
+function initBottomNav() {
+  const nav = document.querySelector('.kh-bottom-nav');
+  if (!nav) return;
+
+  const path = window.location.pathname;
+  const hash = window.location.hash;
+
+  nav.querySelectorAll('.kh-bottom-nav__item').forEach(item => {
+    const navType = item.dataset.nav;
+    let active = false;
+
+    if (navType === 'calendar' && (path.endsWith('index.html') || path.endsWith('/'))) {
+      active = true;
+    } else if (navType === 'tasks' && path.endsWith('tasks.html')) {
+      active = true;
+    } else if (navType === 'wasteland' && path.endsWith('wasteland.html')) {
+      active = true;
+    }
+
+    if (active) item.classList.add('is-active');
+  });
+}
+
+function isMobile() {
+  return window.innerWidth <= 768;
+}
+
+// --- Mobile Calendar Agenda View ---
+
+function renderCalendarAgenda() {
+  const gridContainer = document.getElementById('calendar-grid');
+  if (!gridContainer) return;
+
+  const selectedJobs = calendarJobs.filter(j => calendarSelectedJobs.has(j.id));
+  const hasTasksToShow = calendarShowTasks && calendarTasks.length > 0;
+
+  if (selectedJobs.length === 0 && !hasTasksToShow) {
+    gridContainer.innerHTML = '<div class="kh-calendar__empty">Select jobs to display</div>';
+    return;
+  }
+
+  // Build job index map for colors
+  const jobIndexMap = {};
+  calendarJobs.forEach((job, idx) => { jobIndexMap[job.id] = idx; });
+
+  // Collect all items for 14 days
+  const numDays = 14;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const dayItems = {}; // dateKey -> [{ name, jobName, color, status, statusClass, itemType, dataAttrs, isTask }]
+
+  for (let d = 0; d < numDays; d++) {
+    const day = addDays(calendarStartDate, d);
+    const dayNorm = normalizeDate(day);
+    const dateKey = dayNorm.toISOString().split('T')[0];
+
+    const items = [];
+
+    selectedJobs.forEach(job => {
+      const jobIdx = jobIndexMap[job.id];
+      const color = getJobColor(jobIdx);
+      const lineItems = calendarJobLineItems[job.id] || [];
+
+      lineItems.forEach(item => {
+        const { startDate, endDate } = getItemDates(item);
+        if (!startDate && !endDate) return;
+        const iStart = normalizeDate(startDate || endDate);
+        const iEnd = normalizeDate(endDate || startDate);
+        if (dayNorm >= iStart && dayNorm <= iEnd) {
+          items.push({
+            name: item.name,
+            jobName: job.name,
+            color,
+            status: item.status || 'Not Started',
+            isTask: false,
+            dataAttrs: `data-job-id="${job.id}" data-item-type="line-item" data-item-code="${item.code}"`,
+          });
+        }
+      });
+
+      // Job-linked tasks
+      if (calendarShowTasks) {
+        const jobTasks = calendarTasksByJob[job.id] || [];
+        jobTasks.forEach(task => {
+          const schedule = task.schedule || {};
+          const tStart = normalizeDate(schedule.startDate || schedule.endDate);
+          const tEnd = normalizeDate(schedule.endDate || schedule.startDate);
+          if (!tStart && !tEnd) return;
+          if (dayNorm >= tStart && dayNorm <= tEnd) {
+            items.push({
+              name: task.name,
+              jobName: job.name + ' — Task',
+              color,
+              status: task.status || 'Not Started',
+              isTask: true,
+              dataAttrs: `data-job-id="${job.id}" data-item-type="task" data-task-id="${task.id}"`,
+            });
+          }
+        });
+      }
+    });
+
+    // Unlinked tasks
+    if (calendarShowTasks) {
+      calendarUnlinkedTasks.forEach(task => {
+        const schedule = task.schedule || {};
+        const tStart = normalizeDate(schedule.startDate || schedule.endDate);
+        const tEnd = normalizeDate(schedule.endDate || schedule.startDate);
+        if (!tStart && !tEnd) return;
+        if (dayNorm >= tStart && dayNorm <= tEnd) {
+          items.push({
+            name: task.name,
+            jobName: 'Unlinked Task',
+            color: { bg: '#f0f0f0', border: '#999', text: '#555' },
+            status: task.status || 'Not Started',
+            isTask: true,
+            dataAttrs: `data-item-type="unlinked-task" data-task-id="${task.id}"`,
+          });
+        }
+      });
+    }
+
+    if (items.length > 0) {
+      dayItems[dateKey] = items;
+    }
+  }
+
+  // Update range display
+  const endDay = addDays(calendarStartDate, numDays - 1);
+  const startStr = calendarStartDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  const endStr = endDay.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  const rangeEl = document.getElementById('calendar-range');
+  if (rangeEl) rangeEl.textContent = `${startStr} - ${endStr}`;
+
+  // Build HTML
+  let html = '<div class="kh-agenda">';
+
+  for (let d = 0; d < numDays; d++) {
+    const day = addDays(calendarStartDate, d);
+    const dateKey = normalizeDate(day).toISOString().split('T')[0];
+    const items = dayItems[dateKey];
+    if (!items) continue;
+
+    const isToday = isSameDay(day, today);
+    const dateLabel = day.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+
+    html += `<div class="kh-agenda__day">`;
+    html += `<div class="kh-agenda__date${isToday ? ' kh-agenda__date--today' : ''}">${dateLabel}${isToday ? ' — Today' : ''}</div>`;
+    html += `<div class="kh-agenda__items">`;
+
+    items.forEach(item => {
+      const statusClass = item.isTask ? getTaskStatusClass(item.status) : '';
+      const statusPill = item.isTask
+        ? `<span class="kh-task-status kh-task-status--${statusClass}">${item.status}</span>`
+        : `<span class="kh-schedule-item__status kh-schedule-item__status--${item.status.toLowerCase().replace(/\s+/g, '-')}">${item.status}</span>`;
+
+      const barStyle = item.isTask
+        ? `class="kh-agenda__color-bar--dashed" style="color: ${item.color.border};"`
+        : `class="kh-agenda__color-bar" style="background: ${item.color.border};"`;
+
+      html += `<div class="kh-agenda__item kh-cal__item" ${item.dataAttrs}>
+        <div ${barStyle}></div>
+        <div class="kh-agenda__info">
+          <div class="kh-agenda__name" style="color: ${item.color.text};">${item.name}</div>
+          <div class="kh-agenda__job">${item.jobName}</div>
+        </div>
+        <div class="kh-agenda__status">${statusPill}</div>
+      </div>`;
+    });
+
+    html += `</div></div>`;
+  }
+
+  if (Object.keys(dayItems).length === 0) {
+    html += '<div class="kh-calendar__empty" style="padding: 40px;">No items in the next 2 weeks.</div>';
+  }
+
+  html += '</div>';
+  gridContainer.innerHTML = html;
+  attachCalendarPopoverListeners(gridContainer);
+}
+
+// --- Mobile Tasks Card View ---
+
+function renderTasksCards(tasks) {
+  // Find or create the cards container
+  let cardsContainer = document.getElementById('tasks-cards-container');
+  const tablePanel = document.querySelector('.kh-table--tasks')?.closest('.kh-panel');
+
+  if (!cardsContainer) {
+    cardsContainer = document.createElement('div');
+    cardsContainer.id = 'tasks-cards-container';
+    cardsContainer.className = 'kh-task-cards';
+    if (tablePanel) {
+      tablePanel.parentNode.insertBefore(cardsContainer, tablePanel);
+    } else {
+      return;
+    }
+  }
+
+  // Hide table, show cards
+  if (tablePanel) tablePanel.style.display = 'none';
+  cardsContainer.style.display = '';
+
+  // Clean up kebab menus
+  document.querySelectorAll('body > .kh-kebab__menu').forEach(m => m.remove());
+  cardsContainer.innerHTML = '';
+
+  if (!tasks.length) {
+    cardsContainer.innerHTML = '<div class="kh-empty-state">No tasks found.</div>';
+    return;
+  }
+
+  tasks.forEach(task => {
+    const card = document.createElement('div');
+    card.className = 'kh-task-card';
+
+    // Top: pills + kebab
+    const priorityPill = `<span class="kh-priority kh-priority--${getPriorityClass(task.priority)}">${task.priority}</span>`;
+    const statusPill = `<span class="kh-task-status kh-task-status--${getTaskStatusClass(task.status)}">${task.status}</span>`;
+
+    // Assignees
+    const assignees = task.assignees || [];
+    const assigneeHtml = assignees.length > 0
+      ? `<div class="kh-assignee-list">${assignees.map(a => getAssigneeTag(a)).join('')}</div>`
+      : '';
+
+    // Job link
+    const jobHtml = task.jobId && task.jobName
+      ? `<a href="job.html?jobId=${task.jobId}" class="kh-link" style="font-size:12px;">${task.jobName}</a>`
+      : '';
+
+    // Date
+    const dateStr = formatTaskDateRange(task.startDate, task.endDate);
+    const dateHtml = dateStr ? `<span class="kh-task-card__date">${dateStr}</span>` : '';
+
+    const footerParts = [assigneeHtml, jobHtml, dateHtml].filter(Boolean);
+
+    card.innerHTML = `
+      <div class="kh-task-card__top">
+        <div class="kh-task-card__pills">${priorityPill}${statusPill}</div>
+        <button class="kh-task-card__kebab" aria-label="Actions">&#8942;</button>
+      </div>
+      <div class="kh-task-card__body">
+        <div class="kh-task-card__title">${task.title}</div>
+        ${task.description ? `<div class="kh-task-card__desc">${task.description}</div>` : ''}
+      </div>
+      ${footerParts.length ? `<div class="kh-task-card__footer">${footerParts.join('')}</div>` : ''}
+    `;
+
+    // Kebab menu functionality
+    const kebabBtn = card.querySelector('.kh-task-card__kebab');
+    const menu = document.createElement('div');
+    menu.className = 'kh-kebab__menu';
+
+    const editBtn = document.createElement('button');
+    editBtn.className = 'kh-kebab__item';
+    editBtn.textContent = 'Edit';
+    editBtn.addEventListener('click', () => { menu.classList.remove('is-open'); openTaskModal(task); });
+
+    const deleteBtn = document.createElement('button');
+    deleteBtn.className = 'kh-kebab__item kh-kebab__item--danger';
+    deleteBtn.textContent = 'Delete';
+    deleteBtn.addEventListener('click', async () => {
+      menu.classList.remove('is-open');
+      if (!confirm(`Delete task "${task.title}"?`)) return;
+      try {
+        await deleteTask(task.id);
+        setMessage('tasks-message', 'Task deleted.');
+        refreshTasksList();
+      } catch (error) {
+        console.error('Failed to delete task:', error);
+        setMessage('tasks-message', 'Failed to delete task.', true);
+      }
+    });
+
+    menu.appendChild(editBtn);
+    menu.appendChild(deleteBtn);
+    document.body.appendChild(menu);
+
+    kebabBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      document.querySelectorAll('.kh-kebab__menu.is-open').forEach(m => { if (m !== menu) m.classList.remove('is-open'); });
+      const rect = kebabBtn.getBoundingClientRect();
+      menu.style.top = (rect.bottom + 4) + 'px';
+      menu.style.left = (rect.right - 110) + 'px';
+      menu.classList.toggle('is-open');
+    });
+
+    cardsContainer.appendChild(card);
+  });
+}
+
+// --- Resize Handler ---
+
+let _resizeTimer = null;
+function onMobileResize() {
+  clearTimeout(_resizeTimer);
+  _resizeTimer = setTimeout(() => {
+    const mobile = isMobile();
+
+    // Calendar: re-render appropriate view
+    if (document.getElementById('calendar-grid')) {
+      if (mobile) {
+        renderCalendarAgenda();
+      } else {
+        // Remove agenda and show grid
+        renderCalendarGrid();
+      }
+    }
+
+    // Tasks: toggle cards vs table
+    if (isTasksPage()) {
+      const cardsContainer = document.getElementById('tasks-cards-container');
+      const tablePanel = document.querySelector('.kh-table--tasks')?.closest('.kh-panel');
+
+      if (mobile) {
+        // Cards are rendered by applyTasksFilters → renderTasksTable → renderTasksCards chain
+        // Just trigger a re-filter
+        if (typeof applyTasksFilters === 'function') applyTasksFilters();
+      } else {
+        // Show table, hide cards
+        if (cardsContainer) cardsContainer.style.display = 'none';
+        if (tablePanel) tablePanel.style.display = '';
+        if (typeof applyTasksFilters === 'function') applyTasksFilters();
+      }
+    }
+
+    // Wasteland: force grid mode on mobile
+    if (isWastelandPage() && mobile) {
+      wastelandViewMode = 'grid';
+      const gridBtn = document.getElementById('inventory-view-grid');
+      const listBtn = document.getElementById('inventory-view-list');
+      if (gridBtn) gridBtn.classList.add('is-active');
+      if (listBtn) listBtn.classList.remove('is-active');
+    }
+  }, 250);
+}
+
+window.addEventListener('resize', onMobileResize);
+
+// Initialize bottom nav on load
+document.addEventListener('DOMContentLoaded', initBottomNav);
 
 // Add logout functionality
 document.addEventListener("DOMContentLoaded", () => {
