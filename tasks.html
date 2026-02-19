@@ -56,39 +56,38 @@
           <button class="kh-button" id="create-task-button">Create Task</button>
         </section>
 
-        <!-- Filters -->
-        <section class="kh-filters" style="margin-bottom: 1.5rem;">
-          <select class="kh-select" id="tasks-filter-status">
-            <option value="">All Statuses</option>
-            <option value="Not Started">Not Started</option>
-            <option value="In Progress">In Progress</option>
-            <option value="Complete">Complete</option>
-            <option value="On Hold">On Hold</option>
-            <option value="Cancelled">Cancelled</option>
-          </select>
-          <select class="kh-select" id="tasks-filter-priority">
-            <option value="">All Priorities</option>
-            <option value="Low">Low</option>
-            <option value="Medium">Medium</option>
-            <option value="High">High</option>
-            <option value="Urgent">Urgent</option>
-          </select>
-          <select class="kh-select" id="tasks-filter-assignee">
-            <option value="">All Assignees</option>
-          </select>
-          <select class="kh-select" id="tasks-filter-job">
-            <option value="">All Jobs</option>
-          </select>
-          <label class="kh-toggle">
-            <input type="checkbox" id="tasks-hide-completed" />
-            <span>Hide completed</span>
-          </label>
-        </section>
-
         <div class="kh-form-message" id="tasks-message"></div>
 
         <!-- Tasks Table -->
         <section class="kh-panel">
+          <!-- Filters -->
+          <div class="kh-filters" style="padding: 16px 20px; border-bottom: 1px solid var(--kh-border);">
+            <select class="kh-select" id="tasks-filter-status">
+              <option value="">All Statuses</option>
+              <option value="Not Started">Not Started</option>
+              <option value="In Progress">In Progress</option>
+              <option value="Complete">Complete</option>
+              <option value="On Hold">On Hold</option>
+              <option value="Cancelled">Cancelled</option>
+            </select>
+            <select class="kh-select" id="tasks-filter-priority">
+              <option value="">All Priorities</option>
+              <option value="Low">Low</option>
+              <option value="Medium">Medium</option>
+              <option value="High">High</option>
+              <option value="Urgent">Urgent</option>
+            </select>
+            <select class="kh-select" id="tasks-filter-assignee">
+              <option value="">All Assignees</option>
+            </select>
+            <select class="kh-select" id="tasks-filter-job">
+              <option value="">All Jobs</option>
+            </select>
+            <label class="kh-toggle">
+              <input type="checkbox" id="tasks-hide-completed" />
+              <span>Hide completed</span>
+            </label>
+          </div>
           <div class="kh-table-wrap">
             <table class="kh-table kh-table--tasks">
               <thead>
