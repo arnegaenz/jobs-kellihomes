@@ -1211,7 +1211,6 @@ html {
 .kh-button--small {
   padding: 0.375rem 0.75rem;
   font-size: 0.875rem;
-  margin-left: auto;
 }
 
 .kh-panel__title {
@@ -1895,10 +1894,13 @@ html {
 /* Task Priority Pills */
 .kh-priority {
   display: inline-block;
-  padding: 2px 10px;
+  min-width: 72px;
+  padding: 3px 10px;
   border-radius: 999px;
   font-size: 12px;
   font-weight: 600;
+  text-align: center;
+  box-sizing: border-box;
 }
 
 .kh-priority--low {
@@ -1924,10 +1926,11 @@ html {
 /* Task Status Pills */
 .kh-task-status {
   display: inline-block;
-  padding: 2px 10px;
+  padding: 3px 10px;
   border-radius: 999px;
   font-size: 12px;
   font-weight: 600;
+  white-space: nowrap;
 }
 
 .kh-task-status--not-started {
@@ -1984,7 +1987,7 @@ html {
 
 .kh-assignee-tag {
   display: inline-block;
-  padding: 1px 8px;
+  padding: 2px 8px;
   border-radius: 999px;
   font-size: 12px;
   background: #f0f0f0;
@@ -1992,8 +1995,14 @@ html {
 }
 
 /* Tasks table styling */
+.kh-table--tasks th,
 .kh-table--tasks td {
+  padding: 14px 12px;
   vertical-align: middle;
+}
+
+.kh-table--tasks th {
+  border-bottom: 2px solid var(--kh-border);
 }
 
 .kh-table--tasks .kh-task-title {
@@ -2007,6 +2016,47 @@ html {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  margin-top: 2px;
+}
+
+/* Empty-value dashes */
+.kh-table--tasks .kh-empty-dash {
+  color: #ccc;
+}
+
+/* Action buttons */
+.kh-table--tasks .kh-task-actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.kh-table--tasks .kh-task-actions .kh-button--small {
+  padding: 0.25rem 0.625rem;
+  font-size: 0.8125rem;
+  margin-left: 0;
+  white-space: nowrap;
+}
+
+/* Sortable column headers */
+.kh-table--tasks th[data-sort] {
+  cursor: pointer;
+  user-select: none;
+  transition: color 0.15s;
+}
+
+.kh-table--tasks th[data-sort]:hover {
+  color: var(--kh-accent);
+}
+
+.kh-table--tasks th .kh-sort-arrow {
+  font-size: 11px;
+  margin-left: 4px;
+  opacity: 0.4;
+}
+
+.kh-table--tasks th.kh-sort-active .kh-sort-arrow {
+  opacity: 1;
 }
 
 /* Calendar task swimlanes */

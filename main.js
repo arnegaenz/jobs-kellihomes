@@ -3523,11 +3523,94 @@ function getTaskStatusClass(status) {
   return map[status] || 'not-started';
 }
 
+// Compact date formatting for task table
+function formatTaskDate(value) {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return { month: date.toLocaleDateString("en-US", { month: "short" }), day: date.getDate(), year: date.getFullYear(), raw: date };
+}
+
+function formatTaskDateRange(startDate, endDate) {
+  const s = formatTaskDate(startDate);
+  const e = formatTaskDate(endDate);
+  if (!s && !e) return null;
+  if (s && !e) return `${s.month} ${s.day}, ${s.year}`;
+  if (!s && e) return `${e.month} ${e.day}, ${e.year}`;
+  // Both dates present
+  if (s.year === e.year) {
+    return `${s.month} ${s.day} \u2013 ${e.month} ${e.day}, ${e.year}`;
+  }
+  return `${s.month} ${s.day}, ${s.year} \u2013 ${e.month} ${e.day}, ${e.year}`;
+}
+
+// Sort state for tasks table
+let tasksSortColumn = "priority";
+let tasksSortAsc = true; // true = default order (Urgent first for priority)
+
+const PRIORITY_ORDER = { 'Urgent': 0, 'High': 1, 'Medium': 2, 'Low': 3 };
+const STATUS_ORDER = { 'Not Started': 0, 'In Progress': 1, 'On Hold': 2, 'Blocked': 3, 'Complete': 4, 'Cancelled': 5 };
+
+function sortTasks(tasks, column, asc) {
+  const sorted = [...tasks];
+  sorted.sort((a, b) => {
+    let cmp = 0;
+    switch (column) {
+      case "task":
+        cmp = (a.title || "").localeCompare(b.title || "");
+        break;
+      case "priority":
+        cmp = (PRIORITY_ORDER[a.priority] ?? 99) - (PRIORITY_ORDER[b.priority] ?? 99);
+        break;
+      case "status":
+        cmp = (STATUS_ORDER[a.status] ?? 99) - (STATUS_ORDER[b.status] ?? 99);
+        break;
+      case "assignees": {
+        const aa = (a.assignees || [])[0] || "\uffff";
+        const ba = (b.assignees || [])[0] || "\uffff";
+        cmp = aa.localeCompare(ba);
+        break;
+      }
+      case "job": {
+        const aj = a.jobName || "\uffff";
+        const bj = b.jobName || "\uffff";
+        cmp = aj.localeCompare(bj);
+        break;
+      }
+      case "dates": {
+        const ad = a.startDate ? new Date(a.startDate).getTime() : Infinity;
+        const bd = b.startDate ? new Date(b.startDate).getTime() : Infinity;
+        cmp = ad - bd;
+        break;
+      }
+    }
+    return asc ? cmp : -cmp;
+  });
+  return sorted;
+}
+
+function updateSortIndicators() {
+  const table = document.querySelector(".kh-table--tasks");
+  if (!table) return;
+  table.querySelectorAll("th[data-sort]").forEach(th => {
+    const arrow = th.querySelector(".kh-sort-arrow");
+    if (!arrow) return;
+    if (th.dataset.sort === tasksSortColumn) {
+      th.classList.add("kh-sort-active");
+      arrow.textContent = tasksSortAsc ? "▲" : "▼";
+    } else {
+      th.classList.remove("kh-sort-active");
+      arrow.textContent = "";
+    }
+  });
+}
+
 function renderTasksTable(tasks, containerId = "tasks-table-body") {
   const tableBody = document.getElementById(containerId);
   if (!tableBody) return;
 
   tableBody.innerHTML = "";
+  updateSortIndicators();
 
   if (!tasks.length) {
     const row = document.createElement("tr");
@@ -3560,7 +3643,7 @@ function renderTasksTable(tasks, containerId = "tasks-table-body") {
     if (assignees.length > 0) {
       assigneesCell.innerHTML = `<div class="kh-assignee-list">${assignees.map(a => `<span class="kh-assignee-tag">${a}</span>`).join('')}</div>`;
     } else {
-      assigneesCell.textContent = "—";
+      assigneesCell.innerHTML = '<span class="kh-empty-dash">&mdash;</span>';
     }
 
     // Job
@@ -3572,21 +3655,23 @@ function renderTasksTable(tasks, containerId = "tasks-table-body") {
       jobLink.textContent = task.jobName;
       jobCell.appendChild(jobLink);
     } else {
-      jobCell.textContent = "—";
+      jobCell.innerHTML = '<span class="kh-empty-dash">&mdash;</span>';
     }
 
     // Dates
     const datesCell = document.createElement("td");
-    const start = task.startDate ? formatDate(task.startDate) : "";
-    const end = task.endDate ? formatDate(task.endDate) : "";
-    if (start || end) {
-      datesCell.innerHTML = `<div style="font-size: 12px;">${start}${start && end ? ' — ' : ''}${end}</div>`;
+    const dateStr = formatTaskDateRange(task.startDate, task.endDate);
+    if (dateStr) {
+      datesCell.innerHTML = `<span style="font-size: 12px; white-space: nowrap;">${dateStr}</span>`;
     } else {
-      datesCell.textContent = "—";
+      datesCell.innerHTML = '<span class="kh-empty-dash">&mdash;</span>';
     }
 
     // Actions
     const actionsCell = document.createElement("td");
+    const actionsWrap = document.createElement("div");
+    actionsWrap.className = "kh-task-actions";
+
     const editBtn = document.createElement("button");
     editBtn.className = "kh-button kh-button--secondary kh-button--small";
     editBtn.textContent = "Edit";
@@ -3595,7 +3680,6 @@ function renderTasksTable(tasks, containerId = "tasks-table-body") {
     const deleteBtn = document.createElement("button");
     deleteBtn.className = "kh-button kh-button--secondary kh-button--small";
     deleteBtn.textContent = "Delete";
-    deleteBtn.style.marginLeft = "4px";
     deleteBtn.addEventListener("click", async () => {
       if (!confirm(`Delete task "${task.title}"?`)) return;
       try {
@@ -3608,8 +3692,9 @@ function renderTasksTable(tasks, containerId = "tasks-table-body") {
       }
     });
 
-    actionsCell.appendChild(editBtn);
-    actionsCell.appendChild(deleteBtn);
+    actionsWrap.appendChild(editBtn);
+    actionsWrap.appendChild(deleteBtn);
+    actionsCell.appendChild(actionsWrap);
 
     row.append(titleCell, priorityCell, statusCell, assigneesCell, jobCell, datesCell, actionsCell);
     tableBody.appendChild(row);
@@ -3719,6 +3804,7 @@ function applyTasksFilters() {
   if (jobId) filtered = filtered.filter(t => String(t.jobId) === jobId);
   if (hideCompleted) filtered = filtered.filter(t => t.status !== 'Complete' && t.status !== 'Cancelled');
 
+  filtered = sortTasks(filtered, tasksSortColumn, tasksSortAsc);
   renderTasksTable(filtered);
 }
 
@@ -3767,6 +3853,20 @@ async function initTasksPage() {
   ["tasks-filter-status", "tasks-filter-priority", "tasks-filter-assignee", "tasks-filter-job", "tasks-hide-completed"].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.addEventListener("change", applyTasksFilters);
+  });
+
+  // Wire up sortable column headers
+  document.querySelectorAll(".kh-table--tasks th[data-sort]").forEach(th => {
+    th.addEventListener("click", () => {
+      const col = th.dataset.sort;
+      if (tasksSortColumn === col) {
+        tasksSortAsc = !tasksSortAsc;
+      } else {
+        tasksSortColumn = col;
+        tasksSortAsc = true;
+      }
+      applyTasksFilters();
+    });
   });
 
   // Wire up create button
@@ -3875,19 +3975,21 @@ function renderJobTasksTable(tasks, jobId) {
     if (assignees.length > 0) {
       assigneesCell.innerHTML = `<div class="kh-assignee-list">${assignees.map(a => `<span class="kh-assignee-tag">${a}</span>`).join('')}</div>`;
     } else {
-      assigneesCell.textContent = "—";
+      assigneesCell.innerHTML = '<span class="kh-empty-dash">&mdash;</span>';
     }
 
     const datesCell = document.createElement("td");
-    const start = task.startDate ? formatDate(task.startDate) : "";
-    const end = task.endDate ? formatDate(task.endDate) : "";
-    if (start || end) {
-      datesCell.innerHTML = `<div style="font-size: 12px;">${start}${start && end ? ' — ' : ''}${end}</div>`;
+    const jobDateStr = formatTaskDateRange(task.startDate, task.endDate);
+    if (jobDateStr) {
+      datesCell.innerHTML = `<span style="font-size: 12px; white-space: nowrap;">${jobDateStr}</span>`;
     } else {
-      datesCell.textContent = "—";
+      datesCell.innerHTML = '<span class="kh-empty-dash">&mdash;</span>';
     }
 
     const actionsCell = document.createElement("td");
+    const jobActionsWrap = document.createElement("div");
+    jobActionsWrap.className = "kh-task-actions";
+
     const editBtn = document.createElement("button");
     editBtn.className = "kh-button kh-button--secondary kh-button--small";
     editBtn.textContent = "Edit";
@@ -3896,7 +3998,6 @@ function renderJobTasksTable(tasks, jobId) {
     const deleteBtn = document.createElement("button");
     deleteBtn.className = "kh-button kh-button--secondary kh-button--small";
     deleteBtn.textContent = "Delete";
-    deleteBtn.style.marginLeft = "4px";
     deleteBtn.addEventListener("click", async () => {
       if (!confirm(`Delete task "${task.title}"?`)) return;
       try {
@@ -3909,8 +4010,9 @@ function renderJobTasksTable(tasks, jobId) {
       }
     });
 
-    actionsCell.appendChild(editBtn);
-    actionsCell.appendChild(deleteBtn);
+    jobActionsWrap.appendChild(editBtn);
+    jobActionsWrap.appendChild(deleteBtn);
+    actionsCell.appendChild(jobActionsWrap);
 
     row.append(titleCell, priorityCell, statusCell, assigneesCell, datesCell, actionsCell);
     tableBody.appendChild(row);
