@@ -2553,6 +2553,16 @@ html {
   body {
     padding-bottom: 64px;
   }
+
+  /* Hide top nav links on mobile — bottom bar replaces them */
+  .kh-nav {
+    display: none;
+  }
+
+  /* Prevent double-tap zoom */
+  * {
+    touch-action: manipulation;
+  }
 }
 
 /* ==========================================
