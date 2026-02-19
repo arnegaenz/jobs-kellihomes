@@ -1200,6 +1200,7 @@ function renderCalendarFilters() {
 }
 
 function renderCalendarGrid() {
+  hideCalendarPopover();
   const gridContainer = document.getElementById('calendar-grid');
   if (!gridContainer) return;
 
@@ -1312,6 +1313,7 @@ function renderCalendarGrid() {
         html += `<div class="kh-cal__swimlane" data-job-id="${job.id}">`;
         html += `<div class="kh-cal__item ${actualClass} ${continueLeftClass} ${continueRightClass}"
                       style="left: ${leftPercent}%; width: ${widthPercent}%; background: ${color.bg}; border-color: ${color.border}; color: ${color.text};"
+                      data-job-id="${job.id}" data-item-type="line-item" data-item-code="${item.code}"
                       title="${job.name}: ${item.name} (${status})">
                    <span class="kh-cal__item-text">${item.name}</span>
                  </div>`;
@@ -1339,6 +1341,7 @@ function renderCalendarGrid() {
           html += `<div class="kh-cal__swimlane" data-job-id="${job.id}">`;
           html += `<div class="kh-cal__item kh-cal__item--task ${continueLeftClass} ${continueRightClass}"
                         style="left: ${leftPercent}%; width: ${widthPercent}%; background: ${color.bg}; border-color: ${color.border}; color: ${color.text};"
+                        data-job-id="${job.id}" data-item-type="task" data-task-id="${task.id}"
                         title="${job.name} task: ${task.name} (${task.status || 'Not Started'})">
                      <span class="kh-cal__item-text">${task.name}</span>
                    </div>`;
@@ -1368,6 +1371,7 @@ function renderCalendarGrid() {
         html += `<div class="kh-cal__swimlane">`;
         html += `<div class="kh-cal__item kh-cal__item--task ${continueLeftClass} ${continueRightClass}"
                       style="left: ${leftPercent}%; width: ${widthPercent}%; background: #f0f0f0; border-color: #999; color: #555;"
+                      data-item-type="unlinked-task" data-task-id="${task.id}"
                       title="Task: ${task.name} (${task.status || 'Not Started'})">
                    <span class="kh-cal__item-text">${task.name}</span>
                  </div>`;
@@ -1389,7 +1393,228 @@ function renderCalendarGrid() {
   html += '</div>'; // .kh-cal__weeks
   html += '</div>'; // .kh-cal
   gridContainer.innerHTML = html;
+  attachCalendarPopoverListeners(gridContainer);
 }
+
+// --- Calendar Popover System ---
+
+let activePopover = null;
+let popoverTimeout = null;
+let popoverLeaveTimeout = null;
+
+function attachCalendarPopoverListeners(container) {
+  if (container._popoverListenersAttached) return;
+  container.addEventListener('mouseenter', handleCalItemEnter, true);
+  container.addEventListener('mouseleave', handleCalItemLeave, true);
+  container._popoverListenersAttached = true;
+}
+
+function handleCalItemEnter(e) {
+  const item = e.target.closest('.kh-cal__item');
+  if (!item) return;
+
+  clearTimeout(popoverLeaveTimeout);
+  clearTimeout(popoverTimeout);
+
+  popoverTimeout = setTimeout(() => {
+    showCalendarPopover(item);
+  }, 250);
+}
+
+function handleCalItemLeave(e) {
+  const item = e.target.closest('.kh-cal__item');
+  if (!item) return;
+
+  clearTimeout(popoverTimeout);
+  popoverLeaveTimeout = setTimeout(() => {
+    hideCalendarPopover();
+  }, 200);
+}
+
+function showCalendarPopover(itemEl) {
+  hideCalendarPopover();
+
+  const itemType = itemEl.dataset.itemType;
+  const jobId = itemEl.dataset.jobId;
+  const itemCode = itemEl.dataset.itemCode;
+  const taskId = itemEl.dataset.taskId;
+
+  let popoverHTML = '';
+  let job = null;
+  let borderColor = '#ccc';
+
+  if (itemType === 'line-item' && jobId) {
+    job = calendarJobs.find(j => String(j.id) === String(jobId));
+    const lineItems = calendarJobLineItems[jobId] || [];
+    const item = lineItems.find(li => li.code === itemCode);
+    if (!item || !job) return;
+
+    const jobIdx = calendarJobs.indexOf(job);
+    const color = getJobColor(jobIdx);
+    borderColor = color.border;
+
+    const status = item.status || 'Not Started';
+    const schedule = item.schedule || {};
+    const startDate = schedule.startDate || schedule.actualStartDate;
+    const endDate = schedule.endDate || schedule.actualEndDate;
+    const budget = item.budget != null ? `$${Number(item.budget).toLocaleString()}` : '—';
+    const actual = item.actual != null ? `$${Number(item.actual).toLocaleString()}` : '—';
+
+    popoverHTML = `
+      <div class="kh-cal-popover__header">
+        <span class="kh-cal-popover__color" style="background:${color.border}"></span>
+        <span class="kh-cal-popover__title">${item.name}</span>
+      </div>
+      <div class="kh-cal-popover__job">${job.name}</div>
+      <div class="kh-cal-popover__rows">
+        <div class="kh-cal-popover__row">
+          <span class="kh-cal-popover__label">Status</span>
+          <span class="kh-cal-popover__value">${status}</span>
+        </div>
+        ${startDate ? `<div class="kh-cal-popover__row">
+          <span class="kh-cal-popover__label">Start</span>
+          <span class="kh-cal-popover__value">${formatPopoverDate(startDate)}</span>
+        </div>` : ''}
+        ${endDate ? `<div class="kh-cal-popover__row">
+          <span class="kh-cal-popover__label">End</span>
+          <span class="kh-cal-popover__value">${formatPopoverDate(endDate)}</span>
+        </div>` : ''}
+        <div class="kh-cal-popover__row">
+          <span class="kh-cal-popover__label">Budget</span>
+          <span class="kh-cal-popover__value">${budget}</span>
+        </div>
+        <div class="kh-cal-popover__row">
+          <span class="kh-cal-popover__label">Actual</span>
+          <span class="kh-cal-popover__value">${actual}</span>
+        </div>
+      </div>
+      <button class="kh-cal-popover__edit" onclick="window.location.href='job.html?id=${jobId}'">Edit Job</button>
+    `;
+  } else if (itemType === 'task' && jobId) {
+    job = calendarJobs.find(j => String(j.id) === String(jobId));
+    const tasks = calendarTasksByJob[jobId] || [];
+    const task = tasks.find(t => String(t.id) === String(taskId));
+    if (!task || !job) return;
+
+    const jobIdx = calendarJobs.indexOf(job);
+    const color = getJobColor(jobIdx);
+    borderColor = color.border;
+
+    const status = task.status || 'Not Started';
+    const schedule = task.schedule || {};
+
+    popoverHTML = `
+      <div class="kh-cal-popover__header">
+        <span class="kh-cal-popover__color" style="background:${color.border}"></span>
+        <span class="kh-cal-popover__title">${task.name}</span>
+      </div>
+      <div class="kh-cal-popover__job">${job.name} — Task</div>
+      <div class="kh-cal-popover__rows">
+        <div class="kh-cal-popover__row">
+          <span class="kh-cal-popover__label">Status</span>
+          <span class="kh-cal-popover__value">${status}</span>
+        </div>
+        ${schedule.startDate ? `<div class="kh-cal-popover__row">
+          <span class="kh-cal-popover__label">Start</span>
+          <span class="kh-cal-popover__value">${formatPopoverDate(schedule.startDate)}</span>
+        </div>` : ''}
+        ${schedule.endDate ? `<div class="kh-cal-popover__row">
+          <span class="kh-cal-popover__label">End</span>
+          <span class="kh-cal-popover__value">${formatPopoverDate(schedule.endDate)}</span>
+        </div>` : ''}
+      </div>
+      <button class="kh-cal-popover__edit" onclick="window.location.href='job.html?id=${jobId}'">Edit Job</button>
+    `;
+  } else if (itemType === 'unlinked-task') {
+    const task = calendarUnlinkedTasks.find(t => String(t.id) === String(taskId));
+    if (!task) return;
+
+    borderColor = '#999';
+    const status = task.status || 'Not Started';
+    const schedule = task.schedule || {};
+
+    popoverHTML = `
+      <div class="kh-cal-popover__header">
+        <span class="kh-cal-popover__color" style="background:#999"></span>
+        <span class="kh-cal-popover__title">${task.name}</span>
+      </div>
+      <div class="kh-cal-popover__job">Unlinked Task</div>
+      <div class="kh-cal-popover__rows">
+        <div class="kh-cal-popover__row">
+          <span class="kh-cal-popover__label">Status</span>
+          <span class="kh-cal-popover__value">${status}</span>
+        </div>
+        ${schedule.startDate ? `<div class="kh-cal-popover__row">
+          <span class="kh-cal-popover__label">Start</span>
+          <span class="kh-cal-popover__value">${formatPopoverDate(schedule.startDate)}</span>
+        </div>` : ''}
+        ${schedule.endDate ? `<div class="kh-cal-popover__row">
+          <span class="kh-cal-popover__label">End</span>
+          <span class="kh-cal-popover__value">${formatPopoverDate(schedule.endDate)}</span>
+        </div>` : ''}
+      </div>
+    `;
+  } else {
+    return;
+  }
+
+  const popover = document.createElement('div');
+  popover.className = 'kh-cal-popover';
+  popover.style.borderTop = `3px solid ${borderColor}`;
+  popover.innerHTML = popoverHTML;
+
+  // Keep popover open when hovering over it
+  popover.addEventListener('mouseenter', () => {
+    clearTimeout(popoverLeaveTimeout);
+  });
+  popover.addEventListener('mouseleave', () => {
+    popoverLeaveTimeout = setTimeout(() => {
+      hideCalendarPopover();
+    }, 150);
+  });
+
+  document.body.appendChild(popover);
+  activePopover = popover;
+
+  // Position popover near the item
+  const rect = itemEl.getBoundingClientRect();
+  const popRect = popover.getBoundingClientRect();
+  let top = rect.bottom + 6;
+  let left = rect.left + (rect.width / 2) - (popRect.width / 2);
+
+  // Keep within viewport
+  if (left < 8) left = 8;
+  if (left + popRect.width > window.innerWidth - 8) left = window.innerWidth - popRect.width - 8;
+  if (top + popRect.height > window.innerHeight - 8) {
+    top = rect.top - popRect.height - 6;
+  }
+
+  popover.style.top = `${top}px`;
+  popover.style.left = `${left}px`;
+}
+
+function hideCalendarPopover() {
+  if (activePopover) {
+    activePopover.remove();
+    activePopover = null;
+  }
+}
+
+function formatPopoverDate(dateStr) {
+  if (!dateStr) return '—';
+  const d = new Date(dateStr + 'T00:00:00');
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+// Close popover on scroll or click outside
+document.addEventListener('click', (e) => {
+  if (activePopover && !activePopover.contains(e.target) && !e.target.closest('.kh-cal__item')) {
+    hideCalendarPopover();
+  }
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') hideCalendarPopover();
+});
 
 function updateCalendarRange(numWeeks) {
   const rangeEl = document.getElementById('calendar-range');
