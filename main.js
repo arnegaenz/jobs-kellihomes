@@ -3696,6 +3696,9 @@ function renderTasksTable(tasks, containerId = "tasks-table-body") {
     trigger.addEventListener("click", (e) => {
       e.stopPropagation();
       document.querySelectorAll(".kh-kebab.is-open").forEach(k => { if (k !== kebab) k.classList.remove("is-open"); });
+      const rect = trigger.getBoundingClientRect();
+      menu.style.top = (rect.bottom + 4) + "px";
+      menu.style.left = (rect.right - 110) + "px";
       kebab.classList.toggle("is-open");
     });
 
@@ -4034,6 +4037,9 @@ function renderJobTasksTable(tasks, jobId) {
     jobTrigger.addEventListener("click", (e) => {
       e.stopPropagation();
       document.querySelectorAll(".kh-kebab.is-open").forEach(k => { if (k !== jobKebab) k.classList.remove("is-open"); });
+      const rect = jobTrigger.getBoundingClientRect();
+      jobMenu.style.top = (rect.bottom + 4) + "px";
+      jobMenu.style.left = (rect.right - 110) + "px";
       jobKebab.classList.toggle("is-open");
     });
 
