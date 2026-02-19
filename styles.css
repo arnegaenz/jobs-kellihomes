@@ -2005,6 +2005,13 @@ html {
   border-bottom: 2px solid var(--kh-border);
 }
 
+.kh-table--tasks th:nth-child(2),
+.kh-table--tasks td:nth-child(2),
+.kh-table--tasks th:nth-child(3),
+.kh-table--tasks td:nth-child(3) {
+  text-align: center;
+}
+
 .kh-table--tasks .kh-task-title {
   font-weight: 500;
 }
