@@ -1523,7 +1523,7 @@ function showCalendarPopover(itemEl) {
           <span class="kh-cal-popover__value">${formatPopoverDate(schedule.endDate)}</span>
         </div>` : ''}
       </div>
-      <button class="kh-cal-popover__edit" onclick="window.location.href='job.html?id=${jobId}'">Edit Job</button>
+      <button class="kh-cal-popover__edit" onclick="window.location.href='tasks.html'">Edit Task</button>
     `;
   } else if (itemType === 'unlinked-task') {
     const task = calendarUnlinkedTasks.find(t => String(t.id) === String(taskId));
@@ -1553,6 +1553,7 @@ function showCalendarPopover(itemEl) {
           <span class="kh-cal-popover__value">${formatPopoverDate(schedule.endDate)}</span>
         </div>` : ''}
       </div>
+      <button class="kh-cal-popover__edit" onclick="window.location.href='tasks.html'">Edit Task</button>
     `;
   } else {
     return;
