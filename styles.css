@@ -256,6 +256,30 @@ select {
   max-width: 520px;
 }
 
+/* Tasks hero with embedded filters */
+.kh-hero--tasks {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
+}
+
+.kh-hero__top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 32px;
+}
+
+.kh-hero__filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--kh-border);
+}
+
 .kh-button {
   border: none;
   background: var(--kh-accent);

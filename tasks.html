@@ -48,20 +48,15 @@
 
     <main class="kh-main" id="main-content">
       <div class="kh-container">
-        <section class="kh-hero">
-          <div>
-            <h1 class="kh-hero__title">Tasks</h1>
-            <p class="kh-hero__subtitle">Manage and track tasks across all projects.</p>
+        <section class="kh-hero kh-hero--tasks">
+          <div class="kh-hero__top">
+            <div>
+              <h1 class="kh-hero__title">Tasks</h1>
+              <p class="kh-hero__subtitle">Manage and track tasks across all projects.</p>
+            </div>
+            <button class="kh-button" id="create-task-button">Create Task</button>
           </div>
-          <button class="kh-button" id="create-task-button">Create Task</button>
-        </section>
-
-        <div class="kh-form-message" id="tasks-message"></div>
-
-        <!-- Tasks Table -->
-        <section class="kh-panel">
-          <!-- Filters -->
-          <div class="kh-filters" style="padding: 16px 20px; border-bottom: 1px solid var(--kh-border);">
+          <div class="kh-hero__filters">
             <select class="kh-select" id="tasks-filter-status">
               <option value="">All Statuses</option>
               <option value="Not Started">Not Started</option>
@@ -88,6 +83,12 @@
               <span>Hide completed</span>
             </label>
           </div>
+        </section>
+
+        <div class="kh-form-message" id="tasks-message"></div>
+
+        <!-- Tasks Table -->
+        <section class="kh-panel">
           <div class="kh-table-wrap">
             <table class="kh-table kh-table--tasks">
               <thead>
