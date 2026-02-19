@@ -2040,8 +2040,10 @@ html {
   text-overflow: ellipsis;
 }
 
+.kh-table--tasks th:last-child,
 .kh-table--tasks td:last-child {
   overflow: visible;
+  text-overflow: clip;
 }
 
 /* Column widths: Task / Priority / Status / Assignees / Job / Dates / Actions */
@@ -2049,9 +2051,9 @@ html {
 .kh-table--tasks th:nth-child(2) { width: 9%; }
 .kh-table--tasks th:nth-child(3) { width: 11%; }
 .kh-table--tasks th:nth-child(4) { width: 13%; }
-.kh-table--tasks th:nth-child(5) { width: 16%; }
-.kh-table--tasks th:nth-child(6) { width: 15%; }
-.kh-table--tasks th:nth-child(7) { width: 5%; }
+.kh-table--tasks th:nth-child(5) { width: 15%; }
+.kh-table--tasks th:nth-child(6) { width: 14%; }
+.kh-table--tasks th:nth-child(7) { width: 14%; }
 
 .kh-table--tasks th {
   border-bottom: 1px solid var(--kh-border);
@@ -2086,11 +2088,6 @@ html {
 }
 
 /* Kebab menu */
-.kh-kebab {
-  position: relative;
-  display: inline-block;
-}
-
 .kh-kebab__trigger {
   background: none;
   border: 1px solid transparent;
@@ -2118,10 +2115,9 @@ html {
   box-shadow: 0 4px 12px rgba(0,0,0,0.15);
   min-width: 110px;
   z-index: 9999;
-  overflow: hidden;
 }
 
-.kh-kebab.is-open .kh-kebab__menu {
+.kh-kebab__menu.is-open {
   display: block;
 }
 

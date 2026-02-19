@@ -3626,6 +3626,8 @@ function renderTasksTable(tasks, containerId = "tasks-table-body") {
   const tableBody = document.getElementById(containerId);
   if (!tableBody) return;
 
+  // Clean up any body-appended kebab menus from previous render
+  document.querySelectorAll("body > .kh-kebab__menu").forEach(m => m.remove());
   tableBody.innerHTML = "";
   updateSortIndicators();
 
@@ -3685,22 +3687,11 @@ function renderTasksTable(tasks, containerId = "tasks-table-body") {
       datesCell.innerHTML = '<span class="kh-empty-dash">&mdash;</span>';
     }
 
-    // Actions — kebab menu
+    // Actions — kebab menu (menu appended to body to escape table overflow)
     const actionsCell = document.createElement("td");
-    const kebab = document.createElement("div");
-    kebab.className = "kh-kebab";
-
     const trigger = document.createElement("button");
     trigger.className = "kh-kebab__trigger";
     trigger.innerHTML = "&#8942;";
-    trigger.addEventListener("click", (e) => {
-      e.stopPropagation();
-      document.querySelectorAll(".kh-kebab.is-open").forEach(k => { if (k !== kebab) k.classList.remove("is-open"); });
-      const rect = trigger.getBoundingClientRect();
-      menu.style.top = (rect.bottom + 4) + "px";
-      menu.style.left = (rect.right - 110) + "px";
-      kebab.classList.toggle("is-open");
-    });
 
     const menu = document.createElement("div");
     menu.className = "kh-kebab__menu";
@@ -3708,13 +3699,13 @@ function renderTasksTable(tasks, containerId = "tasks-table-body") {
     const editItem = document.createElement("button");
     editItem.className = "kh-kebab__item";
     editItem.textContent = "Edit";
-    editItem.addEventListener("click", () => { kebab.classList.remove("is-open"); openTaskModal(task); });
+    editItem.addEventListener("click", () => { menu.classList.remove("is-open"); openTaskModal(task); });
 
     const deleteItem = document.createElement("button");
     deleteItem.className = "kh-kebab__item kh-kebab__item--danger";
     deleteItem.textContent = "Delete";
     deleteItem.addEventListener("click", async () => {
-      kebab.classList.remove("is-open");
+      menu.classList.remove("is-open");
       if (!confirm(`Delete task "${task.title}"?`)) return;
       try {
         await deleteTask(task.id);
@@ -3728,9 +3719,18 @@ function renderTasksTable(tasks, containerId = "tasks-table-body") {
 
     menu.appendChild(editItem);
     menu.appendChild(deleteItem);
-    kebab.appendChild(trigger);
-    kebab.appendChild(menu);
-    actionsCell.appendChild(kebab);
+    document.body.appendChild(menu);
+
+    trigger.addEventListener("click", (e) => {
+      e.stopPropagation();
+      document.querySelectorAll(".kh-kebab__menu.is-open").forEach(m => { if (m !== menu) m.classList.remove("is-open"); });
+      const rect = trigger.getBoundingClientRect();
+      menu.style.top = (rect.bottom + 4) + "px";
+      menu.style.left = (rect.right - 110) + "px";
+      menu.classList.toggle("is-open");
+    });
+
+    actionsCell.appendChild(trigger);
 
     row.append(titleCell, priorityCell, statusCell, assigneesCell, jobCell, datesCell, actionsCell);
     tableBody.appendChild(row);
@@ -3907,7 +3907,7 @@ async function initTasksPage() {
 
   // Close kebab menus on outside click
   document.addEventListener("click", () => {
-    document.querySelectorAll(".kh-kebab.is-open").forEach(k => k.classList.remove("is-open"));
+    document.querySelectorAll(".kh-kebab__menu.is-open").forEach(m => m.classList.remove("is-open"));
   });
 
   // Wire up create button
@@ -4028,20 +4028,9 @@ function renderJobTasksTable(tasks, jobId) {
     }
 
     const actionsCell = document.createElement("td");
-    const jobKebab = document.createElement("div");
-    jobKebab.className = "kh-kebab";
-
     const jobTrigger = document.createElement("button");
     jobTrigger.className = "kh-kebab__trigger";
     jobTrigger.innerHTML = "&#8942;";
-    jobTrigger.addEventListener("click", (e) => {
-      e.stopPropagation();
-      document.querySelectorAll(".kh-kebab.is-open").forEach(k => { if (k !== jobKebab) k.classList.remove("is-open"); });
-      const rect = jobTrigger.getBoundingClientRect();
-      jobMenu.style.top = (rect.bottom + 4) + "px";
-      jobMenu.style.left = (rect.right - 110) + "px";
-      jobKebab.classList.toggle("is-open");
-    });
 
     const jobMenu = document.createElement("div");
     jobMenu.className = "kh-kebab__menu";
@@ -4049,13 +4038,13 @@ function renderJobTasksTable(tasks, jobId) {
     const jobEditItem = document.createElement("button");
     jobEditItem.className = "kh-kebab__item";
     jobEditItem.textContent = "Edit";
-    jobEditItem.addEventListener("click", () => { jobKebab.classList.remove("is-open"); openJobTaskModal(task, jobId); });
+    jobEditItem.addEventListener("click", () => { jobMenu.classList.remove("is-open"); openJobTaskModal(task, jobId); });
 
     const jobDeleteItem = document.createElement("button");
     jobDeleteItem.className = "kh-kebab__item kh-kebab__item--danger";
     jobDeleteItem.textContent = "Delete";
     jobDeleteItem.addEventListener("click", async () => {
-      jobKebab.classList.remove("is-open");
+      jobMenu.classList.remove("is-open");
       if (!confirm(`Delete task "${task.title}"?`)) return;
       try {
         await deleteTask(task.id);
@@ -4069,9 +4058,18 @@ function renderJobTasksTable(tasks, jobId) {
 
     jobMenu.appendChild(jobEditItem);
     jobMenu.appendChild(jobDeleteItem);
-    jobKebab.appendChild(jobTrigger);
-    jobKebab.appendChild(jobMenu);
-    actionsCell.appendChild(jobKebab);
+    document.body.appendChild(jobMenu);
+
+    jobTrigger.addEventListener("click", (e) => {
+      e.stopPropagation();
+      document.querySelectorAll(".kh-kebab__menu.is-open").forEach(m => { if (m !== jobMenu) m.classList.remove("is-open"); });
+      const rect = jobTrigger.getBoundingClientRect();
+      jobMenu.style.top = (rect.bottom + 4) + "px";
+      jobMenu.style.left = (rect.right - 110) + "px";
+      jobMenu.classList.toggle("is-open");
+    });
+
+    actionsCell.appendChild(jobTrigger);
 
     row.append(titleCell, priorityCell, statusCell, assigneesCell, datesCell, actionsCell);
     tableBody.appendChild(row);
