@@ -2003,6 +2003,11 @@ html {
 
 .kh-table--tasks th {
   border-bottom: 2px solid var(--kh-border);
+  color: #333;
+  font-weight: 700;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
 }
 
 .kh-table--tasks th:nth-child(2),
