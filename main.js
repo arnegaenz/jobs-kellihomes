@@ -3518,9 +3518,26 @@ function getTaskStatusClass(status) {
     'In Progress': 'in-progress',
     'Complete': 'complete',
     'On Hold': 'on-hold',
+    'Blocked': 'blocked',
     'Cancelled': 'cancelled'
   };
   return map[status] || 'not-started';
+}
+
+// Assignee color map — central definition for per-user pill colors
+const ASSIGNEE_COLORS = {
+  'arne':   { bg: '#FF9500', text: '#fff' },
+  'justin': { bg: '#FF5F1F', text: '#fff' },
+  'raquel': { bg: '#E8198B', text: '#fff' },
+  'kelli':  { bg: '#E8198B', text: '#fff' }
+};
+
+function getAssigneeTag(username) {
+  const colors = ASSIGNEE_COLORS[username.toLowerCase()];
+  if (colors) {
+    return `<span class="kh-assignee-tag" style="background:${colors.bg};color:${colors.text}">${username}</span>`;
+  }
+  return `<span class="kh-assignee-tag">${username}</span>`;
 }
 
 // Compact date formatting for task table
@@ -3641,7 +3658,7 @@ function renderTasksTable(tasks, containerId = "tasks-table-body") {
     const assigneesCell = document.createElement("td");
     const assignees = task.assignees || [];
     if (assignees.length > 0) {
-      assigneesCell.innerHTML = `<div class="kh-assignee-list">${assignees.map(a => `<span class="kh-assignee-tag">${a}</span>`).join('')}</div>`;
+      assigneesCell.innerHTML = `<div class="kh-assignee-list">${assignees.map(a => getAssigneeTag(a)).join('')}</div>`;
     } else {
       assigneesCell.innerHTML = '<span class="kh-empty-dash">&mdash;</span>';
     }
@@ -3651,8 +3668,9 @@ function renderTasksTable(tasks, containerId = "tasks-table-body") {
     if (task.jobId && task.jobName) {
       const jobLink = document.createElement("a");
       jobLink.href = `job.html?jobId=${task.jobId}`;
-      jobLink.className = "kh-link";
+      jobLink.className = "kh-link kh-task-job-link";
       jobLink.textContent = task.jobName;
+      jobLink.title = task.jobName;
       jobCell.appendChild(jobLink);
     } else {
       jobCell.innerHTML = '<span class="kh-empty-dash">&mdash;</span>';
@@ -3673,12 +3691,12 @@ function renderTasksTable(tasks, containerId = "tasks-table-body") {
     actionsWrap.className = "kh-task-actions";
 
     const editBtn = document.createElement("button");
-    editBtn.className = "kh-button kh-button--secondary kh-button--small";
+    editBtn.className = "kh-btn-edit";
     editBtn.textContent = "Edit";
     editBtn.addEventListener("click", () => openTaskModal(task));
 
     const deleteBtn = document.createElement("button");
-    deleteBtn.className = "kh-button kh-button--secondary kh-button--small";
+    deleteBtn.className = "kh-btn-delete";
     deleteBtn.textContent = "Delete";
     deleteBtn.addEventListener("click", async () => {
       if (!confirm(`Delete task "${task.title}"?`)) return;
@@ -3973,7 +3991,7 @@ function renderJobTasksTable(tasks, jobId) {
     const assigneesCell = document.createElement("td");
     const assignees = task.assignees || [];
     if (assignees.length > 0) {
-      assigneesCell.innerHTML = `<div class="kh-assignee-list">${assignees.map(a => `<span class="kh-assignee-tag">${a}</span>`).join('')}</div>`;
+      assigneesCell.innerHTML = `<div class="kh-assignee-list">${assignees.map(a => getAssigneeTag(a)).join('')}</div>`;
     } else {
       assigneesCell.innerHTML = '<span class="kh-empty-dash">&mdash;</span>';
     }
@@ -3991,12 +4009,12 @@ function renderJobTasksTable(tasks, jobId) {
     jobActionsWrap.className = "kh-task-actions";
 
     const editBtn = document.createElement("button");
-    editBtn.className = "kh-button kh-button--secondary kh-button--small";
+    editBtn.className = "kh-btn-edit";
     editBtn.textContent = "Edit";
     editBtn.addEventListener("click", () => openJobTaskModal(task, jobId));
 
     const deleteBtn = document.createElement("button");
-    deleteBtn.className = "kh-button kh-button--secondary kh-button--small";
+    deleteBtn.className = "kh-btn-delete";
     deleteBtn.textContent = "Delete";
     deleteBtn.addEventListener("click", async () => {
       if (!confirm(`Delete task "${task.title}"?`)) return;
