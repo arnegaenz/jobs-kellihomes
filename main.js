@@ -1399,36 +1399,27 @@ function renderCalendarGrid() {
 // --- Calendar Popover System ---
 
 let activePopover = null;
-let popoverTimeout = null;
-let popoverLeaveTimeout = null;
+let activePopoverItem = null;
 
 function attachCalendarPopoverListeners(container) {
   if (container._popoverListenersAttached) return;
-  container.addEventListener('mouseenter', handleCalItemEnter, true);
-  container.addEventListener('mouseleave', handleCalItemLeave, true);
+  container.addEventListener('click', handleCalItemClick, true);
   container._popoverListenersAttached = true;
 }
 
-function handleCalItemEnter(e) {
+function handleCalItemClick(e) {
   const item = e.target.closest('.kh-cal__item');
   if (!item) return;
 
-  clearTimeout(popoverLeaveTimeout);
-  clearTimeout(popoverTimeout);
+  e.stopPropagation();
 
-  popoverTimeout = setTimeout(() => {
-    showCalendarPopover(item);
-  }, 250);
-}
-
-function handleCalItemLeave(e) {
-  const item = e.target.closest('.kh-cal__item');
-  if (!item) return;
-
-  clearTimeout(popoverTimeout);
-  popoverLeaveTimeout = setTimeout(() => {
+  // Toggle if clicking the same item
+  if (activePopoverItem === item) {
     hideCalendarPopover();
-  }, 200);
+    return;
+  }
+
+  showCalendarPopover(item);
 }
 
 function showCalendarPopover(itemEl) {
@@ -1564,18 +1555,9 @@ function showCalendarPopover(itemEl) {
   popover.style.borderTop = `3px solid ${borderColor}`;
   popover.innerHTML = popoverHTML;
 
-  // Keep popover open when hovering over it
-  popover.addEventListener('mouseenter', () => {
-    clearTimeout(popoverLeaveTimeout);
-  });
-  popover.addEventListener('mouseleave', () => {
-    popoverLeaveTimeout = setTimeout(() => {
-      hideCalendarPopover();
-    }, 150);
-  });
-
   document.body.appendChild(popover);
   activePopover = popover;
+  activePopoverItem = itemEl;
 
   // Position popover near the item
   const rect = itemEl.getBoundingClientRect();
@@ -1598,6 +1580,7 @@ function hideCalendarPopover() {
   if (activePopover) {
     activePopover.remove();
     activePopover = null;
+    activePopoverItem = null;
   }
 }
 
