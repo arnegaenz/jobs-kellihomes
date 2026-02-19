@@ -1918,7 +1918,6 @@ html {
 /* Task Priority Pills */
 .kh-priority {
   display: inline-block;
-  min-width: 72px;
   padding: 3px 10px;
   border-radius: 999px;
   font-size: 12px;
@@ -2029,23 +2028,26 @@ html {
 /* Tasks table styling */
 .kh-table--tasks {
   table-layout: fixed;
+  width: 100%;
+  max-width: 100%;
 }
 
 .kh-table--tasks th,
 .kh-table--tasks td {
-  padding: 14px 10px;
+  padding: 12px 8px;
   vertical-align: middle;
   overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* Column widths: Task / Priority / Status / Assignees / Job / Dates / Actions */
-.kh-table--tasks th:nth-child(1) { width: 26%; }
-.kh-table--tasks th:nth-child(2) { width: 10%; }
-.kh-table--tasks th:nth-child(3) { width: 12%; }
-.kh-table--tasks th:nth-child(4) { width: 14%; }
-.kh-table--tasks th:nth-child(5) { width: 15%; }
-.kh-table--tasks th:nth-child(6) { width: 13%; }
-.kh-table--tasks th:nth-child(7) { width: 10%; }
+.kh-table--tasks th:nth-child(1) { width: 24%; }
+.kh-table--tasks th:nth-child(2) { width: 9%; }
+.kh-table--tasks th:nth-child(3) { width: 11%; }
+.kh-table--tasks th:nth-child(4) { width: 13%; }
+.kh-table--tasks th:nth-child(5) { width: 16%; }
+.kh-table--tasks th:nth-child(6) { width: 15%; }
+.kh-table--tasks th:nth-child(7) { width: 12%; }
 
 .kh-table--tasks th {
   border-bottom: 1px solid var(--kh-border);
