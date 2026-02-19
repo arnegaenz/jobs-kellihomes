@@ -2027,11 +2027,25 @@ html {
 }
 
 /* Tasks table styling */
+.kh-table--tasks {
+  table-layout: fixed;
+}
+
 .kh-table--tasks th,
 .kh-table--tasks td {
-  padding: 14px 12px;
+  padding: 14px 10px;
   vertical-align: middle;
+  overflow: hidden;
 }
+
+/* Column widths: Task / Priority / Status / Assignees / Job / Dates / Actions */
+.kh-table--tasks th:nth-child(1) { width: 26%; }
+.kh-table--tasks th:nth-child(2) { width: 10%; }
+.kh-table--tasks th:nth-child(3) { width: 12%; }
+.kh-table--tasks th:nth-child(4) { width: 14%; }
+.kh-table--tasks th:nth-child(5) { width: 15%; }
+.kh-table--tasks th:nth-child(6) { width: 13%; }
+.kh-table--tasks th:nth-child(7) { width: 10%; }
 
 .kh-table--tasks th {
   border-bottom: 1px solid var(--kh-border);
@@ -2046,12 +2060,14 @@ html {
 
 .kh-table--tasks .kh-task-title {
   font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .kh-table--tasks .kh-task-desc {
   font-size: 12px;
   color: var(--kh-text-muted);
-  max-width: 300px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
