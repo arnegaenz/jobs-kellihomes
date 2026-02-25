@@ -1,2 +1,5 @@
 secrets/
 backend-implementation/.env.production
+backend-implementation/.env
+backend-implementation/node_modules/
+.DS_Store

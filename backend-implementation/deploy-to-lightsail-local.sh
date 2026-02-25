@@ -26,9 +26,19 @@ echo -e "${YELLOW}Copying all backend files...${NC}"
 scp -i "$SSH_KEY" "$LOCAL_DIR/routes/"*.js $SERVER:/home/ubuntu/kh-jobs-api/routes/
 echo -e "${GREEN}✓ Route files copied${NC}"
 
-# Copy server.js
+# Copy services
+ssh -i "$SSH_KEY" $SERVER "mkdir -p /home/ubuntu/kh-jobs-api/services"
+scp -i "$SSH_KEY" "$LOCAL_DIR/services/"*.js $SERVER:/home/ubuntu/kh-jobs-api/services/
+echo -e "${GREEN}✓ Service files copied${NC}"
+
+# Copy scripts
+scp -i "$SSH_KEY" "$LOCAL_DIR/scripts/"*.js $SERVER:/home/ubuntu/kh-jobs-api/scripts/
+echo -e "${GREEN}✓ Script files copied${NC}"
+
+# Copy server.js and package.json
 scp -i "$SSH_KEY" "$LOCAL_DIR/server.js" $SERVER:/home/ubuntu/kh-jobs-api/
-echo -e "${GREEN}✓ server.js copied${NC}"
+scp -i "$SSH_KEY" "$LOCAL_DIR/package.json" $SERVER:/home/ubuntu/kh-jobs-api/
+echo -e "${GREEN}✓ server.js and package.json copied${NC}"
 
 # Copy all migration files
 scp -i "$SSH_KEY" "$LOCAL_DIR/migrations/"*.sql $SERVER:/home/ubuntu/kh-jobs-api/migrations/
