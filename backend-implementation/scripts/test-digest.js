@@ -4,13 +4,15 @@
  * Test script for email digests
  *
  * Usage:
- *   npm run test-digest                    # Output daily digest HTML to stdout
- *   npm run test-digest -- --weekly        # Output weekly digest HTML to stdout
- *   npm run test-digest -- --send          # Send daily digest email via SES
- *   npm run test-digest -- --weekly --send # Send weekly digest email via SES
+ *   npm run test-digest                              # Preview Arne's daily digest HTML
+ *   npm run test-digest -- --user=raquel             # Preview Raquel's daily digest
+ *   npm run test-digest -- --weekly                  # Preview weekly digest HTML
+ *   npm run test-digest -- --send                    # Send daily digest emails via SES
+ *   npm run test-digest -- --weekly --send           # Send weekly digest email via SES
  *
  * Examples:
  *   npm run test-digest > /tmp/daily.html && open /tmp/daily.html
+ *   npm run test-digest -- --user=justin > /tmp/daily-justin.html && open /tmp/daily-justin.html
  *   npm run test-digest -- --weekly > /tmp/weekly.html && open /tmp/weekly.html
  *   npm run test-digest -- --send
  */
@@ -18,7 +20,8 @@
 require('dotenv').config();
 const { initializePool, closePool } = require('../db');
 const {
-  fetchDailyData,
+  fetchDailyTasks,
+  fetchDailyCalendar,
   buildDailyHtml,
   sendDailyDigest,
   fetchWeeklyData,
@@ -28,6 +31,9 @@ const {
 
 const shouldSend = process.argv.includes('--send');
 const isWeekly = process.argv.includes('--weekly');
+// --user=arne to preview a specific person's email (default: arne)
+const userArg = process.argv.find((a) => a.startsWith('--user='));
+const forUser = userArg ? userArg.split('=')[1] : 'arne';
 const type = isWeekly ? 'weekly' : 'daily';
 
 async function main() {
@@ -50,9 +56,12 @@ async function main() {
         const html = buildWeeklyHtml(jobs, new Date());
         process.stdout.write(html);
       } else {
-        const items = await fetchDailyData();
-        console.error(`Fetched ${items.length} active line items for today`);
-        const html = buildDailyHtml(items, new Date());
+        const [tasks, calendarItems] = await Promise.all([
+          fetchDailyTasks(),
+          fetchDailyCalendar(),
+        ]);
+        console.error(`Fetched ${tasks.length} tasks and ${calendarItems.length} calendar items for ${forUser}`);
+        const html = buildDailyHtml(tasks, calendarItems, new Date(), forUser);
         process.stdout.write(html);
       }
       console.error(`\nHTML written to stdout. Pipe to a file to preview:`);

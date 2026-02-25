@@ -12,6 +12,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const cookieParser = require('cookie-parser');
 const rateLimit = require('express-rate-limit');
+const cron = require('node-cron');
 
 // Database
 const { initializePool, testConnection, closePool } = require('./db');
@@ -19,6 +20,9 @@ const { initializePool, testConnection, closePool } = require('./db');
 // Middleware
 const { authenticateToken } = require('./middleware/auth');
 const { sanitizeInput } = require('./middleware/sanitize');
+
+// Services
+const { sendDailyDigest, sendWeeklyDigest } = require('./services/emailDigest');
 
 // Routes
 const authRoutes = require('./routes/auth');
@@ -125,6 +129,31 @@ app.listen(PORT, () => {
   console.log(`✅ Kelli Homes API Server running on port ${PORT}`);
   console.log(`   Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`   Frontend URL: ${process.env.FRONTEND_URL}`);
+
+  // Daily digest — 7:00 AM Pacific, every day
+  cron.schedule('0 7 * * *', async () => {
+    console.log('Running scheduled daily digest...');
+    try {
+      const result = await sendDailyDigest();
+      console.log(`Daily digest sent to ${result.recipients.length} recipients`);
+    } catch (err) {
+      console.error('Scheduled daily digest failed:', err.message);
+    }
+  }, { timezone: 'America/Los_Angeles' });
+
+  // Weekly digest — 7:00 AM Pacific, every Monday
+  cron.schedule('0 7 * * 1', async () => {
+    console.log('Running scheduled weekly digest...');
+    try {
+      const result = await sendWeeklyDigest();
+      console.log(`Weekly digest sent to ${result.recipients.length} recipients`);
+    } catch (err) {
+      console.error('Scheduled weekly digest failed:', err.message);
+    }
+  }, { timezone: 'America/Los_Angeles' });
+
+  console.log('   📧 Daily digest scheduled: 7:00 AM Pacific (daily)');
+  console.log('   📧 Weekly digest scheduled: 7:00 AM Pacific (Mondays)');
 });
 
 // Graceful shutdown

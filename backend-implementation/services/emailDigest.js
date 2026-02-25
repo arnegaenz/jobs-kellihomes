@@ -12,11 +12,16 @@ const { SESClient, SendEmailCommand } = require('@aws-sdk/client-ses');
 const { getPool } = require('../db');
 const logger = require('../logger');
 
-// Testing: send only to Arne for now. Add raquel/justin once confirmed working.
-const RECIPIENTS = [
-  'arne@kellihomes.com',
+// Team members — each gets their own personalized daily email.
+// Set enabled: false to skip sending (testing phase).
+const TEAM = [
+  { username: 'arne', email: 'arne@kellihomes.com', enabled: true },
+  { username: 'raquel', email: 'raquel@kellihomes.com', enabled: true },
+  { username: 'justin', email: 'justin@kellihomes.com', enabled: true },
 ];
 const SENDER = 'noreply@kellihomes.com';
+// Weekly digest goes to all enabled team members
+const WEEKLY_RECIPIENTS = TEAM.filter((m) => m.enabled).map((m) => m.email);
 const FRONTEND_URL = 'https://jobs.kellihomes.com';
 const LOGO_URL = 'https://jobs.kellihomes.com/assets/kh-logo.png';
 
@@ -94,8 +99,8 @@ function emailHeader(title, subtitle) {
 <td style="background-color:${BRAND.dark};padding:24px 32px;">
   <table width="100%" cellpadding="0" cellspacing="0">
   <tr>
-    <td style="width:48px;vertical-align:middle;">
-      <img src="${LOGO_URL}" alt="Kelli Homes" width="40" height="40" style="display:block;border-radius:4px;" />
+    <td style="width:108px;vertical-align:middle;">
+      <img src="${LOGO_URL}" alt="Kelli Homes" width="100" height="100" style="display:block;border-radius:6px;" />
     </td>
     <td style="vertical-align:middle;padding-left:12px;">
       <div style="color:${BRAND.offWhite};font-size:20px;font-weight:700;letter-spacing:0.5px;">${title}</div>
@@ -117,11 +122,12 @@ function createSESClient() {
   });
 }
 
-async function sendEmail(subject, html) {
+async function sendEmail(subject, html, recipients) {
+  const toAddresses = Array.isArray(recipients) ? recipients : [recipients];
   const sesClient = createSESClient();
   const command = new SendEmailCommand({
     Source: SENDER,
-    Destination: { ToAddresses: RECIPIENTS },
+    Destination: { ToAddresses: toAddresses },
     Message: {
       Subject: { Data: subject, Charset: 'UTF-8' },
       Body: { Html: { Data: html, Charset: 'UTF-8' } },
@@ -130,53 +136,98 @@ async function sendEmail(subject, html) {
   await sesClient.send(command);
 }
 
-// ─── DAILY DIGEST ───────────────────────────────────────────────────
+// ─── DAILY DIGEST (Personalized per team member) ────────────────────
 
 /**
- * Fetch line items that are active today:
- * - Status is In Progress or On Hold (regardless of dates), OR
- * - Status is Not Started but scheduled to start today or earlier
- * Excludes Complete items and Closed jobs.
+ * Fetch all active tasks with assignees.
+ * Active = In Progress, On Hold, or Not Started that should have started / is due.
  */
-async function fetchDailyData() {
+async function fetchDailyTasks() {
   const pool = getPool();
   const result = await pool.query(`
     SELECT
-      j.id AS "jobId",
+      t.id,
+      t.title,
+      t.description,
+      t.job_id AS "jobId",
       j.name AS "jobName",
-      j.location AS "jobLocation",
-      j.stage AS "jobStage",
-      li.code,
-      li.name,
-      li.status,
-      li.vendor,
-      li.budget,
-      li.actual,
-      li.schedule,
-      li.notes_text AS "notes"
-    FROM line_items li
-    JOIN jobs j ON j.id = li.job_id
-    WHERE j.stage != 'Closed'
-      AND li.status != 'Complete'
+      t.priority,
+      t.status,
+      t.start_date AS "startDate",
+      t.end_date AS "endDate",
+      COALESCE(array_agg(ta.username) FILTER (WHERE ta.username IS NOT NULL), '{}') AS assignees
+    FROM tasks t
+    LEFT JOIN jobs j ON t.job_id = j.id
+    LEFT JOIN task_assignees ta ON ta.task_id = t.id
+    WHERE t.status NOT IN ('Complete', 'Cancelled')
       AND (
-        li.status IN ('In Progress', 'On Hold')
+        t.status IN ('In Progress', 'On Hold')
         OR (
-          li.status = 'Not Started'
-          AND li.schedule IS NOT NULL
-          AND (li.schedule->>'startDate') IS NOT NULL
-          AND (li.schedule->>'startDate')::date <= CURRENT_DATE
+          t.status = 'Not Started'
+          AND (
+            (t.start_date IS NOT NULL AND t.start_date <= CURRENT_DATE)
+            OR (t.end_date IS NOT NULL AND t.end_date <= CURRENT_DATE)
+          )
         )
       )
-    ORDER BY j.name, li.code
+    GROUP BY t.id, j.name
+    ORDER BY
+      CASE t.priority
+        WHEN 'Urgent' THEN 1
+        WHEN 'High' THEN 2
+        WHEN 'Medium' THEN 3
+        WHEN 'Low' THEN 4
+        ELSE 5
+      END,
+      t.end_date NULLS LAST,
+      t.title
   `);
 
   return result.rows;
 }
 
 /**
- * Build the daily digest HTML — today's active items grouped by job
+ * Fetch calendar items — line items actively on the schedule today.
+ * Includes:
+ * - Items whose date range covers today (startDate <= today AND endDate >= today)
+ * - In Progress items that have started (still active even if past end date)
+ * - Not Started items that should have started (overdue start)
+ * Excludes Complete items and Closed jobs.
  */
-function buildDailyHtml(items, date) {
+async function fetchDailyCalendar() {
+  const pool = getPool();
+  const result = await pool.query(`
+    SELECT
+      j.id AS "jobId",
+      j.name AS "jobName",
+      li.code,
+      li.name,
+      li.status,
+      li.vendor,
+      li.schedule
+    FROM line_items li
+    JOIN jobs j ON j.id = li.job_id
+    WHERE j.stage != 'Closed'
+      AND li.status != 'Complete'
+      AND li.schedule IS NOT NULL
+      AND (li.schedule->>'startDate') IS NOT NULL
+      AND (li.schedule->>'startDate')::date <= CURRENT_DATE
+    ORDER BY j.name, li.code
+  `);
+
+  return result.rows;
+}
+
+// Keep fetchDailyData as an alias for backward compat with test script
+async function fetchDailyData() {
+  return fetchDailyTasks();
+}
+
+/**
+ * Build personalized daily digest HTML for one team member.
+ * Layout: Your Tasks → Teammates → Today's Calendar
+ */
+function buildDailyHtml(tasks, calendarItems, date, forUsername) {
   const dateStr = date.toLocaleDateString('en-US', {
     weekday: 'long',
     year: 'numeric',
@@ -185,40 +236,87 @@ function buildDailyHtml(items, date) {
     timeZone: 'America/Los_Angeles',
   });
 
-  // Group by job
-  const byJob = {};
-  for (const item of items) {
-    if (!byJob[item.jobId]) {
-      byJob[item.jobId] = {
-        name: item.jobName,
-        location: item.jobLocation,
-        stage: item.jobStage,
-        items: [],
-      };
+  const displayName = forUsername.charAt(0).toUpperCase() + forUsername.slice(1);
+
+  // Split tasks: mine vs teammates vs unassigned
+  const myTasks = [];
+  const teammateTasks = {}; // { username: [tasks] }
+  const unassignedTasks = [];
+
+  for (const task of tasks) {
+    const assignees = task.assignees || [];
+    if (assignees.length === 0) {
+      unassignedTasks.push(task);
+    } else if (assignees.includes(forUsername)) {
+      myTasks.push(task);
+    } else {
+      // Group by first assignee for display
+      for (const person of assignees) {
+        if (!teammateTasks[person]) teammateTasks[person] = [];
+        teammateTasks[person].push(task);
+      }
     }
-    byJob[item.jobId].items.push(item);
   }
 
-  const jobIds = Object.keys(byJob);
+  const teammates = Object.keys(teammateTasks).sort();
 
-  // Summary counts
-  const totalItems = items.length;
-  const activeJobs = jobIds.length;
-  const inProgressCount = items.filter((i) => i.status === 'In Progress').length;
-  const notStartedCount = items.filter((i) => i.status === 'Not Started').length;
+  // Counts for summary bar
+  const myCount = myTasks.length;
+  const totalTasks = tasks.length;
+  const overdueCount = myTasks.filter((t) => {
+    if (!t.endDate) return false;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return new Date(t.endDate) < today;
+  }).length;
+  const calendarCount = calendarItems.length;
 
-  // Build job sections
-  const jobSections = jobIds
-    .map((jobId) => buildDailyJobSection(jobId, byJob[jobId]))
-    .join('\n');
+  // ── Build sections ──
 
-  // Empty state
-  const emptyMessage = totalItems === 0
-    ? `<tr><td style="padding:24px 32px;text-align:center;color:${BRAND.muted};font-size:15px;">No line items scheduled for today.</td></tr>`
-    : '';
+  // 1. Your Tasks
+  let mySection = '';
+  if (myTasks.length > 0) {
+    mySection = buildTaskSection(`Your Tasks`, myTasks, true);
+  } else {
+    mySection = `<tr>
+<td style="padding:16px 32px 4px;">
+  <table width="100%" cellpadding="0" cellspacing="0">
+  <tr><td style="font-size:15px;font-weight:700;color:${BRAND.dark};padding-bottom:8px;border-bottom:2px solid ${BRAND.taupe};">Your Tasks</td></tr>
+  </table>
+</td>
+</tr>
+<tr><td style="padding:8px 32px 16px;color:${BRAND.muted};font-size:14px;">No tasks assigned to you right now.</td></tr>`;
+  }
+
+  // 2. Teammates
+  let teammateSection = '';
+  if (teammates.length > 0) {
+    teammateSection = `<tr>
+<td style="padding:20px 32px 4px;">
+  <table width="100%" cellpadding="0" cellspacing="0">
+  <tr><td style="font-size:13px;font-weight:700;color:${BRAND.taupe};text-transform:uppercase;letter-spacing:1px;padding-bottom:8px;">Teammates</td></tr>
+  </table>
+</td>
+</tr>`;
+    for (const mate of teammates) {
+      const mateName = mate.charAt(0).toUpperCase() + mate.slice(1);
+      teammateSection += buildTaskSection(mateName, teammateTasks[mate], false);
+    }
+  }
+
+  // Unassigned tasks
+  if (unassignedTasks.length > 0) {
+    teammateSection += buildTaskSection('Unassigned', unassignedTasks, false);
+  }
+
+  // 3. Today's Calendar
+  let calendarSection = '';
+  if (calendarItems.length > 0) {
+    calendarSection = buildCalendarSection(calendarItems);
+  }
 
   const content = `
-${emailHeader('Daily Rundown', dateStr)}
+${emailHeader('Daily Rundown', `${dateStr} — ${displayName}`)}
 
 <!-- Summary Stats -->
 <tr>
@@ -226,125 +324,220 @@ ${emailHeader('Daily Rundown', dateStr)}
   <table width="100%" cellpadding="0" cellspacing="0">
   <tr>
     <td style="text-align:center;padding:8px 4px;">
-      <div style="font-size:28px;font-weight:700;color:${BRAND.dark};">${totalItems}</div>
-      <div style="font-size:11px;color:${BRAND.taupe};text-transform:uppercase;letter-spacing:1px;">Active Items</div>
+      <div style="font-size:28px;font-weight:700;color:${BRAND.dark};">${myCount}</div>
+      <div style="font-size:11px;color:${BRAND.taupe};text-transform:uppercase;letter-spacing:1px;">Your Tasks</div>
     </td>
     <td style="text-align:center;padding:8px 4px;">
-      <div style="font-size:28px;font-weight:700;color:${BRAND.dark};">${activeJobs}</div>
-      <div style="font-size:11px;color:${BRAND.taupe};text-transform:uppercase;letter-spacing:1px;">Jobs</div>
+      <div style="font-size:28px;font-weight:700;color:${BRAND.dark};">${totalTasks}</div>
+      <div style="font-size:11px;color:${BRAND.taupe};text-transform:uppercase;letter-spacing:1px;">Team Total</div>
     </td>
     <td style="text-align:center;padding:8px 4px;">
-      <div style="font-size:28px;font-weight:700;color:${BRAND.dark};">${inProgressCount}</div>
-      <div style="font-size:11px;color:${BRAND.taupe};text-transform:uppercase;letter-spacing:1px;">In Progress</div>
+      <div style="font-size:28px;font-weight:700;color:${overdueCount > 0 ? BRAND.red : BRAND.dark};">${overdueCount}</div>
+      <div style="font-size:11px;color:${BRAND.taupe};text-transform:uppercase;letter-spacing:1px;">Overdue</div>
     </td>
     <td style="text-align:center;padding:8px 4px;">
-      <div style="font-size:28px;font-weight:700;color:${notStartedCount > 0 ? BRAND.amber : BRAND.dark};">${notStartedCount}</div>
-      <div style="font-size:11px;color:${BRAND.taupe};text-transform:uppercase;letter-spacing:1px;">Not Started</div>
+      <div style="font-size:28px;font-weight:700;color:${BRAND.dark};">${calendarCount}</div>
+      <div style="font-size:11px;color:${BRAND.taupe};text-transform:uppercase;letter-spacing:1px;">Calendar</div>
     </td>
   </tr>
   </table>
 </td>
 </tr>
 
-${emptyMessage}
-${jobSections}`;
+${mySection}
+${teammateSection}
+${calendarSection}`;
 
-  return emailWrapper(content, 'Kelli Homes Daily Rundown — items active today across all jobs.');
+  return emailWrapper(content, `Kelli Homes Daily Rundown for ${displayName} — tasks and calendar for today.`);
 }
 
-function buildDailyJobSection(jobId, job) {
-  const itemRows = job.items.map((item) => {
-    const schedule = item.schedule || {};
-    const endDate = schedule.actualEndDate || schedule.endDate;
-    const budget = parseFloat(item.budget) || 0;
-    const actual = parseFloat(item.actual) || 0;
-    const variance = budget - actual;
+/**
+ * Build a task section with a header and task rows
+ */
+function buildTaskSection(heading, tasks, isPrimary) {
+  const borderColor = isPrimary ? BRAND.taupe : BRAND.border;
+  const headingSize = isPrimary ? '15px' : '14px';
+  const headingColor = isPrimary ? BRAND.dark : BRAND.dark;
+  const taskCount = tasks.length;
 
-    const statusColors = {
-      'In Progress': BRAND.taupe,
-      'Not Started': BRAND.amber,
-      'On Hold': BRAND.red,
-    };
-    const statusColor = statusColors[item.status] || BRAND.muted;
-
-    return `<tr>
-<td style="padding:10px 0;border-bottom:1px solid ${BRAND.border};">
-  <table width="100%" cellpadding="0" cellspacing="0">
-  <tr>
-    <td style="font-size:14px;color:${BRAND.dark};font-weight:400;">
-      <span style="color:${BRAND.muted};font-size:12px;">${escapeHtml(item.code)}</span>&nbsp;&nbsp;${escapeHtml(item.name)}
-    </td>
-    <td style="text-align:right;">
-      <span style="display:inline-block;background-color:${statusColor};color:${BRAND.white};font-size:11px;padding:2px 8px;border-radius:3px;letter-spacing:0.5px;">${escapeHtml(item.status)}</span>
-    </td>
-  </tr>
-  <tr>
-    <td style="padding-top:4px;font-size:12px;color:${BRAND.muted};">
-      ${item.vendor ? 'Vendor: ' + escapeHtml(item.vendor) : ''}${item.vendor && endDate ? ' &middot; ' : ''}${endDate ? 'Ends ' + formatDateShort(endDate) : ''}
-    </td>
-    <td style="text-align:right;padding-top:4px;font-size:12px;color:${variance >= 0 ? BRAND.muted : BRAND.red};">
-      ${budget > 0 ? formatCurrency(actual) + ' / ' + formatCurrency(budget) : ''}
-    </td>
-  </tr>
-  </table>
-</td>
-</tr>`;
-  }).join('\n');
+  const taskRows = tasks.map((task) => buildTaskRow(task)).join('\n');
 
   return `<tr>
 <td style="padding:16px 32px 4px;">
   <table width="100%" cellpadding="0" cellspacing="0">
   <tr>
-    <td>
-      <a href="${FRONTEND_URL}/job.html?id=${jobId}" style="font-size:15px;font-weight:700;color:${BRAND.dark};text-decoration:none;">${escapeHtml(job.name)}</a>
-      <span style="font-size:12px;color:${BRAND.taupe};padding-left:8px;">${escapeHtml(job.stage)}</span>
+    <td style="font-size:${headingSize};font-weight:700;color:${headingColor};padding-bottom:8px;border-bottom:2px solid ${borderColor};">
+      ${escapeHtml(heading)} <span style="font-size:13px;font-weight:400;color:${BRAND.taupe};">(${taskCount})</span>
     </td>
   </tr>
-  ${job.location ? `<tr><td style="font-size:12px;color:${BRAND.muted};padding-top:2px;">${escapeHtml(job.location)}</td></tr>` : ''}
   </table>
 </td>
 </tr>
 <tr>
-<td style="padding:0 32px 16px;">
+<td style="padding:0 32px 8px;">
   <table width="100%" cellpadding="0" cellspacing="0">
-  ${itemRows}
+  ${taskRows}
   </table>
 </td>
 </tr>`;
 }
 
 /**
- * Send the daily digest email
+ * Build a single task row
+ */
+function buildTaskRow(task) {
+  const priorityColors = {
+    'Urgent': BRAND.red,
+    'High': BRAND.red,
+    'Medium': BRAND.amber,
+    'Low': BRAND.muted,
+  };
+  const statusColors = {
+    'In Progress': BRAND.taupe,
+    'Not Started': BRAND.amber,
+    'On Hold': BRAND.red,
+  };
+  const priorityColor = priorityColors[task.priority] || BRAND.muted;
+  const statusColor = statusColors[task.status] || BRAND.muted;
+
+  let dueLine = '';
+  if (task.endDate) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const end = new Date(task.endDate);
+    if (end < today) {
+      const daysOver = Math.ceil((today - end) / (1000 * 60 * 60 * 24));
+      dueLine = `<span style="color:${BRAND.red};font-weight:600;">${daysOver}d overdue</span>`;
+    } else {
+      dueLine = `Due ${formatDateShort(task.endDate)}`;
+    }
+  }
+
+  return `<tr>
+<td style="padding:10px 0;border-bottom:1px solid ${BRAND.border};">
+  <table width="100%" cellpadding="0" cellspacing="0">
+  <tr>
+    <td style="font-size:14px;color:${BRAND.dark};font-weight:400;">
+      ${task.priority === 'Urgent' || task.priority === 'High' ? `<span style="color:${priorityColor};font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;">${escapeHtml(task.priority)}</span>&nbsp;&nbsp;` : ''}${escapeHtml(task.title)}
+    </td>
+    <td style="text-align:right;">
+      <span style="display:inline-block;background-color:${statusColor};color:${BRAND.white};font-size:11px;padding:2px 8px;border-radius:3px;letter-spacing:0.5px;">${escapeHtml(task.status)}</span>
+    </td>
+  </tr>
+  <tr>
+    <td style="padding-top:4px;font-size:12px;color:${BRAND.muted};">
+      ${task.jobName ? escapeHtml(task.jobName) : ''}${task.jobName && dueLine ? ' &middot; ' : ''}${dueLine}
+    </td>
+    <td></td>
+  </tr>
+  </table>
+</td>
+</tr>`;
+}
+
+/**
+ * Build the calendar section — line items with dates covering today
+ */
+function buildCalendarSection(items) {
+  // Group by job
+  const byJob = {};
+  for (const item of items) {
+    if (!byJob[item.jobId]) {
+      byJob[item.jobId] = { name: item.jobName, items: [] };
+    }
+    byJob[item.jobId].items.push(item);
+  }
+
+  let rows = '';
+  for (const [jobId, job] of Object.entries(byJob)) {
+    const itemLines = job.items.map((item) => {
+      const schedule = item.schedule || {};
+      const endDate = schedule.actualEndDate || schedule.endDate;
+      return `<tr>
+<td style="padding:6px 0;border-bottom:1px solid ${BRAND.border};font-size:13px;color:${BRAND.dark};">
+  <span style="color:${BRAND.muted};font-size:11px;">${escapeHtml(item.code)}</span>&nbsp;&nbsp;${escapeHtml(item.name)}${item.vendor ? `<span style="color:${BRAND.muted};"> &middot; ${escapeHtml(item.vendor)}</span>` : ''}${endDate ? `<span style="color:${BRAND.muted};"> &middot; Ends ${formatDateShort(endDate)}</span>` : ''}
+</td>
+</tr>`;
+    }).join('\n');
+
+    rows += `<tr>
+<td style="padding:8px 0 2px;font-size:13px;font-weight:600;color:${BRAND.dark};">
+  <a href="${FRONTEND_URL}/job.html?id=${jobId}" style="color:${BRAND.dark};text-decoration:none;">${escapeHtml(job.name)}</a>
+</td>
+</tr>
+${itemLines}`;
+  }
+
+  return `<tr>
+<td style="padding:20px 32px 4px;">
+  <table width="100%" cellpadding="0" cellspacing="0">
+  <tr>
+    <td style="font-size:13px;font-weight:700;color:${BRAND.taupe};text-transform:uppercase;letter-spacing:1px;padding-bottom:8px;border-bottom:2px solid ${BRAND.border};">
+      Today's Calendar
+    </td>
+  </tr>
+  </table>
+</td>
+</tr>
+<tr>
+<td style="padding:0 32px 16px;">
+  <table width="100%" cellpadding="0" cellspacing="0">
+  ${rows}
+  </table>
+</td>
+</tr>`;
+}
+
+/**
+ * Send personalized daily digest emails — one per enabled team member.
  */
 async function sendDailyDigest() {
   const startTime = Date.now();
-  logger.info('Starting daily digest email generation');
+  logger.info('Starting personalized daily digest emails');
 
   try {
-    const items = await fetchDailyData();
-    logger.info(`Fetched ${items.length} active line items for daily digest`);
+    const [tasks, calendarItems] = await Promise.all([
+      fetchDailyTasks(),
+      fetchDailyCalendar(),
+    ]);
+    logger.info(`Fetched ${tasks.length} active tasks and ${calendarItems.length} calendar items`);
 
     const now = new Date();
-    const html = buildDailyHtml(items, now);
-
     const dateStr = now.toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric',
       timeZone: 'America/Los_Angeles',
     });
 
-    await sendEmail(`Kelli Homes Daily Rundown — ${dateStr}`, html);
+    const enabledMembers = TEAM.filter((m) => m.enabled);
+    const sent = [];
+
+    for (const member of enabledMembers) {
+      const html = buildDailyHtml(tasks, calendarItems, now, member.username);
+      const subject = `Kelli Homes Daily Rundown — ${dateStr}`;
+      await sendEmail(subject, html, member.email);
+      sent.push(member.email);
+      logger.info(`Daily digest sent to ${member.username} (${member.email})`);
+    }
 
     const duration = Date.now() - startTime;
-    logger.info('Daily digest email sent successfully', {
-      recipients: RECIPIENTS.length,
-      itemCount: items.length,
+    logger.info('All daily digest emails sent', {
+      recipientCount: sent.length,
+      taskCount: tasks.length,
+      calendarCount: calendarItems.length,
       duration: `${duration}ms`,
     });
 
-    return { success: true, itemCount: items.length, recipients: RECIPIENTS };
+    return {
+      success: true,
+      taskCount: tasks.length,
+      calendarCount: calendarItems.length,
+      // backward compat
+      itemCount: tasks.length,
+      recipients: sent,
+    };
   } catch (error) {
-    logger.error('Failed to send daily digest email', {
+    logger.error('Failed to send daily digest emails', {
       error: error.message,
       stack: error.stack,
     });
@@ -590,16 +783,16 @@ async function sendWeeklyDigest() {
       timeZone: 'America/Los_Angeles',
     });
 
-    await sendEmail(`Kelli Homes Weekly Summary — ${dateStr}`, html);
+    await sendEmail(`Kelli Homes Weekly Summary — ${dateStr}`, html, WEEKLY_RECIPIENTS);
 
     const duration = Date.now() - startTime;
     logger.info('Weekly digest email sent successfully', {
-      recipients: RECIPIENTS.length,
+      recipients: WEEKLY_RECIPIENTS.length,
       jobCount: jobs.length,
       duration: `${duration}ms`,
     });
 
-    return { success: true, jobCount: jobs.length, recipients: RECIPIENTS };
+    return { success: true, jobCount: jobs.length, recipients: WEEKLY_RECIPIENTS };
   } catch (error) {
     logger.error('Failed to send weekly digest email', {
       error: error.message,
@@ -615,6 +808,8 @@ const sendDigestEmail = sendWeeklyDigest;
 
 module.exports = {
   fetchDailyData,
+  fetchDailyTasks,
+  fetchDailyCalendar,
   buildDailyHtml,
   sendDailyDigest,
   fetchWeeklyData,
