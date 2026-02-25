@@ -112,6 +112,18 @@ pm2 restart kh-jobs-api
 ### Why This Matters
 The local repo may be behind the server. Previous sessions may have created routes directly on the server without committing locally. Deploying local server.js over the server's version can break production by removing routes.
 
+### "Lock It Down" — End-of-Session Checklist
+
+When the user says "lock it down", run this full checklist before ending the session:
+
+1. **Git clean:** `git status` — no uncommitted changes
+2. **All pushed:** `git log origin/main..HEAD --oneline` — nothing unpushed
+3. **Server ↔ Local sync:** Compare `ls backend-implementation/routes/` against server `ls /home/ubuntu/kh-jobs-api/routes/`. Pull any server-only files to local with `scp`.
+4. **Server running latest:** If code was changed on the server, verify PM2 was restarted and check `pm2 logs kh-jobs-api --lines 20 --nostream` for errors
+5. **Health check:** `curl https://api.jobs.kellihomes.com/health` returns `{"status":"ok"}`
+6. **Memory updated:** Update `/memory/MEMORY.md` with any new routes, config changes, or lessons learned this session
+7. **Report:** Print a summary table of all checks with pass/fail status
+
 ## Architecture & Code Organization
 
 ### Frontend Structure
