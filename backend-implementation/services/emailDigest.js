@@ -16,7 +16,7 @@ const logger = require('../logger');
 // Set enabled: false to skip sending (testing phase).
 const TEAM = [
   { username: 'arne', email: 'arne@kellihomes.com', enabled: true },
-  { username: 'raquel', email: 'raquel@kellihomes.com', enabled: true },
+  { username: 'raquel', email: 'kelli@kellihomes.com', enabled: true },
   { username: 'justin', email: 'justin@kellihomes.com', enabled: true },
 ];
 const SENDER = 'noreply@kellihomes.com';
