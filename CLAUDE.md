@@ -94,6 +94,24 @@ npm install
 pm2 restart kh-jobs-api
 ```
 
+## Deployment Safety Rules (CRITICAL)
+
+**NEVER deploy without checking the server first.** The server may have files not in the local repo.
+
+### Pre-Deployment Checklist
+1. **Audit server files before deploying:**
+   ```bash
+   ssh -i "$HOME/.ssh/LightsailDefaultKey-us-west-2.pem" ubuntu@api.jobs.kellihomes.com "ls /home/ubuntu/kh-jobs-api/routes/"
+   ```
+2. **Compare against local:** `ls backend-implementation/routes/`
+3. **If server has files not in local repo:** Pull them down with `scp` before deploying
+4. **After deploying new package.json:** Always run `npm install` on the server
+5. **After PM2 restart:** Check `pm2 logs kh-jobs-api --lines 20 --nostream` for errors
+6. **Verify health:** `curl https://api.jobs.kellihomes.com/health`
+
+### Why This Matters
+The local repo may be behind the server. Previous sessions may have created routes directly on the server without committing locally. Deploying local server.js over the server's version can break production by removing routes.
+
 ## Architecture & Code Organization
 
 ### Frontend Structure
