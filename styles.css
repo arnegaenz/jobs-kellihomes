@@ -678,20 +678,24 @@ select.kh-input--compact {
   display: flex;
   gap: 10px;
   align-items: center;
+  flex-wrap: wrap;
 }
 .kh-estimate-toolbar {
   display: flex;
-  gap: 16px;
+  gap: 20px;
   align-items: flex-end;
   flex-wrap: wrap;
-  padding: 14px 0;
+  padding: 18px 0;
   border-bottom: 1px solid var(--kh-border);
+  margin-bottom: 4px;
 }
 .kh-estimate-toolbar__spacer { flex: 1; }
 .kh-estimate-toolbar .kh-field {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
+  min-width: 160px;
+  max-width: 240px;
 }
 .kh-estimate-toolbar .kh-field__label {
   font-size: 11px;
@@ -701,27 +705,29 @@ select.kh-input--compact {
   font-weight: 600;
 }
 .kh-estimate-section {
-  margin-top: 20px;
+  margin-top: 22px;
 }
 .kh-estimate-section__title {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--kh-text-muted);
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
 }
 .kh-textarea {
   width: 100%;
   font-family: inherit;
   font-size: 14px;
-  line-height: 1.5;
-  resize: vertical;
-  min-height: 120px;
+  line-height: 1.55;
+  resize: none;
+  min-height: 140px;
+  padding: 12px 14px;
 }
+.kh-table--estimate { margin-top: 4px; }
 .kh-table--estimate td,
 .kh-table--estimate th {
   padding-right: 10px;
@@ -730,27 +736,88 @@ select.kh-input--compact {
 .kh-table--estimate input[type="number"] {
   width: 100%;
 }
+.kh-table--estimate .kh-input--compact {
+  padding: 6px 8px;
+  font-size: 13px;
+}
 .kh-estimate-totals {
-  margin-top: 14px;
+  margin-top: 18px;
   display: flex;
   flex-direction: column;
   gap: 4px;
-  max-width: 360px;
+  max-width: 380px;
   margin-left: auto;
   font-size: 14px;
 }
 .kh-estimate-totals__row {
   display: flex;
   justify-content: space-between;
-  padding: 4px 0;
+  padding: 6px 0;
+  color: var(--kh-text-muted);
+}
+.kh-estimate-totals__row span:last-child {
+  color: var(--kh-text);
+  font-variant-numeric: tabular-nums;
 }
 .kh-estimate-totals__row--grand {
   border-top: 2px solid var(--kh-accent);
-  margin-top: 6px;
-  padding-top: 8px;
+  margin-top: 8px;
+  padding-top: 10px;
   font-weight: 700;
   font-size: 16px;
   color: var(--kh-accent);
+}
+.kh-estimate-totals__row--grand span {
+  color: var(--kh-accent) !important;
+}
+
+/* ──── AI scope modal sections ──── */
+.kh-ai-section {
+  margin-bottom: 18px;
+}
+.kh-ai-section:last-child {
+  margin-bottom: 0;
+}
+.kh-ai-section__label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--kh-text-muted);
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+.kh-ai-section__hint {
+  margin: 0 0 8px 0;
+  color: var(--kh-text-muted);
+  font-size: 13px;
+}
+
+/* ──── Modal overlay + footer (were missing) ──── */
+.kh-modal__overlay {
+  position: absolute;
+  inset: 0;
+  background: transparent;
+  cursor: pointer;
+}
+.kh-modal__content {
+  position: relative;
+  z-index: 1;
+}
+.kh-modal__footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 1rem 1.5rem;
+  border-top: 1px solid var(--kh-border);
+  background: var(--kh-bg-soft, #fafafa);
+}
+
+/* ──── Tone down stage pill on job detail header ──── */
+.kh-panel__header .kh-pill--stage {
+  color: var(--kh-text-muted);
+  background: transparent;
+  border-color: var(--kh-border);
+  font-weight: 500;
 }
 .kh-stage-text.kh-pill--stage { color: var(--kh-accent); }
 .kh-stage-text.kh-pill--ok { color: var(--kh-pill-ok); }

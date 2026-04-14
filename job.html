@@ -215,8 +215,8 @@
                   <div class="kh-panel__subtitle" id="estimate-status-line">Draft — not yet published.</div>
                 </div>
                 <div class="kh-estimate-actions">
-                  <button type="button" class="kh-btn-secondary" id="estimate-download-bid">Download Bid PDF</button>
-                  <button type="button" class="kh-btn-primary" id="estimate-publish">Publish to Line Items</button>
+                  <button type="button" class="kh-button kh-button--ghost" id="estimate-download-bid">Download Bid PDF</button>
+                  <button type="button" class="kh-button" id="estimate-publish">Publish to Line Items</button>
                 </div>
               </div>
               <div class="kh-form-message" id="estimate-message"></div>
@@ -243,7 +243,7 @@
                   <input type="number" id="estimate-markup-percent" class="kh-input" min="0" step="0.5" value="30" style="width:100px;" />
                 </label>
                 <div class="kh-estimate-toolbar__spacer"></div>
-                <button type="button" class="kh-btn-secondary" id="estimate-save">Save Estimate</button>
+                <button type="button" class="kh-button kh-button--ghost" id="estimate-save">Save Estimate</button>
               </div>
 
               <div class="kh-estimate-section">
@@ -544,19 +544,27 @@
     <!-- AI Scope Modal -->
     <div class="kh-modal" id="ai-scope-modal" hidden>
       <div class="kh-modal__overlay" data-close="ai-scope-modal"></div>
-      <div class="kh-modal__content" style="max-width:560px;">
+      <div class="kh-modal__content" style="max-width:720px;">
         <div class="kh-modal__header">
           <h3>✨ Generate Scope of Work</h3>
           <button type="button" class="kh-modal__close" data-close="ai-scope-modal">×</button>
         </div>
         <div class="kh-modal__body">
-          <p style="margin-top:0;color:var(--kh-text-muted);">Claude will draft a scope of work from the job details and current line items. Add any specific emphasis below (optional).</p>
-          <textarea id="ai-scope-context" class="kh-input kh-textarea" rows="4" placeholder="e.g. emphasis on energy efficiency, passive house details, custom millwork…"></textarea>
-          <div class="kh-form-message" id="ai-scope-message"></div>
+          <div class="kh-ai-section">
+            <div class="kh-ai-section__label">Your prompt (optional)</div>
+            <p class="kh-ai-section__hint">Claude will use the job name, type, location, target date, and all current line items automatically. Add anything specific to emphasize:</p>
+            <textarea id="ai-scope-context" class="kh-input kh-textarea" rows="3" placeholder="e.g. passive house details, custom millwork, emphasis on timeline…"></textarea>
+          </div>
+          <div class="kh-ai-section">
+            <div class="kh-ai-section__label">Generated scope of work</div>
+            <textarea id="ai-scope-result" class="kh-input kh-textarea" rows="10" placeholder="Click Generate to draft a scope of work. You can edit the result before accepting it."></textarea>
+            <div class="kh-form-message" id="ai-scope-message"></div>
+          </div>
         </div>
         <div class="kh-modal__footer">
-          <button type="button" class="kh-btn-secondary" data-close="ai-scope-modal">Cancel</button>
-          <button type="button" class="kh-btn-primary" id="ai-scope-generate">Generate</button>
+          <button type="button" class="kh-button kh-button--ghost" data-close="ai-scope-modal">Cancel</button>
+          <button type="button" class="kh-button kh-button--ghost" id="ai-scope-generate">Generate</button>
+          <button type="button" class="kh-button" id="ai-scope-accept" disabled>Use This Scope</button>
         </div>
       </div>
     </div>
@@ -573,8 +581,8 @@
           <!-- Populated by JS -->
         </div>
         <div class="kh-modal__footer">
-          <button type="button" class="kh-btn-secondary" data-close="publish-modal">Cancel</button>
-          <button type="button" class="kh-btn-primary" id="publish-confirm">Publish</button>
+          <button type="button" class="kh-button kh-button--ghost" data-close="publish-modal">Cancel</button>
+          <button type="button" class="kh-button" id="publish-confirm">Publish</button>
         </div>
       </div>
     </div>

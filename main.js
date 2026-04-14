@@ -5945,8 +5945,8 @@ document.addEventListener("DOMContentLoaded", () => {
             <p style="color:var(--kh-text-muted);font-size:13px;margin-top:12px;">Don't see what you need? Click "+ Custom line" to add a blank row.</p>
           </div>
           <div class="kh-modal__footer">
-            <button type="button" class="kh-btn-secondary" id="estimate-catalog-cancel">Cancel</button>
-            <button type="button" class="kh-btn-primary" id="estimate-catalog-custom">+ Custom line</button>
+            <button type="button" class="kh-button kh-button--ghost" id="estimate-catalog-cancel">Cancel</button>
+            <button type="button" class="kh-button" id="estimate-catalog-custom">+ Custom line</button>
           </div>
         </div>`;
       document.body.appendChild(modal);
@@ -6000,20 +6000,28 @@ document.addEventListener("DOMContentLoaded", () => {
   function openAiModal() {
     const modal = document.getElementById('ai-scope-modal');
     const ctxEl = document.getElementById('ai-scope-context');
+    const resultEl = document.getElementById('ai-scope-result');
     const aiMsgEl = document.getElementById('ai-scope-message');
+    const acceptBtn = document.getElementById('ai-scope-accept');
+    const genBtn = document.getElementById('ai-scope-generate');
     if (!modal) return;
     ctxEl.value = '';
-    if (aiMsgEl) aiMsgEl.textContent = '';
+    resultEl.value = '';
+    if (aiMsgEl) { aiMsgEl.textContent = ''; aiMsgEl.classList.remove('is-error'); }
+    if (acceptBtn) acceptBtn.disabled = true;
+    if (genBtn) genBtn.textContent = 'Generate';
     modal.hidden = false;
   }
 
   async function onAiGenerate() {
-    const modal = document.getElementById('ai-scope-modal');
     const ctxEl = document.getElementById('ai-scope-context');
+    const resultEl = document.getElementById('ai-scope-result');
     const aiMsgEl = document.getElementById('ai-scope-message');
     const btn = document.getElementById('ai-scope-generate');
+    const acceptBtn = document.getElementById('ai-scope-accept');
     btn.disabled = true;
-    btn.textContent = 'Generating…';
+    const hadPrior = !!resultEl.value;
+    btn.textContent = hadPrior ? 'Regenerating…' : 'Generating…';
     if (aiMsgEl) { aiMsgEl.classList.remove('is-error'); aiMsgEl.textContent = 'Claude is drafting…'; }
     try {
       // Save draft first so AI sees current line items
@@ -6025,16 +6033,25 @@ document.addEventListener("DOMContentLoaded", () => {
         lineItems: estimateItems,
       });
       const res = await generateEstimateScope(jobId, ctxEl.value.trim());
-      descEl.value = res.scope || descEl.value;
-      modal.hidden = true;
-      setMsg('Scope of work drafted — review and edit before saving.');
+      resultEl.value = res.scope || '';
+      if (aiMsgEl) aiMsgEl.textContent = 'Review the draft below. Edit freely, then click "Use This Scope".';
+      if (acceptBtn) acceptBtn.disabled = !resultEl.value.trim();
     } catch (err) {
       console.error('AI scope generation failed', err);
       if (aiMsgEl) { aiMsgEl.classList.add('is-error'); aiMsgEl.textContent = 'Generation failed. ' + (err.message || ''); }
     } finally {
       btn.disabled = false;
-      btn.textContent = 'Generate';
+      btn.textContent = resultEl.value ? 'Regenerate' : 'Generate';
     }
+  }
+
+  function onAiAccept() {
+    const resultEl = document.getElementById('ai-scope-result');
+    const modal = document.getElementById('ai-scope-modal');
+    if (!resultEl || !resultEl.value.trim()) return;
+    descEl.value = resultEl.value.trim();
+    modal.hidden = true;
+    setMsg('Scope of work applied. Remember to click Save Estimate.');
   }
 
   async function onPublishClick() {
@@ -6131,6 +6148,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const aiGen = document.getElementById('ai-scope-generate');
   if (aiGen) aiGen.addEventListener('click', onAiGenerate);
+  const aiAccept = document.getElementById('ai-scope-accept');
+  if (aiAccept) aiAccept.addEventListener('click', onAiAccept);
   const publishConfirm = document.getElementById('publish-confirm');
   if (publishConfirm) publishConfirm.addEventListener('click', onPublishConfirm);
 
