@@ -5935,6 +5935,13 @@ document.addEventListener("DOMContentLoaded", () => {
     return String(s == null ? '' : s).replace(/"/g, '&quot;').replace(/</g, '&lt;');
   }
 
+  function focusLastRowCost() {
+    const rows = itemsBody.querySelectorAll('tr');
+    if (!rows.length) return;
+    const lastCost = rows[rows.length - 1].querySelector('input[data-field="cost"]');
+    if (lastCost) lastCost.focus();
+  }
+
   function updateStatusLine() {
     if (!statusLineEl) return;
     if (currentVersion === 0) {
@@ -6036,6 +6043,7 @@ document.addEventListener("DOMContentLoaded", () => {
         estimateItems.push({ code: '', name: '', description: '', cost: 0, groupCode: '', sortOrder: estimateItems.length });
         modal.hidden = true;
         renderItems();
+        focusLastRowCost();
         try { await flushSave(); } catch (err) { setMsg('Add failed to save — try again.', true); }
       });
     }
@@ -6067,6 +6075,7 @@ document.addEventListener("DOMContentLoaded", () => {
             });
             modal.hidden = true;
             renderItems();
+            focusLastRowCost();
             flushSave().catch(() => setMsg('Add failed to save — try again.', true));
           }
         });
