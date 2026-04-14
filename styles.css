@@ -565,7 +565,7 @@ select.kh-input--compact {
   border-top: 1px solid var(--kh-border);
   vertical-align: top;
   word-break: normal;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 
 .kh-table th:last-child,
@@ -670,6 +670,7 @@ select.kh-input--compact {
 .kh-stage-text {
   font-weight: 600;
   font-size: 13px;
+  white-space: nowrap;
 }
 .kh-stage-text.kh-pill--stage { color: var(--kh-accent); }
 .kh-stage-text.kh-pill--ok { color: var(--kh-pill-ok); }
