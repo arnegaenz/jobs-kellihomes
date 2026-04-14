@@ -5793,6 +5793,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (autoSaveTimer) clearTimeout(autoSaveTimer);
     setMsg('Saving…');
     autoSaveTimer = setTimeout(async () => {
+      autoSaveTimer = null;
       try {
         await saveEstimate(jobId, {
           description: descEl.value,
@@ -5808,10 +5809,19 @@ document.addEventListener("DOMContentLoaded", () => {
       } catch (err) {
         lastSaveOk = false;
         console.error('Autosave failed', err);
-        setMsg('Autosave failed — click Save Estimate to retry.', true);
+        setMsg('Autosave failed — any change will retry.', true);
       }
     }, 1000);
   }
+
+  // Warn if the user refreshes/closes mid-debounce before the save fires
+  window.addEventListener('beforeunload', (e) => {
+    if (autoSaveTimer) {
+      e.preventDefault();
+      e.returnValue = '';
+      return '';
+    }
+  });
 
   function setMsg(text, isError) {
     if (!msgEl) return;
@@ -6107,13 +6117,19 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  function onAiAccept() {
+  async function onAiAccept() {
     const resultEl = document.getElementById('ai-scope-result');
     const modal = document.getElementById('ai-scope-modal');
     if (!resultEl || !resultEl.value.trim()) return;
     descEl.value = resultEl.value.trim();
     modal.hidden = true;
-    setMsg('Scope of work applied. Remember to click Save Estimate.');
+    // Programmatic value sets don't fire 'input' — save explicitly right now
+    try {
+      await flushSave();
+      setMsg('Scope applied and saved.');
+    } catch (err) {
+      setMsg('Scope applied but save failed — click Clear/anything to retry autosave.', true);
+    }
   }
 
   async function onPublishClick() {
