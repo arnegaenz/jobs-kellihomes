@@ -455,18 +455,26 @@ router.post('/generate-scope', async (req, res) => {
       ? items.map(i => `  - ${i.code ? i.code + ' ' : ''}${i.name}${i.description ? ' — ' + i.description : ''}`).join('\n')
       : '  (no line items yet)';
 
-    const userPrompt = `Draft a concise scope of work for a Kelli Homes construction bid.
+    const userPrompt = `Draft a scope of work for a Kelli Homes construction bid.
 
-Job: ${job.name || '(unnamed)'}
-Type: ${job.type || 'Not specified'}
-Location: ${job.location || 'Not specified'}
-Target completion: ${job.target_completion || 'TBD'}
-
-Planned work:
+INPUTS:
+- Job: ${job.name || '(unnamed)'}
+- Type: ${job.type || 'Not specified'}
+- Location: ${job.location || 'Not specified'}
+- Target completion: ${job.target_completion || 'TBD'}
+- Line items the contractor will execute:
 ${itemList}
-${context ? `\nContractor notes: ${context}` : ''}
+${context ? `- Contractor-provided context: ${context}` : ''}
 
-Write 1-2 short paragraphs (120-180 words total). Plain English, no construction jargon, no headings, no bullet lists. Open with a single-sentence project summary. Describe the core scope in a logical sequence. No dollar amounts, no markup details, no restatement of line item lists verbatim. Do not include a separate "commitment to quality" sentence — keep it tight and factual.`;
+STRICT RULES:
+1. Output ONLY flowing prose. No markdown headings (no #, no **bold**, no ##). No bullet points. No numbered lists.
+2. 1-2 short paragraphs. 100-150 words total. Tight and factual.
+3. Base the scope ONLY on the line items and contractor context above. Do NOT invent work that isn't listed (no "final inspections," no "site preparation" unless it's in the line items, no "building code compliance" boilerplate).
+4. Do NOT include a closing "commitment to quality" sentence, a "contractor is responsible for..." clause, or any generic filler.
+5. No dollar amounts, no markup, no pricing.
+6. Plain English. Short sentences. Write it like a skilled contractor explaining the job to a homeowner in a hurry.
+
+Return ONLY the scope-of-work paragraphs. No preamble, no "here is the scope..." intro.`;
 
     const Anthropic = require('@anthropic-ai/sdk');
     const client = new Anthropic.default({ apiKey: process.env.ANTHROPIC_API_KEY });
@@ -475,8 +483,15 @@ Write 1-2 short paragraphs (120-180 words total). Plain English, no construction
       max_tokens: 400,
       messages: [{ role: 'user', content: userPrompt }],
     });
-    const text = msg.content?.[0]?.text || '';
-    res.json({ scope: text.trim() });
+    let text = msg.content?.[0]?.text || '';
+    // Defensive: strip any markdown the model slipped in despite instructions
+    text = text
+      .replace(/^#+\s.*$/gm, '')           // heading lines
+      .replace(/\*\*(.+?)\*\*/g, '$1')     // bold
+      .replace(/(^|\n)[-*•]\s+/g, '$1')    // bullets
+      .replace(/\n{3,}/g, '\n\n')          // collapse blank runs
+      .trim();
+    res.json({ scope: text });
   } catch (error) {
     logger.error('Error generating scope', { error: error.message });
     res.status(500).json({ error: 'Failed to generate scope', message: error.message });
