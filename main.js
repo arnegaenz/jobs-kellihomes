@@ -5951,6 +5951,8 @@ document.addEventListener("DOMContentLoaded", () => {
       markupModeEl.value = data.markupMode || 'fixed';
       markupPctEl.value = data.markupPercent != null ? data.markupPercent : 30;
       if (sqftEl) sqftEl.value = data.squareFootage != null ? data.squareFootage : '';
+      savedAiPrompt = data.aiPrompt || '';
+      savedAiVerbose = !!data.aiVerbose;
       estimateItems = (data.lineItems || []).map(i => ({
         code: i.code || '',
         name: i.name || '',
@@ -6074,15 +6076,21 @@ document.addEventListener("DOMContentLoaded", () => {
     modal.hidden = false;
   }
 
+  let savedAiPrompt = '';
+  let savedAiVerbose = false;
+
   function openAiModal() {
     const modal = document.getElementById('ai-scope-modal');
     const ctxEl = document.getElementById('ai-scope-context');
+    const verboseEl = document.getElementById('ai-scope-verbose');
     const resultEl = document.getElementById('ai-scope-result');
     const aiMsgEl = document.getElementById('ai-scope-message');
     const acceptBtn = document.getElementById('ai-scope-accept');
     const genBtn = document.getElementById('ai-scope-generate');
     if (!modal) return;
-    ctxEl.value = '';
+    // Pre-populate with the last saved prompt + verbose setting for this job
+    ctxEl.value = savedAiPrompt || '';
+    if (verboseEl) verboseEl.checked = !!savedAiVerbose;
     resultEl.value = '';
     if (aiMsgEl) { aiMsgEl.textContent = ''; aiMsgEl.classList.remove('is-error'); }
     if (acceptBtn) acceptBtn.disabled = true;
@@ -6104,7 +6112,11 @@ document.addEventListener("DOMContentLoaded", () => {
       // Save draft first so AI sees current line items
       await flushSave();
       const verboseEl = document.getElementById('ai-scope-verbose');
-      const res = await generateEstimateScope(jobId, ctxEl.value.trim(), { verbose: verboseEl && verboseEl.checked });
+      const verbose = !!(verboseEl && verboseEl.checked);
+      const res = await generateEstimateScope(jobId, ctxEl.value.trim(), { verbose });
+      // Update in-memory cache so it sticks across modal open/close this session
+      savedAiPrompt = ctxEl.value.trim();
+      savedAiVerbose = verbose;
       resultEl.value = res.scope || '';
       if (aiMsgEl) aiMsgEl.textContent = 'Review the draft below. Edit freely, then click "Use This Scope".';
       if (acceptBtn) acceptBtn.disabled = !resultEl.value.trim();

@@ -46,7 +46,9 @@ router.get('/', async (req, res) => {
     const job = await pool.query(
       `SELECT estimate_description, estimate_markup_mode, estimate_markup_percent,
               estimate_prepared_by, estimate_current_version, contract_value,
-              square_footage AS "squareFootage"
+              square_footage AS "squareFootage",
+              estimate_ai_prompt AS "aiPrompt",
+              estimate_ai_verbose AS "aiVerbose"
        FROM jobs WHERE id = $1`,
       [jobId]
     );
@@ -67,6 +69,8 @@ router.get('/', async (req, res) => {
       currentVersion: row.estimate_current_version || 0,
       contractValue: row.contract_value != null ? parseFloat(row.contract_value) : null,
       squareFootage: row.squareFootage != null ? parseFloat(row.squareFootage) : null,
+      aiPrompt: row.aiPrompt || '',
+      aiVerbose: !!row.aiVerbose,
       lineItems: items.rows.map(r => ({
         id: r.id,
         code: r.code,
@@ -437,6 +441,11 @@ router.post('/generate-scope', async (req, res) => {
 
   try {
     const pool = getPool();
+    // Persist the prompt + verbose flag so the modal re-opens pre-populated
+    await pool.query(
+      `UPDATE jobs SET estimate_ai_prompt = $1, estimate_ai_verbose = $2 WHERE id = $3`,
+      [context || '', !!verbose, jobId]
+    );
     const jobRes = await pool.query(
       `SELECT id, name, type, location, target_completion, stage FROM jobs WHERE id = $1`,
       [jobId]
