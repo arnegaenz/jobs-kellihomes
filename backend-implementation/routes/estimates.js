@@ -455,26 +455,29 @@ router.post('/generate-scope', async (req, res) => {
       ? items.map(i => `  - ${i.code ? i.code + ' ' : ''}${i.name}${i.description ? ' — ' + i.description : ''}`).join('\n')
       : '  (no line items yet)';
 
-    const userPrompt = `Draft a scope of work for a Kelli Homes construction bid.
+    const userPrompt = `Write a scope of work for a Kelli Homes construction bid.
 
-INPUTS:
-- Job: ${job.name || '(unnamed)'}
-- Type: ${job.type || 'Not specified'}
-- Location: ${job.location || 'Not specified'}
-- Target completion: ${job.target_completion || 'TBD'}
-- Line items the contractor will execute:
+THE SCOPE IS DEFINED BY EXACTLY TWO SOURCES. USE NOTHING ELSE:
+
+(1) Contractor description:
+${context ? `"${context}"` : '(none provided)'}
+
+(2) Line items on the estimate:
 ${itemList}
-${context ? `- Contractor-provided context: ${context}` : ''}
 
-STRICT RULES:
-1. Output ONLY flowing prose. No markdown headings (no #, no **bold**, no ##). No bullet points. No numbered lists.
-2. 1-2 short paragraphs. 100-150 words total. Tight and factual.
-3. Base the scope ONLY on the line items and contractor context above. Do NOT invent work that isn't listed (no "final inspections," no "site preparation" unless it's in the line items, no "building code compliance" boilerplate).
-4. Do NOT include a closing "commitment to quality" sentence, a "contractor is responsible for..." clause, or any generic filler.
-5. No dollar amounts, no markup, no pricing.
-6. Plain English. Short sentences. Write it like a skilled contractor explaining the job to a homeowner in a hurry.
+Job metadata you may reference for context only (job name, location, completion date):
+- ${job.name || '(unnamed)'}${job.location ? ' · ' + job.location : ''}${job.target_completion ? ' · target ' + job.target_completion : ''}
 
-Return ONLY the scope-of-work paragraphs. No preamble, no "here is the scope..." intro.`;
+RULES:
+1. Describe ONLY work present in sources (1) and (2). Do NOT add any work, responsibility, inspection, standard, or clause that isn't in those sources. If the two sources don't fully describe the project, the scope is accordingly brief — that is correct.
+2. Output flowing prose only. No markdown (no #, no **bold**), no bullets, no numbered lists, no headings of any kind.
+3. 1-2 short paragraphs. 60-140 words. Tight and factual.
+4. No dollar amounts, markup, or pricing.
+5. Do NOT add closing boilerplate: no "committed to quality," no "contractor is responsible for...," no "meets code," no filler.
+6. Plain English. Write like a skilled contractor explaining the job to a homeowner in a hurry.
+7. If both sources are effectively empty, reply with one honest sentence: "Add line items or a project description, then regenerate."
+
+Return ONLY the scope paragraphs — no preamble, no signoff.`;
 
     const Anthropic = require('@anthropic-ai/sdk');
     const client = new Anthropic.default({ apiKey: process.env.ANTHROPIC_API_KEY });

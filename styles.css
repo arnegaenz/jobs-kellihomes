@@ -846,6 +846,11 @@ select.kh-input--compact {
   color: var(--kh-text-muted);
   font-size: 13px;
 }
+.kh-ai-section__action {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 10px;
+}
 
 /* ──── Modal overlay + footer (were missing) ──── */
 .kh-modal__overlay {
