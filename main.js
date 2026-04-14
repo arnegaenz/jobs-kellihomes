@@ -6111,7 +6111,7 @@ document.addEventListener("DOMContentLoaded", () => {
     btn.disabled = true;
     const hadPrior = !!resultEl.value;
     btn.textContent = hadPrior ? 'Regenerating…' : 'Generating…';
-    if (aiMsgEl) { aiMsgEl.classList.remove('is-error'); aiMsgEl.textContent = 'Claude is drafting…'; }
+    if (aiMsgEl) { aiMsgEl.classList.remove('is-error'); aiMsgEl.textContent = 'Aurora is drafting…'; }
     try {
       const verboseEl = document.getElementById('ai-scope-verbose');
       const verbose = !!(verboseEl && verboseEl.checked);
