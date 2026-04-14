@@ -598,14 +598,18 @@ router.get('/bid.pdf', async (req, res) => {
           </tr>`;
       }
       grandTotalBid += groupTotal;
-      groupsHtml += `
-        <tr class="group-row"><td colspan="3">${escapeHtml(groupName)}</td></tr>
-        ${rowsHtml}
+      // Only emit a group subtotal row when the group has more than one item —
+      // a single-item group just repeats the line price, which is noise.
+      const subtotalRow = groupItems.length > 1 ? `
         <tr class="group-total">
           <td></td>
           <td class="subtotal-label">${escapeHtml(groupName)} subtotal</td>
           <td class="price">${fmt(groupTotal)}</td>
-        </tr>`;
+        </tr>` : '';
+      groupsHtml += `
+        <tr class="group-row"><td colspan="3">${escapeHtml(groupName)}</td></tr>
+        ${rowsHtml}
+        ${subtotalRow}`;
     }
 
     const pricingLabel = isFixed ? 'Fixed Price' : 'Cost-Plus Contract';
@@ -637,6 +641,7 @@ router.get('/bid.pdf', async (req, res) => {
   table.items { width: 100%; border-collapse: collapse; margin-top: 8px; }
   table.items th { font-size: 9pt; text-transform: uppercase; color: #6b7280; letter-spacing: 0.5px; font-weight: 600; text-align: left; padding: 6px 8px; border-bottom: 1.5px solid #c2663a; }
   table.items td { padding: 6px 8px; border-bottom: 1px solid #f3f4f6; font-size: 10pt; vertical-align: top; }
+  table.items tr { page-break-inside: avoid; }
   table.items td.code { color: #6b7280; font-family: 'SF Mono', Menlo, monospace; font-size: 9pt; width: 70px; white-space: nowrap; }
   table.items td.desc .item-name { font-weight: 500; color: #111827; }
   table.items td.desc .item-desc { font-size: 9.5pt; color: #6b7280; margin-top: 2px; }
