@@ -121,8 +121,10 @@ router.post('/', async (req, res) => {
 
   try {
     const pool = getPool();
+    const id = `job-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
     const result = await pool.query(
       `INSERT INTO jobs (
+        id,
         name,
         location,
         client,
@@ -135,7 +137,7 @@ router.post('/', async (req, res) => {
         actual_completion,
         primary_contact,
         notes
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
       RETURNING
         id,
         name,
@@ -153,6 +155,7 @@ router.post('/', async (req, res) => {
         created_at AS "createdAt",
         updated_at AS "updatedAt"`,
       [
+        id,
         name,
         location,
         client || null,

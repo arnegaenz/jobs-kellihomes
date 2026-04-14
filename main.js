@@ -3837,6 +3837,60 @@ function updateSortIndicators() {
   });
 }
 
+function createInlineSelect(type, currentValue, task, msgId) {
+  const select = document.createElement('select');
+
+  const options = type === 'priority'
+    ? ['Low', 'Medium', 'High', 'Urgent']
+    : ['Not Started', 'In Progress', 'Complete', 'On Hold', 'Cancelled'];
+
+  const classGetter = type === 'priority' ? getPriorityClass : getTaskStatusClass;
+
+  select.className = `kh-inline-select kh-inline-select--${classGetter(currentValue)}`;
+
+  options.forEach(opt => {
+    const option = document.createElement('option');
+    option.value = opt;
+    option.textContent = opt;
+    if (opt === currentValue) option.selected = true;
+    select.appendChild(option);
+  });
+
+  select.addEventListener('change', async () => {
+    const newValue = select.value;
+    const oldValue = currentValue;
+
+    // Update class immediately for visual feedback
+    select.className = `kh-inline-select kh-inline-select--${classGetter(newValue)}`;
+
+    const payload = {
+      title: task.title,
+      description: task.description || '',
+      priority: type === 'priority' ? newValue : task.priority,
+      status: type === 'status' ? newValue : task.status,
+      startDate: task.startDate || null,
+      endDate: task.endDate || null,
+      jobId: task.jobId || null,
+      assignees: task.assignees || []
+    };
+
+    try {
+      await updateTask(task.id, payload);
+      task[type] = newValue;
+      currentValue = newValue;
+      select.classList.add('kh-inline-select--saved');
+      setTimeout(() => select.classList.remove('kh-inline-select--saved'), 800);
+    } catch (error) {
+      console.error(`Failed to update task ${type}:`, error);
+      select.value = oldValue;
+      select.className = `kh-inline-select kh-inline-select--${classGetter(oldValue)}`;
+      if (msgId) setMessage(msgId, `Failed to update ${type}.`, true);
+    }
+  });
+
+  return select;
+}
+
 function renderTasksTable(tasks, containerId = "tasks-table-body") {
   const tableBody = document.getElementById(containerId);
   if (!tableBody) return;
@@ -3869,13 +3923,13 @@ function renderTasksTable(tasks, containerId = "tasks-table-body") {
       ${task.description ? `<div class="kh-task-desc" title="${task.description}">${task.description}</div>` : ''}
     `;
 
-    // Priority pill
+    // Priority select
     const priorityCell = document.createElement("td");
-    priorityCell.innerHTML = `<span class="kh-priority kh-priority--${getPriorityClass(task.priority)}">${task.priority}</span>`;
+    priorityCell.appendChild(createInlineSelect('priority', task.priority, task, 'tasks-message'));
 
-    // Status pill
+    // Status select
     const statusCell = document.createElement("td");
-    statusCell.innerHTML = `<span class="kh-task-status kh-task-status--${getTaskStatusClass(task.status)}">${task.status}</span>`;
+    statusCell.appendChild(createInlineSelect('status', task.status, task, 'tasks-message'));
 
     // Assignees
     const assigneesCell = document.createElement("td");
@@ -4227,10 +4281,10 @@ function renderJobTasksTable(tasks, jobId) {
     `;
 
     const priorityCell = document.createElement("td");
-    priorityCell.innerHTML = `<span class="kh-priority kh-priority--${getPriorityClass(task.priority)}">${task.priority}</span>`;
+    priorityCell.appendChild(createInlineSelect('priority', task.priority, task, 'job-tasks-message'));
 
     const statusCell = document.createElement("td");
-    statusCell.innerHTML = `<span class="kh-task-status kh-task-status--${getTaskStatusClass(task.status)}">${task.status}</span>`;
+    statusCell.appendChild(createInlineSelect('status', task.status, task, 'job-tasks-message'));
 
     const assigneesCell = document.createElement("td");
     const assignees = task.assignees || [];
@@ -4639,22 +4693,50 @@ async function initJobDetailPage() {
       }
       setMessage("documents-message", "Uploading document...");
 
+      let pendingDocId = null;
       try {
         const response = await requestDocumentUpload(jobId, file, documentType);
-        await fetch(response.uploadUrl, {
-          method: "PUT",
-          headers: { "Content-Type": file.type || "application/octet-stream" },
-          body: file
-        });
+        pendingDocId = response?.document?.id || null;
+
+        let lastError = null;
+        let putOk = false;
+        for (let attempt = 1; attempt <= 3; attempt += 1) {
+          setMessage(
+            "documents-message",
+            attempt === 1 ? "Uploading document..." : `Uploading document (retry ${attempt - 1})...`
+          );
+          try {
+            const putRes = await fetch(response.uploadUrl, {
+              method: "PUT",
+              headers: { "Content-Type": file.type || "application/octet-stream" },
+              body: file
+            });
+            if (putRes.ok) { putOk = true; break; }
+            lastError = new Error(`S3 responded ${putRes.status} ${putRes.statusText}`);
+          } catch (err) {
+            lastError = err;
+          }
+          if (attempt < 3) {
+            await new Promise((r) => setTimeout(r, attempt * 1000));
+          }
+        }
+
+        if (!putOk) throw lastError || new Error("Upload failed");
+
+        pendingDocId = null;
         setMessage("documents-message", "Document uploaded.");
         uploadInput.value = "";
-        // Reset to Miscellaneous after upload
         if (documentTypeSelect) {
           documentTypeSelect.value = "Miscellaneous";
         }
         await loadDocuments(jobId);
       } catch (error) {
         console.error("Failed to upload document.", error);
+        if (pendingDocId) {
+          try { await deleteDocument(pendingDocId); } catch (cleanupErr) {
+            console.error("Failed to roll back orphaned document row.", cleanupErr);
+          }
+        }
         const errorMsg = error.message || "Unknown error";
         setMessage("documents-message", `Failed to upload document.\nError: ${errorMsg}`, true);
       } finally {
@@ -5439,9 +5521,9 @@ function renderTasksCards(tasks) {
     const card = document.createElement('div');
     card.className = 'kh-task-card';
 
-    // Top: pills + kebab
-    const priorityPill = `<span class="kh-priority kh-priority--${getPriorityClass(task.priority)}">${task.priority}</span>`;
-    const statusPill = `<span class="kh-task-status kh-task-status--${getTaskStatusClass(task.status)}">${task.status}</span>`;
+    // Top: inline selects + kebab
+    const priorityPill = `<span data-inline-select="priority"></span>`;
+    const statusPill = `<span data-inline-select="status"></span>`;
 
     // Assignees
     const assignees = task.assignees || [];
@@ -5471,6 +5553,14 @@ function renderTasksCards(tasks) {
       </div>
       ${footerParts.length ? `<div class="kh-task-card__footer">${footerParts.join('')}</div>` : ''}
     `;
+
+    // Replace placeholder spans with inline selects
+    card.querySelector('[data-inline-select="priority"]').replaceWith(
+      createInlineSelect('priority', task.priority, task, 'tasks-message')
+    );
+    card.querySelector('[data-inline-select="status"]').replaceWith(
+      createInlineSelect('status', task.status, task, 'tasks-message')
+    );
 
     // Kebab menu functionality
     const kebabBtn = card.querySelector('.kh-task-card__kebab');
