@@ -584,6 +584,7 @@ router.get('/bid.pdf', async (req, res) => {
     for (const [groupName, groupItems] of groups) {
       let groupTotal = 0;
       let rowsHtml = '';
+      const isSolo = groupItems.length === 1;
       for (const it of groupItems) {
         const clientPrice = (parseFloat(it.cost) || 0) * mult;
         groupTotal += clientPrice;
@@ -594,7 +595,7 @@ router.get('/bid.pdf', async (req, res) => {
               <div class="item-name">${escapeHtml(it.name)}</div>
               ${it.description ? `<div class="item-desc">${escapeHtml(it.description)}</div>` : ''}
             </td>
-            <td class="price">${fmt(clientPrice)}</td>
+            <td class="price${isSolo ? ' price--solo' : ''}">${fmt(clientPrice)}</td>
           </tr>`;
       }
       grandTotalBid += groupTotal;
@@ -645,7 +646,9 @@ router.get('/bid.pdf', async (req, res) => {
   table.items td.code { color: #6b7280; font-family: 'SF Mono', Menlo, monospace; font-size: 9pt; width: 70px; white-space: nowrap; }
   table.items td.desc .item-name { font-weight: 500; color: #111827; }
   table.items td.desc .item-desc { font-size: 9.5pt; color: #6b7280; margin-top: 2px; }
-  table.items td.price { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; width: 110px; }
+  table.items td.price { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; width: 110px; padding-right: 20px; }
+  table.items td.price--solo { font-weight: 700; padding-right: 8px; }
+  table.items tr.group-total td.price { padding-right: 8px; }
   table.items tr.group-row td { background: #f9fafb; font-weight: 600; font-size: 9.5pt; color: #374151; padding-top: 10px; }
   table.items tr.group-total td { font-weight: 600; border-top: 1px solid #e5e7eb; border-bottom: 1px solid #e5e7eb; background: #fafaf9; }
   table.items tr.group-total .subtotal-label { color: #6b7280; font-size: 9.5pt; text-align: right; }
