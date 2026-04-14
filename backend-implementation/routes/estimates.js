@@ -608,7 +608,7 @@ router.get('/bid.pdf', async (req, res) => {
         </tr>`;
     }
 
-    const pricingLabel = isFixed ? 'Fixed Price' : `Cost + ${markupPct}%`;
+    const pricingLabel = isFixed ? 'Fixed Price' : 'Cost-Plus Contract';
 
     const html = `<!DOCTYPE html>
 <html><head><meta charset="utf-8"/>
@@ -648,6 +648,7 @@ router.get('/bid.pdf', async (req, res) => {
   .grand-total .label { font-size: 10pt; text-transform: uppercase; color: #6b7280; letter-spacing: 1px; }
   .grand-total .amount { font-size: 20pt; font-weight: 700; color: #c2663a; font-variant-numeric: tabular-nums; }
   .pricing-note { text-align: right; font-size: 9.5pt; color: #6b7280; margin-top: 4px; }
+  .tax-note { text-align: right; font-size: 9.5pt; color: #6b7280; margin-top: 2px; font-style: italic; }
   .preparer { margin-top: 32px; padding-top: 14px; border-top: 1px solid #e5e7eb; }
   .preparer .label { font-size: 9pt; text-transform: uppercase; color: #6b7280; letter-spacing: 1px; margin-bottom: 4px; }
   .preparer .name { font-weight: 600; font-size: 11pt; }
@@ -716,6 +717,7 @@ ${job.estimate_description ? `
     <span class="amount">${fmt(grandTotalBid)}</span>
   </div>
   <div class="pricing-note">Pricing: ${pricingLabel}</div>
+  <div class="tax-note">Sales tax to be added at the time of invoicing.</div>
 </div>
 
 <div class="validity">
