@@ -5891,12 +5891,12 @@ document.addEventListener("DOMContentLoaded", () => {
           });
         }
       });
-      row.querySelector('[data-remove]').addEventListener('click', () => {
+      row.querySelector('[data-remove]').addEventListener('click', async () => {
         if (!window.confirm(`Remove "${item.name || 'this line'}" from the estimate?`)) return;
         estimateItems.splice(idx, 1);
         renderItems();
         updateTotals();
-        scheduleAutoSave();
+        try { await flushSave(); } catch (err) { setMsg('Remove failed to save — try again.', true); }
       });
       itemsBody.appendChild(row);
     });
@@ -6028,11 +6028,11 @@ document.addEventListener("DOMContentLoaded", () => {
       modal.querySelector('.kh-modal__overlay').addEventListener('click', () => modal.hidden = true);
       modal.querySelector('.kh-modal__close').addEventListener('click', () => modal.hidden = true);
       modal.querySelector('#estimate-catalog-cancel').addEventListener('click', () => modal.hidden = true);
-      modal.querySelector('#estimate-catalog-custom').addEventListener('click', () => {
+      modal.querySelector('#estimate-catalog-custom').addEventListener('click', async () => {
         estimateItems.push({ code: '', name: '', description: '', cost: 0, groupCode: '', sortOrder: estimateItems.length });
         modal.hidden = true;
         renderItems();
-        scheduleAutoSave();
+        try { await flushSave(); } catch (err) { setMsg('Add failed to save — try again.', true); }
       });
     }
     const list = modal.querySelector('#estimate-catalog-list');
@@ -6063,7 +6063,7 @@ document.addEventListener("DOMContentLoaded", () => {
             });
             modal.hidden = true;
             renderItems();
-            scheduleAutoSave();
+            flushSave().catch(() => setMsg('Add failed to save — try again.', true));
           }
         });
       });
