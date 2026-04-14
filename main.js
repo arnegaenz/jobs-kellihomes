@@ -3775,6 +3775,10 @@ function renderDocuments(jobId, documents) {
     if (trashBtn) {
       trashBtn.addEventListener("click", async (e) => {
         const btn = e.currentTarget;
+        if (!doc.deletedAt) {
+          const ok = window.confirm(`Move "${doc.name || "this document"}" to trash?\n\nIt will stay recoverable — nothing is permanently deleted.`);
+          if (!ok) return;
+        }
         setButtonLoading(btn, doc.deletedAt ? "Restoring..." : "Deleting...");
         try {
           if (doc.deletedAt) {
