@@ -249,12 +249,12 @@ export async function confirmEstimatePublish(jobId) {
   });
 }
 
-export async function generateEstimateScope(jobId, context) {
+export async function generateEstimateScope(jobId, context, options = {}) {
   const apiBaseUrl = getApiBaseUrl();
   return fetchJson(`${apiBaseUrl}/jobs/${encodeURIComponent(jobId)}/estimate/generate-scope`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ context: context || "" }),
+    body: JSON.stringify({ context: context || "", verbose: !!options.verbose }),
   });
 }
 

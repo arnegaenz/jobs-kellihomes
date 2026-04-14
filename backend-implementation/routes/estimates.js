@@ -429,7 +429,7 @@ router.post('/publish/confirm', async (req, res) => {
 // ─── POST /jobs/:jobId/estimate/generate-scope ─────────────────────────────
 router.post('/generate-scope', async (req, res) => {
   const { jobId } = req.params;
-  const { context } = req.body || {};
+  const { context, verbose } = req.body || {};
 
   if (!process.env.ANTHROPIC_API_KEY) {
     return res.status(500).json({ error: 'ANTHROPIC_API_KEY not configured' });
@@ -469,13 +469,12 @@ Job metadata you may reference for context only (job name, location, completion 
 - ${job.name || '(unnamed)'}${job.location ? ' · ' + job.location : ''}${job.target_completion ? ' · target ' + job.target_completion : ''}
 
 RULES:
-1. Describe ONLY work present in sources (1) and (2). Do NOT add any work, responsibility, inspection, standard, or clause that isn't in those sources. If the two sources don't fully describe the project, the scope is accordingly brief — that is correct.
+1. Describe ONLY work present in sources (1) and (2) for the core scope description. Do NOT invent additional scope items.
 2. Output flowing prose only. No markdown (no #, no **bold**), no bullets, no numbered lists, no headings of any kind.
-3. 1-2 short paragraphs. 60-140 words. Tight and factual.
+3. ${verbose ? '2-3 paragraphs. 180-260 words. You MAY include a short closing paragraph with standard Kelli Homes clauses: quality workmanship commitment, a brief "contractor responsibilities" sentence (permits, site protection, cleanup), and a note that the work will meet applicable building codes. Keep this closing paragraph to ~3-4 short sentences — do not pad.' : '1-2 short paragraphs. 60-140 words. Tight and factual. Do NOT add closing boilerplate: no "committed to quality," no "contractor is responsible for...," no "meets code," no filler.'}
 4. No dollar amounts, markup, or pricing.
-5. Do NOT add closing boilerplate: no "committed to quality," no "contractor is responsible for...," no "meets code," no filler.
-6. Plain English. Write like a skilled contractor explaining the job to a homeowner in a hurry.
-7. If both sources are effectively empty, reply with one honest sentence: "Add line items or a project description, then regenerate."
+5. Plain English. Write like a skilled contractor explaining the job to a homeowner.
+6. If both sources are effectively empty, reply with one honest sentence: "Add line items or a project description, then regenerate."
 
 Return ONLY the scope paragraphs — no preamble, no signoff.`;
 
@@ -483,7 +482,7 @@ Return ONLY the scope paragraphs — no preamble, no signoff.`;
     const client = new Anthropic.default({ apiKey: process.env.ANTHROPIC_API_KEY });
     const msg = await client.messages.create({
       model: 'claude-haiku-4-5-20251001',
-      max_tokens: 400,
+      max_tokens: verbose ? 700 : 400,
       messages: [{ role: 'user', content: userPrompt }],
     });
     let text = msg.content?.[0]?.text || '';

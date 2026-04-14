@@ -849,6 +849,8 @@ select.kh-input--compact {
 .kh-ai-section__action {
   display: flex;
   justify-content: flex-end;
+  align-items: center;
+  gap: 12px;
   margin-top: 10px;
 }
 

@@ -6063,7 +6063,8 @@ document.addEventListener("DOMContentLoaded", () => {
         squareFootage: sqftEl && sqftEl.value !== '' ? parseFloat(sqftEl.value) : null,
         lineItems: estimateItems,
       });
-      const res = await generateEstimateScope(jobId, ctxEl.value.trim());
+      const verboseEl = document.getElementById('ai-scope-verbose');
+      const res = await generateEstimateScope(jobId, ctxEl.value.trim(), { verbose: verboseEl && verboseEl.checked });
       resultEl.value = res.scope || '';
       if (aiMsgEl) aiMsgEl.textContent = 'Review the draft below. Edit freely, then click "Use This Scope".';
       if (acceptBtn) acceptBtn.disabled = !resultEl.value.trim();
