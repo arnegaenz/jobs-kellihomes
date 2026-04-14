@@ -5776,7 +5776,6 @@ document.addEventListener("DOMContentLoaded", () => {
   const totalsEl = document.getElementById('estimate-totals');
   const statusLineEl = document.getElementById('estimate-status-line');
   const msgEl = document.getElementById('estimate-message');
-  const saveBtn = document.getElementById('estimate-save');
   const addBtn = document.getElementById('estimate-add-line-item');
   const aiBtn = document.getElementById('estimate-ai-scope');
   const publishBtn = document.getElementById('estimate-publish');
@@ -5785,6 +5784,34 @@ document.addEventListener("DOMContentLoaded", () => {
   let estimateItems = [];  // working copy, unsaved changes live here
   let currentVersion = 0;
   let contractValue = null;
+  let autoSaveTimer = null;
+  let isLoaded = false; // don't autosave during initial load
+  let lastSaveOk = true;
+
+  function scheduleAutoSave() {
+    if (!isLoaded) return;
+    if (autoSaveTimer) clearTimeout(autoSaveTimer);
+    setMsg('Saving…');
+    autoSaveTimer = setTimeout(async () => {
+      try {
+        await saveEstimate(jobId, {
+          description: descEl.value,
+          markupMode: markupModeEl.value,
+          markupPercent: parseFloat(markupPctEl.value) || 0,
+          preparedBy: preparedByEl.value || null,
+          squareFootage: sqftEl && sqftEl.value !== '' ? parseFloat(sqftEl.value) : null,
+          lineItems: estimateItems,
+        });
+        lastSaveOk = true;
+        setMsg('Saved.');
+        setTimeout(() => { if (msgEl && msgEl.textContent === 'Saved.') setMsg(''); }, 1500);
+      } catch (err) {
+        lastSaveOk = false;
+        console.error('Autosave failed', err);
+        setMsg('Autosave failed — click Save Estimate to retry.', true);
+      }
+    }, 1000);
+  }
 
   function setMsg(text, isError) {
     if (!msgEl) return;
@@ -5832,6 +5859,7 @@ document.addEventListener("DOMContentLoaded", () => {
           } else {
             item[field] = e.target.value;
           }
+          scheduleAutoSave();
         });
         if (inp.dataset.field === 'cost') {
           inp.addEventListener('blur', (e) => {
@@ -5850,6 +5878,7 @@ document.addEventListener("DOMContentLoaded", () => {
         estimateItems.splice(idx, 1);
         renderItems();
         updateTotals();
+        scheduleAutoSave();
       });
       itemsBody.appendChild(row);
     });
@@ -5916,16 +5945,17 @@ document.addEventListener("DOMContentLoaded", () => {
       contractValue = data.contractValue;
       renderItems();
       updateStatusLine();
+      isLoaded = true;
     } catch (err) {
       console.error('Failed to load estimate', err);
       setMsg('Unable to load estimate.', true);
     }
   }
 
-  async function saveDraft() {
-    saveBtn.disabled = true;
-    saveBtn.textContent = 'Saving…';
-    setMsg('');
+  // Flush any pending autosave then save synchronously. Used before
+  // publish / download / AI generation where we need fresh server state.
+  async function flushSave() {
+    if (autoSaveTimer) { clearTimeout(autoSaveTimer); autoSaveTimer = null; }
     try {
       await saveEstimate(jobId, {
         description: descEl.value,
@@ -5935,14 +5965,11 @@ document.addEventListener("DOMContentLoaded", () => {
         squareFootage: sqftEl && sqftEl.value !== '' ? parseFloat(sqftEl.value) : null,
         lineItems: estimateItems,
       });
-      setMsg('Estimate saved.');
-      setTimeout(() => setMsg(''), 2000);
+      lastSaveOk = true;
     } catch (err) {
+      lastSaveOk = false;
       console.error('Save failed', err);
-      setMsg('Failed to save estimate.', true);
-    } finally {
-      saveBtn.disabled = false;
-      saveBtn.textContent = 'Save Estimate';
+      throw err;
     }
   }
 
@@ -5987,6 +6014,7 @@ document.addEventListener("DOMContentLoaded", () => {
         estimateItems.push({ code: '', name: '', description: '', cost: 0, groupCode: '', sortOrder: estimateItems.length });
         modal.hidden = true;
         renderItems();
+        scheduleAutoSave();
       });
     }
     const list = modal.querySelector('#estimate-catalog-list');
@@ -6017,6 +6045,7 @@ document.addEventListener("DOMContentLoaded", () => {
             });
             modal.hidden = true;
             renderItems();
+            scheduleAutoSave();
           }
         });
       });
@@ -6055,14 +6084,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (aiMsgEl) { aiMsgEl.classList.remove('is-error'); aiMsgEl.textContent = 'Claude is drafting…'; }
     try {
       // Save draft first so AI sees current line items
-      await saveEstimate(jobId, {
-        description: descEl.value,
-        markupMode: markupModeEl.value,
-        markupPercent: parseFloat(markupPctEl.value) || 0,
-        preparedBy: preparedByEl.value || null,
-        squareFootage: sqftEl && sqftEl.value !== '' ? parseFloat(sqftEl.value) : null,
-        lineItems: estimateItems,
-      });
+      await flushSave();
       const verboseEl = document.getElementById('ai-scope-verbose');
       const res = await generateEstimateScope(jobId, ctxEl.value.trim(), { verbose: verboseEl && verboseEl.checked });
       resultEl.value = res.scope || '';
@@ -6092,7 +6114,7 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
     // Save draft first so the diff is computed against fresh state
-    await saveDraft();
+    await flushSave();
     try {
       const diff = await previewEstimatePublish(jobId);
       renderPublishDiffModal(diff);
@@ -6164,20 +6186,37 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
     // Save first so PDF reflects current edits
-    saveDraft().then(() => {
+    flushSave().then(() => {
       window.open(getBidPdfUrl(jobId), '_blank');
     });
   }
 
   // ─── Wire up ───
-  saveBtn.addEventListener('click', saveDraft);
   addBtn.addEventListener('click', addFromCatalog);
+  const clearBtn = document.getElementById('estimate-clear');
+  if (clearBtn) {
+    clearBtn.addEventListener('click', async () => {
+      if (estimateItems.length === 0 && !descEl.value.trim()) {
+        setMsg('Nothing to clear.');
+        return;
+      }
+      const ok = window.confirm('Clear this estimate? All line items and the scope of work will be removed. This cannot be undone.');
+      if (!ok) return;
+      estimateItems = [];
+      descEl.value = '';
+      renderItems();
+      await flushSave();
+      setMsg('Estimate cleared.');
+    });
+  }
   aiBtn.addEventListener('click', openAiModal);
   publishBtn.addEventListener('click', onPublishClick);
   downloadBtn.addEventListener('click', onDownloadBid);
-  markupModeEl.addEventListener('change', updateTotals);
-  markupPctEl.addEventListener('input', () => { renderItems(); });
-  if (sqftEl) sqftEl.addEventListener('input', updateTotals);
+  markupModeEl.addEventListener('change', () => { updateTotals(); scheduleAutoSave(); });
+  markupPctEl.addEventListener('input', () => { renderItems(); scheduleAutoSave(); });
+  if (sqftEl) sqftEl.addEventListener('input', () => { updateTotals(); scheduleAutoSave(); });
+  descEl.addEventListener('input', scheduleAutoSave);
+  preparedByEl.addEventListener('change', scheduleAutoSave);
 
   const aiGen = document.getElementById('ai-scope-generate');
   if (aiGen) aiGen.addEventListener('click', onAiGenerate);
