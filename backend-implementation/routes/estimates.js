@@ -551,15 +551,22 @@ router.get('/bid.pdf', async (req, res) => {
 
     const fmt = (n) => `$${(parseFloat(n) || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
 
-    // Logo as base64 data URL
+    // Logo as base64 data URL — try a few locations so this works in dev + prod
     let logoDataUri = '';
-    try {
-      const logoPath = path.join(__dirname, '..', '..', 'assets', 'kh-logo.png');
-      const logoBytes = await fs.readFile(logoPath);
-      logoDataUri = `data:image/png;base64,${logoBytes.toString('base64')}`;
-    } catch (err) {
-      logger.warn('Bid PDF logo missing', { err: err.message });
+    const logoCandidates = [
+      path.join(__dirname, '..', 'assets', 'kh-logo.png'),       // backend-implementation/assets/
+      path.join(__dirname, '..', '..', 'assets', 'kh-logo.png'), // repo-root/assets/
+    ];
+    for (const candidate of logoCandidates) {
+      try {
+        const logoBytes = await fs.readFile(candidate);
+        logoDataUri = `data:image/png;base64,${logoBytes.toString('base64')}`;
+        break;
+      } catch (err) {
+        // try next candidate
+      }
     }
+    if (!logoDataUri) logger.warn('Bid PDF logo not found in any candidate path');
 
     const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
     const validityDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
@@ -747,9 +754,13 @@ ${job.estimate_description ? `
         printBackground: true,
       });
       const safeName = (job.name || 'bid').replace(/[^a-z0-9-]+/gi, '_');
+      // Puppeteer 23+ returns Uint8Array; Express's res.send can mangle it.
+      // Force an actual Node Buffer so Content-Length + bytes are correct.
+      const pdfBytes = Buffer.isBuffer(pdfBuffer) ? pdfBuffer : Buffer.from(pdfBuffer);
       res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Length', pdfBytes.length);
       res.setHeader('Content-Disposition', `attachment; filename="Bid - ${safeName} - ${new Date().toISOString().slice(0,10)}.pdf"`);
-      res.send(pdfBuffer);
+      res.end(pdfBytes);
     } finally {
       await browser.close();
     }
