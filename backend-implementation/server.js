@@ -28,6 +28,7 @@ const { sendDailyDigest, sendWeeklyDigest } = require('./services/emailDigest');
 const authRoutes = require('./routes/auth');
 const jobsRoutes = require('./routes/jobs');
 const lineItemsRoutes = require('./routes/lineItems');
+const estimatesRoutes = require('./routes/estimates');
 const passwordRoutes = require('./routes/password');
 const documentsRoutes = require('./routes/documents');
 const businessDocumentsRoutes = require('./routes/businessDocuments');
@@ -101,6 +102,7 @@ app.use('/auth', authRoutes);
 
 app.use('/jobs', authenticateToken, jobsRoutes);
 app.use('/jobs/:jobId/line-items', authenticateToken, lineItemsRoutes);
+app.use('/jobs/:jobId/estimate', authenticateToken, estimatesRoutes);
 app.use('/password', authenticateToken, passwordRoutes);
 app.use('/documents', authenticateToken, documentsRoutes);
 app.use('/business-documents', authenticateToken, businessDocumentsRoutes);

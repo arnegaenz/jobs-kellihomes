@@ -11,6 +11,12 @@ import {
   requestDocumentUpload,
   deleteDocument,
   createDocumentShareLink,
+  fetchEstimate,
+  saveEstimate,
+  previewEstimatePublish,
+  confirmEstimatePublish,
+  generateEstimateScope,
+  getBidPdfUrl,
   restoreDocument,
   updateDocumentType,
   fetchBusinessDocuments,
@@ -5749,3 +5755,393 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 });
+
+// ==========================================
+// Estimating Tab (job detail page only)
+// ==========================================
+
+(function initEstimateTab() {
+  const itemsBody = typeof document !== 'undefined' && document.getElementById('estimate-items-body');
+  if (!itemsBody) return; // not on job page
+
+  const params = new URLSearchParams(window.location.search);
+  const jobId = params.get('jobId');
+  if (!jobId) return;
+
+  const descEl = document.getElementById('estimate-description');
+  const preparedByEl = document.getElementById('estimate-prepared-by');
+  const markupModeEl = document.getElementById('estimate-markup-mode');
+  const markupPctEl = document.getElementById('estimate-markup-percent');
+  const totalsEl = document.getElementById('estimate-totals');
+  const statusLineEl = document.getElementById('estimate-status-line');
+  const msgEl = document.getElementById('estimate-message');
+  const saveBtn = document.getElementById('estimate-save');
+  const addBtn = document.getElementById('estimate-add-line-item');
+  const aiBtn = document.getElementById('estimate-ai-scope');
+  const publishBtn = document.getElementById('estimate-publish');
+  const downloadBtn = document.getElementById('estimate-download-bid');
+
+  let estimateItems = [];  // working copy, unsaved changes live here
+  let currentVersion = 0;
+  let contractValue = null;
+
+  function setMsg(text, isError) {
+    if (!msgEl) return;
+    msgEl.textContent = text || '';
+    msgEl.classList.toggle('is-error', !!isError);
+  }
+
+  function fmtMoney(n) {
+    const v = parseFloat(n) || 0;
+    return '$' + v.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  }
+
+  function markupMultiplier() {
+    const p = parseFloat(markupPctEl.value) || 0;
+    return 1 + (p / 100);
+  }
+
+  function renderItems() {
+    itemsBody.innerHTML = '';
+    const mult = markupMultiplier();
+    estimateItems.forEach((item, idx) => {
+      const row = document.createElement('tr');
+      const clientPrice = (parseFloat(item.cost) || 0) * mult;
+      row.innerHTML = `
+        <td><input type="text" class="kh-input kh-input--compact" data-field="code" value="${escapeAttr(item.code || '')}" placeholder="Code" /></td>
+        <td><input type="text" class="kh-input kh-input--compact" data-field="name" value="${escapeAttr(item.name || '')}" placeholder="Name" /></td>
+        <td><input type="text" class="kh-input kh-input--compact" data-field="description" value="${escapeAttr(item.description || '')}" placeholder="(optional)" /></td>
+        <td><input type="number" class="kh-input kh-input--compact" data-field="cost" value="${item.cost || 0}" min="0" step="100" style="text-align:right;" /></td>
+        <td style="text-align:right;" class="client-price">${fmtMoney(clientPrice)}</td>
+        <td><button type="button" class="kh-link" data-remove="${idx}">Remove</button></td>
+      `;
+      row.querySelectorAll('input[data-field]').forEach(inp => {
+        inp.addEventListener('input', (e) => {
+          const field = e.target.dataset.field;
+          item[field] = field === 'cost' ? parseFloat(e.target.value) || 0 : e.target.value;
+          if (field === 'cost') {
+            row.querySelector('.client-price').textContent = fmtMoney((parseFloat(item.cost) || 0) * markupMultiplier());
+            updateTotals();
+          }
+        });
+      });
+      row.querySelector('[data-remove]').addEventListener('click', () => {
+        if (!window.confirm(`Remove "${item.name || 'this line'}" from the estimate?`)) return;
+        estimateItems.splice(idx, 1);
+        renderItems();
+        updateTotals();
+      });
+      itemsBody.appendChild(row);
+    });
+    if (estimateItems.length === 0) {
+      itemsBody.innerHTML = '<tr><td colspan="6" style="color:var(--kh-text-muted);padding:16px;">No line items yet. Click "Add line item" to pick from the catalog, or keep going and we\'ll guide you.</td></tr>';
+    }
+    updateTotals();
+  }
+
+  function updateTotals() {
+    if (!totalsEl) return;
+    const totalCost = estimateItems.reduce((s, i) => s + (parseFloat(i.cost) || 0), 0);
+    const mult = markupMultiplier();
+    const totalBid = totalCost * mult;
+    const markup = totalBid - totalCost;
+    const pct = parseFloat(markupPctEl.value) || 0;
+    const mode = markupModeEl.value === 'fixed' ? 'Fixed' : 'Cost-Plus';
+    totalsEl.innerHTML = `
+      <div class="kh-estimate-totals__row"><span>Internal cost total</span><span>${fmtMoney(totalCost)}</span></div>
+      <div class="kh-estimate-totals__row"><span>Markup (${mode} ${pct}%)</span><span>${fmtMoney(markup)}</span></div>
+      <div class="kh-estimate-totals__row kh-estimate-totals__row--grand"><span>Client bid total</span><span>${fmtMoney(totalBid)}</span></div>
+    `;
+  }
+
+  function escapeAttr(s) {
+    return String(s == null ? '' : s).replace(/"/g, '&quot;').replace(/</g, '&lt;');
+  }
+
+  function updateStatusLine() {
+    if (!statusLineEl) return;
+    if (currentVersion === 0) {
+      statusLineEl.textContent = 'Draft — not yet published.';
+    } else {
+      const cv = contractValue != null ? ` · Contract value: ${fmtMoney(contractValue)}` : '';
+      statusLineEl.textContent = `Published — v${currentVersion}${cv}`;
+    }
+  }
+
+  async function loadEstimate() {
+    try {
+      const data = await fetchEstimate(jobId);
+      descEl.value = data.description || '';
+      preparedByEl.value = data.preparedBy || '';
+      markupModeEl.value = data.markupMode || 'fixed';
+      markupPctEl.value = data.markupPercent != null ? data.markupPercent : 30;
+      estimateItems = (data.lineItems || []).map(i => ({
+        code: i.code || '',
+        name: i.name || '',
+        description: i.description || '',
+        cost: parseFloat(i.cost) || 0,
+        groupCode: i.groupCode || '',
+        sortOrder: i.sortOrder || 0,
+      }));
+      currentVersion = data.currentVersion || 0;
+      contractValue = data.contractValue;
+      renderItems();
+      updateStatusLine();
+    } catch (err) {
+      console.error('Failed to load estimate', err);
+      setMsg('Unable to load estimate.', true);
+    }
+  }
+
+  async function saveDraft() {
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'Saving…';
+    setMsg('');
+    try {
+      await saveEstimate(jobId, {
+        description: descEl.value,
+        markupMode: markupModeEl.value,
+        markupPercent: parseFloat(markupPctEl.value) || 0,
+        preparedBy: preparedByEl.value || null,
+        lineItems: estimateItems,
+      });
+      setMsg('Estimate saved.');
+      setTimeout(() => setMsg(''), 2000);
+    } catch (err) {
+      console.error('Save failed', err);
+      setMsg('Failed to save estimate.', true);
+    } finally {
+      saveBtn.disabled = false;
+      saveBtn.textContent = 'Save Estimate';
+    }
+  }
+
+  // Reuse the existing LINE_ITEM_CATALOG from elsewhere in main.js via the window shim
+  function addFromCatalog() {
+    const catalog = typeof LINE_ITEM_CATALOG !== 'undefined' ? LINE_ITEM_CATALOG : [];
+    const existing = new Set(estimateItems.map(i => i.code).filter(Boolean));
+    const available = catalog.filter(c => !existing.has(c.code));
+    // Simple prompt-based picker for v1 — the catalog modal used elsewhere is tightly
+    // coupled to the costing tab, so we use a list modal unique to the estimate.
+    showEstimateCatalogModal(available);
+  }
+
+  function showEstimateCatalogModal(available) {
+    let modal = document.getElementById('estimate-catalog-modal');
+    if (!modal) {
+      modal = document.createElement('div');
+      modal.id = 'estimate-catalog-modal';
+      modal.className = 'kh-modal';
+      modal.innerHTML = `
+        <div class="kh-modal__overlay"></div>
+        <div class="kh-modal__content" style="max-width:640px;">
+          <div class="kh-modal__header">
+            <h3>Add Line Item</h3>
+            <button type="button" class="kh-modal__close">×</button>
+          </div>
+          <div class="kh-modal__body">
+            <input type="text" id="estimate-catalog-search" class="kh-input" placeholder="Search by code, name, or group…" />
+            <div id="estimate-catalog-list" style="max-height:50vh;overflow-y:auto;margin-top:10px;"></div>
+            <p style="color:var(--kh-text-muted);font-size:13px;margin-top:12px;">Don't see what you need? Click "+ Custom line" to add a blank row.</p>
+          </div>
+          <div class="kh-modal__footer">
+            <button type="button" class="kh-btn-secondary" id="estimate-catalog-cancel">Cancel</button>
+            <button type="button" class="kh-btn-primary" id="estimate-catalog-custom">+ Custom line</button>
+          </div>
+        </div>`;
+      document.body.appendChild(modal);
+      modal.querySelector('.kh-modal__overlay').addEventListener('click', () => modal.hidden = true);
+      modal.querySelector('.kh-modal__close').addEventListener('click', () => modal.hidden = true);
+      modal.querySelector('#estimate-catalog-cancel').addEventListener('click', () => modal.hidden = true);
+      modal.querySelector('#estimate-catalog-custom').addEventListener('click', () => {
+        estimateItems.push({ code: '', name: '', description: '', cost: 0, groupCode: '', sortOrder: estimateItems.length });
+        modal.hidden = true;
+        renderItems();
+      });
+    }
+    const list = modal.querySelector('#estimate-catalog-list');
+    const search = modal.querySelector('#estimate-catalog-search');
+    function renderList(filter) {
+      const f = (filter || '').toLowerCase();
+      const filtered = available.filter(c =>
+        c.name.toLowerCase().includes(f) ||
+        (c.group || '').toLowerCase().includes(f) ||
+        c.code.includes(f));
+      list.innerHTML = filtered.map(c => `
+        <div class="kh-catalog-item" data-code="${c.code}">
+          <div class="kh-catalog-item__name">${c.code} — ${c.name}</div>
+          <div class="kh-catalog-item__desc">${c.group || ''}${c.description ? ' · ' + c.description : ''}</div>
+        </div>`).join('') || '<div style="color:var(--kh-text-muted);padding:12px;">No matching catalog items.</div>';
+      list.querySelectorAll('.kh-catalog-item').forEach(el => {
+        el.addEventListener('click', () => {
+          const code = el.dataset.code;
+          const cat = available.find(c => c.code === code);
+          if (cat) {
+            estimateItems.push({
+              code: cat.code,
+              name: cat.name,
+              description: cat.description || '',
+              cost: 0,
+              groupCode: cat.group || '',
+              sortOrder: estimateItems.length,
+            });
+            modal.hidden = true;
+            renderItems();
+          }
+        });
+      });
+    }
+    search.value = '';
+    search.oninput = (e) => renderList(e.target.value);
+    renderList('');
+    modal.hidden = false;
+  }
+
+  function openAiModal() {
+    const modal = document.getElementById('ai-scope-modal');
+    const ctxEl = document.getElementById('ai-scope-context');
+    const aiMsgEl = document.getElementById('ai-scope-message');
+    if (!modal) return;
+    ctxEl.value = '';
+    if (aiMsgEl) aiMsgEl.textContent = '';
+    modal.hidden = false;
+  }
+
+  async function onAiGenerate() {
+    const modal = document.getElementById('ai-scope-modal');
+    const ctxEl = document.getElementById('ai-scope-context');
+    const aiMsgEl = document.getElementById('ai-scope-message');
+    const btn = document.getElementById('ai-scope-generate');
+    btn.disabled = true;
+    btn.textContent = 'Generating…';
+    if (aiMsgEl) { aiMsgEl.classList.remove('is-error'); aiMsgEl.textContent = 'Claude is drafting…'; }
+    try {
+      // Save draft first so AI sees current line items
+      await saveEstimate(jobId, {
+        description: descEl.value,
+        markupMode: markupModeEl.value,
+        markupPercent: parseFloat(markupPctEl.value) || 0,
+        preparedBy: preparedByEl.value || null,
+        lineItems: estimateItems,
+      });
+      const res = await generateEstimateScope(jobId, ctxEl.value.trim());
+      descEl.value = res.scope || descEl.value;
+      modal.hidden = true;
+      setMsg('Scope of work drafted — review and edit before saving.');
+    } catch (err) {
+      console.error('AI scope generation failed', err);
+      if (aiMsgEl) { aiMsgEl.classList.add('is-error'); aiMsgEl.textContent = 'Generation failed. ' + (err.message || ''); }
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Generate';
+    }
+  }
+
+  async function onPublishClick() {
+    if (estimateItems.length === 0) {
+      setMsg('Add at least one line item before publishing.', true);
+      return;
+    }
+    // Save draft first so the diff is computed against fresh state
+    await saveDraft();
+    try {
+      const diff = await previewEstimatePublish(jobId);
+      renderPublishDiffModal(diff);
+    } catch (err) {
+      console.error('Publish preview failed', err);
+      setMsg('Failed to compute publish preview.', true);
+    }
+  }
+
+  function renderPublishDiffModal(diff) {
+    const body = document.getElementById('publish-modal-body');
+    const modal = document.getElementById('publish-modal');
+    const fmt = fmtMoney;
+    let html = '';
+    if (!diff.hasPrior) {
+      html = `
+        <p>You're about to publish <strong>v1</strong>. This will seed the Line Items / Costing tab with ${diff.added.length} line items as budget baselines.</p>
+        ${renderDiffList('New lines', diff.added.map(i => ({ name: i.name, code: i.code, note: fmt(i.cost) })))}
+      `;
+    } else {
+      html = `
+        <p>Publishing <strong>v${diff.nextVersion}</strong>. Changes since v${diff.nextVersion - 1}:</p>
+        ${diff.added.length ? renderDiffList('New lines', diff.added.map(i => ({ name: i.name, code: i.code, note: fmt(i.cost) }))) : ''}
+        ${diff.changed.length ? renderDiffList('Cost changes', diff.changed.map(c => ({ name: c.after.name, code: c.after.code, note: `${fmt(c.before.cost)} → ${fmt(c.after.cost)} (${c.after.cost - c.before.cost >= 0 ? '+' : ''}${fmt(c.after.cost - c.before.cost)})` }))) : ''}
+        ${diff.removed.length ? renderDiffList('Removed', diff.removed.map(i => ({ name: i.name, code: i.code, note: 'will be zeroed out in Line Items' }))) : ''}
+        ${!diff.added.length && !diff.changed.length && !diff.removed.length ? '<p style="color:var(--kh-text-muted);">No changes from the previous revision.</p>' : ''}
+        <p style="color:var(--kh-text-muted);font-size:13px;margin-top:14px;">Cost changes become budget-increase entries in Line Items with the reason "Estimate v${diff.nextVersion} revision".</p>
+      `;
+    }
+    body.innerHTML = html;
+    modal.hidden = false;
+  }
+
+  function renderDiffList(title, items) {
+    if (!items.length) return '';
+    return `
+      <div style="margin-top:14px;">
+        <div style="font-weight:600;margin-bottom:6px;">${title}</div>
+        <ul style="margin:0;padding-left:18px;">
+          ${items.map(i => `<li><strong>${escapeAttr(i.code ? i.code + ' — ' : '')}${escapeAttr(i.name)}</strong> <span style="color:var(--kh-text-muted);">${i.note}</span></li>`).join('')}
+        </ul>
+      </div>
+    `;
+  }
+
+  async function onPublishConfirm() {
+    const btn = document.getElementById('publish-confirm');
+    btn.disabled = true;
+    btn.textContent = 'Publishing…';
+    try {
+      const result = await confirmEstimatePublish(jobId);
+      currentVersion = result.version;
+      contractValue = result.totalBid;
+      updateStatusLine();
+      document.getElementById('publish-modal').hidden = true;
+      setMsg(`Published v${result.version}. Line Items updated with budget = ${fmtMoney(result.totalCost)} (cost basis).`);
+    } catch (err) {
+      console.error('Publish failed', err);
+      setMsg('Publish failed: ' + (err.message || ''), true);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Publish';
+    }
+  }
+
+  function onDownloadBid() {
+    if (estimateItems.length === 0) {
+      setMsg('Add at least one line item before downloading the bid.', true);
+      return;
+    }
+    // Save first so PDF reflects current edits
+    saveDraft().then(() => {
+      window.open(getBidPdfUrl(jobId), '_blank');
+    });
+  }
+
+  // ─── Wire up ───
+  saveBtn.addEventListener('click', saveDraft);
+  addBtn.addEventListener('click', addFromCatalog);
+  aiBtn.addEventListener('click', openAiModal);
+  publishBtn.addEventListener('click', onPublishClick);
+  downloadBtn.addEventListener('click', onDownloadBid);
+  markupModeEl.addEventListener('change', updateTotals);
+  markupPctEl.addEventListener('input', () => { renderItems(); });
+
+  const aiGen = document.getElementById('ai-scope-generate');
+  if (aiGen) aiGen.addEventListener('click', onAiGenerate);
+  const publishConfirm = document.getElementById('publish-confirm');
+  if (publishConfirm) publishConfirm.addEventListener('click', onPublishConfirm);
+
+  // Modal close buttons
+  document.querySelectorAll('[data-close]').forEach(el => {
+    el.addEventListener('click', () => {
+      const id = el.getAttribute('data-close');
+      const m = document.getElementById(id);
+      if (m) m.hidden = true;
+    });
+  });
+
+  loadEstimate();
+})();

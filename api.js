@@ -221,6 +221,48 @@ export async function requestDocumentUpload(jobId, file, documentType) {
   });
 }
 
+export async function fetchEstimate(jobId) {
+  const apiBaseUrl = getApiBaseUrl();
+  return fetchJsonDedup(`${apiBaseUrl}/jobs/${encodeURIComponent(jobId)}/estimate`);
+}
+
+export async function saveEstimate(jobId, payload) {
+  const apiBaseUrl = getApiBaseUrl();
+  return fetchJson(`${apiBaseUrl}/jobs/${encodeURIComponent(jobId)}/estimate`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function previewEstimatePublish(jobId) {
+  const apiBaseUrl = getApiBaseUrl();
+  return fetchJson(`${apiBaseUrl}/jobs/${encodeURIComponent(jobId)}/estimate/publish/preview`, {
+    method: "POST",
+  });
+}
+
+export async function confirmEstimatePublish(jobId) {
+  const apiBaseUrl = getApiBaseUrl();
+  return fetchJson(`${apiBaseUrl}/jobs/${encodeURIComponent(jobId)}/estimate/publish/confirm`, {
+    method: "POST",
+  });
+}
+
+export async function generateEstimateScope(jobId, context) {
+  const apiBaseUrl = getApiBaseUrl();
+  return fetchJson(`${apiBaseUrl}/jobs/${encodeURIComponent(jobId)}/estimate/generate-scope`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ context: context || "" }),
+  });
+}
+
+export function getBidPdfUrl(jobId) {
+  const apiBaseUrl = getApiBaseUrl();
+  return `${apiBaseUrl}/jobs/${encodeURIComponent(jobId)}/estimate/bid.pdf`;
+}
+
 export async function createDocumentShareLink(documentId) {
   const apiBaseUrl = getApiBaseUrl();
   return fetchJson(`${apiBaseUrl}/documents/${documentId}/share`, {

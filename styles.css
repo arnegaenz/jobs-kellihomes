@@ -672,6 +672,86 @@ select.kh-input--compact {
   font-size: 13px;
   white-space: nowrap;
 }
+
+/* ──── Estimating Tab ──── */
+.kh-estimate-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.kh-estimate-toolbar {
+  display: flex;
+  gap: 16px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--kh-border);
+}
+.kh-estimate-toolbar__spacer { flex: 1; }
+.kh-estimate-toolbar .kh-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.kh-estimate-toolbar .kh-field__label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--kh-text-muted);
+  font-weight: 600;
+}
+.kh-estimate-section {
+  margin-top: 20px;
+}
+.kh-estimate-section__title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--kh-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+}
+.kh-textarea {
+  width: 100%;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.5;
+  resize: vertical;
+  min-height: 120px;
+}
+.kh-table--estimate td,
+.kh-table--estimate th {
+  padding-right: 10px;
+}
+.kh-table--estimate input[type="text"],
+.kh-table--estimate input[type="number"] {
+  width: 100%;
+}
+.kh-estimate-totals {
+  margin-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-width: 360px;
+  margin-left: auto;
+  font-size: 14px;
+}
+.kh-estimate-totals__row {
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 0;
+}
+.kh-estimate-totals__row--grand {
+  border-top: 2px solid var(--kh-accent);
+  margin-top: 6px;
+  padding-top: 8px;
+  font-weight: 700;
+  font-size: 16px;
+  color: var(--kh-accent);
+}
 .kh-stage-text.kh-pill--stage { color: var(--kh-accent); }
 .kh-stage-text.kh-pill--ok { color: var(--kh-pill-ok); }
 .kh-stage-text.kh-pill--watch { color: var(--kh-pill-watch); }
