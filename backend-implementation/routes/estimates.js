@@ -45,7 +45,8 @@ router.get('/', async (req, res) => {
     const pool = getPool();
     const job = await pool.query(
       `SELECT estimate_description, estimate_markup_mode, estimate_markup_percent,
-              estimate_prepared_by, estimate_current_version, contract_value
+              estimate_prepared_by, estimate_current_version, contract_value,
+              square_footage AS "squareFootage"
        FROM jobs WHERE id = $1`,
       [jobId]
     );
@@ -65,6 +66,7 @@ router.get('/', async (req, res) => {
       preparedBy: row.estimate_prepared_by || null,
       currentVersion: row.estimate_current_version || 0,
       contractValue: row.contract_value != null ? parseFloat(row.contract_value) : null,
+      squareFootage: row.squareFootage != null ? parseFloat(row.squareFootage) : null,
       lineItems: items.rows.map(r => ({
         id: r.id,
         code: r.code,
@@ -85,7 +87,7 @@ router.get('/', async (req, res) => {
 // Replaces description, markup settings, and the entire line items list in one shot.
 router.put('/', async (req, res) => {
   const { jobId } = req.params;
-  const { description, markupMode, markupPercent, preparedBy, lineItems } = req.body;
+  const { description, markupMode, markupPercent, preparedBy, squareFootage, lineItems } = req.body;
   if (!Array.isArray(lineItems)) return res.status(400).json({ error: 'lineItems must be an array' });
 
   const pool = getPool();
@@ -99,13 +101,15 @@ router.put('/', async (req, res) => {
          estimate_markup_mode = $2,
          estimate_markup_percent = $3,
          estimate_prepared_by = $4,
+         square_footage = $5,
          updated_at = NOW()
-       WHERE id = $5`,
+       WHERE id = $6`,
       [
         description || '',
         markupMode || 'fixed',
         markupPercent != null ? parseFloat(markupPercent) : 30,
         preparedBy || null,
+        squareFootage != null && squareFootage !== '' ? parseFloat(squareFootage) : null,
         jobId,
       ]
     );

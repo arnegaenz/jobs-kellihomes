@@ -59,7 +59,7 @@
               Edit Job
             </button>
             <button class="kh-button kh-button--ghost" type="button" id="delete-job-button">
-              Delete Job
+              Close Job
             </button>
           </div>
         </section>
@@ -241,6 +241,10 @@
                 <label class="kh-field">
                   <span class="kh-field__label">Markup %</span>
                   <input type="number" id="estimate-markup-percent" class="kh-input" min="0" step="0.5" value="30" style="width:100px;" />
+                </label>
+                <label class="kh-field">
+                  <span class="kh-field__label">Square footage</span>
+                  <input type="number" id="estimate-sqft" class="kh-input" min="0" step="1" placeholder="(optional)" style="width:140px;" />
                 </label>
                 <div class="kh-estimate-toolbar__spacer"></div>
                 <button type="button" class="kh-button kh-button--ghost" id="estimate-save">Save Estimate</button>

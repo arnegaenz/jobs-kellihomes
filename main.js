@@ -4625,15 +4625,15 @@ async function initJobDetailPage() {
   if (deleteButton) {
     deleteButton.addEventListener("click", async () => {
       const ok = window.confirm(
-        "We recommend that you archive the job instead of deleting. Proceed with delete?"
+        'Close this job? It will move to the "Closed" section. You can reopen it any time by editing the job and changing its stage.'
       );
       if (!ok) return;
       try {
-        await deleteJob(jobId);
+        await updateJob(jobId, { stage: "Closed" });
         window.location.href = "index.html";
       } catch (error) {
-        console.error("Failed to delete job.", error);
-        setMessage("edit-job-message", "Unable to delete job.", true);
+        console.error("Failed to close job.", error);
+        setMessage("edit-job-message", "Unable to close job.", true);
       }
     });
   }
@@ -5772,6 +5772,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const preparedByEl = document.getElementById('estimate-prepared-by');
   const markupModeEl = document.getElementById('estimate-markup-mode');
   const markupPctEl = document.getElementById('estimate-markup-percent');
+  const sqftEl = document.getElementById('estimate-sqft');
   const totalsEl = document.getElementById('estimate-totals');
   const statusLineEl = document.getElementById('estimate-status-line');
   const msgEl = document.getElementById('estimate-message');
@@ -5847,10 +5848,18 @@ document.addEventListener("DOMContentLoaded", () => {
     const markup = totalBid - totalCost;
     const pct = parseFloat(markupPctEl.value) || 0;
     const mode = markupModeEl.value === 'fixed' ? 'Fixed' : 'Cost-Plus';
+    const sqft = parseFloat(sqftEl && sqftEl.value) || 0;
+    const gpPct = totalBid > 0 ? ((markup / totalBid) * 100) : 0;
+    const perSqftRows = sqft > 0 ? `
+      <div class="kh-estimate-totals__row"><span>Cost / sqft</span><span>${fmtMoney(totalCost / sqft)}</span></div>
+      <div class="kh-estimate-totals__row"><span>Bid / sqft</span><span>${fmtMoney(totalBid / sqft)}</span></div>
+    ` : '';
     totalsEl.innerHTML = `
       <div class="kh-estimate-totals__row"><span>Internal cost total</span><span>${fmtMoney(totalCost)}</span></div>
       <div class="kh-estimate-totals__row"><span>Markup (${mode} ${pct}%)</span><span>${fmtMoney(markup)}</span></div>
       <div class="kh-estimate-totals__row kh-estimate-totals__row--grand"><span>Client bid total</span><span>${fmtMoney(totalBid)}</span></div>
+      <div class="kh-estimate-totals__row"><span>Kelli Homes gross profit</span><span>${fmtMoney(markup)} (${gpPct.toFixed(1)}%)</span></div>
+      ${perSqftRows}
     `;
   }
 
@@ -5875,6 +5884,7 @@ document.addEventListener("DOMContentLoaded", () => {
       preparedByEl.value = data.preparedBy || '';
       markupModeEl.value = data.markupMode || 'fixed';
       markupPctEl.value = data.markupPercent != null ? data.markupPercent : 30;
+      if (sqftEl) sqftEl.value = data.squareFootage != null ? data.squareFootage : '';
       estimateItems = (data.lineItems || []).map(i => ({
         code: i.code || '',
         name: i.name || '',
@@ -5903,6 +5913,7 @@ document.addEventListener("DOMContentLoaded", () => {
         markupMode: markupModeEl.value,
         markupPercent: parseFloat(markupPctEl.value) || 0,
         preparedBy: preparedByEl.value || null,
+        squareFootage: sqftEl && sqftEl.value !== '' ? parseFloat(sqftEl.value) : null,
         lineItems: estimateItems,
       });
       setMsg('Estimate saved.');
@@ -6030,6 +6041,7 @@ document.addEventListener("DOMContentLoaded", () => {
         markupMode: markupModeEl.value,
         markupPercent: parseFloat(markupPctEl.value) || 0,
         preparedBy: preparedByEl.value || null,
+        squareFootage: sqftEl && sqftEl.value !== '' ? parseFloat(sqftEl.value) : null,
         lineItems: estimateItems,
       });
       const res = await generateEstimateScope(jobId, ctxEl.value.trim());
@@ -6145,6 +6157,7 @@ document.addEventListener("DOMContentLoaded", () => {
   downloadBtn.addEventListener('click', onDownloadBid);
   markupModeEl.addEventListener('change', updateTotals);
   markupPctEl.addEventListener('input', () => { renderItems(); });
+  if (sqftEl) sqftEl.addEventListener('input', updateTotals);
 
   const aiGen = document.getElementById('ai-scope-generate');
   if (aiGen) aiGen.addEventListener('click', onAiGenerate);
