@@ -91,7 +91,7 @@ router.get('/', async (req, res) => {
 // Replaces description, markup settings, and the entire line items list in one shot.
 router.put('/', async (req, res) => {
   const { jobId } = req.params;
-  const { description, markupMode, markupPercent, preparedBy, squareFootage, lineItems } = req.body;
+  const { description, markupMode, markupPercent, preparedBy, squareFootage, aiPrompt, aiVerbose, lineItems } = req.body;
   if (!Array.isArray(lineItems)) return res.status(400).json({ error: 'lineItems must be an array' });
 
   const pool = getPool();
@@ -106,14 +106,18 @@ router.put('/', async (req, res) => {
          estimate_markup_percent = $3,
          estimate_prepared_by = $4,
          square_footage = $5,
+         estimate_ai_prompt = COALESCE($6, estimate_ai_prompt),
+         estimate_ai_verbose = COALESCE($7, estimate_ai_verbose),
          updated_at = NOW()
-       WHERE id = $6`,
+       WHERE id = $8`,
       [
         description || '',
         markupMode || 'fixed',
         markupPercent != null ? parseFloat(markupPercent) : 30,
         preparedBy || null,
         squareFootage != null && squareFootage !== '' ? parseFloat(squareFootage) : null,
+        aiPrompt != null ? aiPrompt : null,
+        typeof aiVerbose === 'boolean' ? aiVerbose : null,
         jobId,
       ]
     );

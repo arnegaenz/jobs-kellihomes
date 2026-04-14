@@ -5801,6 +5801,8 @@ document.addEventListener("DOMContentLoaded", () => {
           markupPercent: parseFloat(markupPctEl.value) || 0,
           preparedBy: preparedByEl.value || null,
           squareFootage: sqftEl && sqftEl.value !== '' ? parseFloat(sqftEl.value) : null,
+          aiPrompt: savedAiPrompt,
+          aiVerbose: savedAiVerbose,
           lineItems: estimateItems,
         });
         lastSaveOk = true;
@@ -6109,14 +6111,14 @@ document.addEventListener("DOMContentLoaded", () => {
     btn.textContent = hadPrior ? 'Regenerating…' : 'Generating…';
     if (aiMsgEl) { aiMsgEl.classList.remove('is-error'); aiMsgEl.textContent = 'Claude is drafting…'; }
     try {
-      // Save draft first so AI sees current line items
-      await flushSave();
       const verboseEl = document.getElementById('ai-scope-verbose');
       const verbose = !!(verboseEl && verboseEl.checked);
-      const res = await generateEstimateScope(jobId, ctxEl.value.trim(), { verbose });
-      // Update in-memory cache so it sticks across modal open/close this session
+      // Update in-memory cache FIRST so flushSave includes the prompt + verbose
       savedAiPrompt = ctxEl.value.trim();
       savedAiVerbose = verbose;
+      // Save everything (line items, description, prompt, verbose) before AI call
+      await flushSave();
+      const res = await generateEstimateScope(jobId, savedAiPrompt, { verbose });
       resultEl.value = res.scope || '';
       if (aiMsgEl) aiMsgEl.textContent = 'Review the draft below. Edit freely, then click "Use This Scope".';
       if (acceptBtn) acceptBtn.disabled = !resultEl.value.trim();
@@ -6253,6 +6255,22 @@ document.addEventListener("DOMContentLoaded", () => {
   if (sqftEl) sqftEl.addEventListener('input', () => { updateTotals(); scheduleAutoSave(); });
   descEl.addEventListener('input', scheduleAutoSave);
   preparedByEl.addEventListener('change', scheduleAutoSave);
+
+  // Autosave AI prompt + verbose as the user edits them in the modal
+  const aiCtxEl = document.getElementById('ai-scope-context');
+  const aiVerboseEl = document.getElementById('ai-scope-verbose');
+  if (aiCtxEl) {
+    aiCtxEl.addEventListener('input', () => {
+      savedAiPrompt = aiCtxEl.value;
+      scheduleAutoSave();
+    });
+  }
+  if (aiVerboseEl) {
+    aiVerboseEl.addEventListener('change', () => {
+      savedAiVerbose = aiVerboseEl.checked;
+      scheduleAutoSave();
+    });
+  }
 
   const aiGen = document.getElementById('ai-scope-generate');
   if (aiGen) aiGen.addEventListener('click', onAiGenerate);
