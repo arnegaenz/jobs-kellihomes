@@ -5955,6 +5955,7 @@ document.addEventListener("DOMContentLoaded", () => {
       if (sqftEl) sqftEl.value = data.squareFootage != null ? data.squareFootage : '';
       savedAiPrompt = data.aiPrompt || '';
       savedAiVerbose = !!data.aiVerbose;
+      console.log('[estimate] loaded aiPrompt=', JSON.stringify(savedAiPrompt), 'aiVerbose=', savedAiVerbose);
       estimateItems = (data.lineItems || []).map(i => ({
         code: i.code || '',
         name: i.name || '',
@@ -6091,6 +6092,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const genBtn = document.getElementById('ai-scope-generate');
     if (!modal) return;
     // Pre-populate with the last saved prompt + verbose setting for this job
+    console.log('[estimate] opening AI modal; will populate with prompt=', JSON.stringify(savedAiPrompt), 'verbose=', savedAiVerbose);
     ctxEl.value = savedAiPrompt || '';
     if (verboseEl) verboseEl.checked = !!savedAiVerbose;
     resultEl.value = '';
