@@ -667,6 +667,15 @@ select.kh-input--compact {
   color: var(--kh-accent);
 }
 
+.kh-stage-text {
+  font-weight: 600;
+  font-size: 13px;
+}
+.kh-stage-text.kh-pill--stage { color: var(--kh-accent); }
+.kh-stage-text.kh-pill--ok { color: var(--kh-pill-ok); }
+.kh-stage-text.kh-pill--watch { color: var(--kh-pill-watch); }
+.kh-stage-text.kh-pill--risk { color: var(--kh-pill-risk); }
+
 .kh-pill--ok {
   color: var(--kh-pill-ok);
 }

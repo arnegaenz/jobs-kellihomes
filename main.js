@@ -800,7 +800,10 @@ function renderJobsTable(jobs) {
     clientCell.textContent = job.client || "—";
 
     const stageCell = document.createElement("td");
-    stageCell.appendChild(createPill(job.stage || "—", stageClass(job.stage)));
+    const stageText = document.createElement("span");
+    stageText.className = `kh-stage-text ${stageClass(job.stage)}`;
+    stageText.textContent = job.stage || "—";
+    stageCell.appendChild(stageText);
 
     const typeCell = document.createElement("td");
     typeCell.textContent = job.type || "—";
