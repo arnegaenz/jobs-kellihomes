@@ -5871,6 +5871,14 @@ document.addEventListener("DOMContentLoaded", () => {
             e.target.value = v || '';
             e.target.select();
           });
+          // On the LAST row, Tab from Cost jumps straight to "+ Add line item"
+          // so the user can Space to add a new row without the address bar stealing focus.
+          inp.addEventListener('keydown', (e) => {
+            if (e.key === 'Tab' && !e.shiftKey && idx === estimateItems.length - 1) {
+              e.preventDefault();
+              if (addBtn) addBtn.focus();
+            }
+          });
         }
       });
       row.querySelector('[data-remove]').addEventListener('click', () => {
