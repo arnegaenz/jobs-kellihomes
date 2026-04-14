@@ -694,8 +694,15 @@ select.kh-input--compact {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  min-width: 160px;
-  max-width: 240px;
+  width: 170px;
+  flex: 0 0 170px;
+}
+.kh-estimate-toolbar .kh-field .kh-input,
+.kh-estimate-toolbar .kh-field select,
+.kh-estimate-toolbar .kh-field input[type="number"] {
+  width: 100% !important;
+  height: 36px;
+  box-sizing: border-box;
 }
 .kh-estimate-toolbar .kh-field__label {
   font-size: 11px;
@@ -812,13 +819,21 @@ select.kh-input--compact {
   background: var(--kh-bg-soft, #fafafa);
 }
 
-/* ──── Tone down stage pill on job detail header ──── */
-.kh-panel__header .kh-pill--stage {
-  color: var(--kh-text-muted);
-  background: transparent;
-  border-color: var(--kh-border);
+/* ──── Non-interactive stage indicator on job detail header ──── */
+.kh-stage-indicator {
+  display: inline-block;
+  padding: 0 10px;
+  font-size: 12px;
   font-weight: 500;
+  color: var(--kh-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  align-self: center;
 }
+.kh-stage-indicator.kh-pill--stage { color: var(--kh-accent); }
+.kh-stage-indicator.kh-pill--ok { color: var(--kh-pill-ok); }
+.kh-stage-indicator.kh-pill--watch { color: var(--kh-pill-watch); }
+.kh-stage-indicator.kh-pill--risk { color: var(--kh-pill-risk); }
 .kh-stage-text.kh-pill--stage { color: var(--kh-accent); }
 .kh-stage-text.kh-pill--ok { color: var(--kh-pill-ok); }
 .kh-stage-text.kh-pill--watch { color: var(--kh-pill-watch); }

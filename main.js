@@ -3597,7 +3597,7 @@ function renderJobDetail(job) {
   const stagePill = document.getElementById("job-stage-pill");
   if (stagePill) {
     stagePill.textContent = job.stage || "—";
-    stagePill.className = `kh-pill ${stageClass(job.stage)}`;
+    stagePill.className = `kh-stage-indicator ${stageClass(job.stage)}`;
   }
 
   setText("glance-start", formatDate(job.startDate));
