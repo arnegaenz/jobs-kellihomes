@@ -5812,19 +5812,38 @@ document.addEventListener("DOMContentLoaded", () => {
         <td><input type="text" class="kh-input kh-input--compact" data-field="code" value="${escapeAttr(item.code || '')}" placeholder="Code" /></td>
         <td><input type="text" class="kh-input kh-input--compact" data-field="name" value="${escapeAttr(item.name || '')}" placeholder="Name" /></td>
         <td><input type="text" class="kh-input kh-input--compact" data-field="description" value="${escapeAttr(item.description || '')}" placeholder="(optional)" /></td>
-        <td><input type="number" class="kh-input kh-input--compact" data-field="cost" value="${item.cost || 0}" min="0" step="100" style="text-align:right;" /></td>
+        <td>
+          <div class="kh-money-input">
+            <span class="kh-money-input__prefix">$</span>
+            <input type="text" inputmode="decimal" class="kh-input kh-input--compact" data-field="cost" value="${item.cost ? Number(item.cost).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 }) : ''}" placeholder="0" />
+          </div>
+        </td>
         <td style="text-align:right;" class="client-price">${fmtMoney(clientPrice)}</td>
-        <td><button type="button" class="kh-link" data-remove="${idx}">Remove</button></td>
+        <td><button type="button" class="kh-row-remove" data-remove="${idx}" title="Remove line" aria-label="Remove line">×</button></td>
       `;
       row.querySelectorAll('input[data-field]').forEach(inp => {
         inp.addEventListener('input', (e) => {
           const field = e.target.dataset.field;
-          item[field] = field === 'cost' ? parseFloat(e.target.value) || 0 : e.target.value;
           if (field === 'cost') {
-            row.querySelector('.client-price').textContent = fmtMoney((parseFloat(item.cost) || 0) * markupMultiplier());
+            const raw = e.target.value.replace(/[^0-9.]/g, '');
+            item.cost = parseFloat(raw) || 0;
+            row.querySelector('.client-price').textContent = fmtMoney(item.cost * markupMultiplier());
             updateTotals();
+          } else {
+            item[field] = e.target.value;
           }
         });
+        if (inp.dataset.field === 'cost') {
+          inp.addEventListener('blur', (e) => {
+            const v = parseFloat(e.target.value.replace(/[^0-9.]/g, '')) || 0;
+            e.target.value = v ? v.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 }) : '';
+          });
+          inp.addEventListener('focus', (e) => {
+            const v = parseFloat(e.target.value.replace(/[^0-9.]/g, '')) || 0;
+            e.target.value = v || '';
+            e.target.select();
+          });
+        }
       });
       row.querySelector('[data-remove]').addEventListener('click', () => {
         if (!window.confirm(`Remove "${item.name || 'this line'}" from the estimate?`)) return;

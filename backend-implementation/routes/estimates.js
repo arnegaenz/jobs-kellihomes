@@ -455,24 +455,24 @@ router.post('/generate-scope', async (req, res) => {
       ? items.map(i => `  - ${i.code ? i.code + ' ' : ''}${i.name}${i.description ? ' — ' + i.description : ''}`).join('\n')
       : '  (no line items yet)';
 
-    const userPrompt = `You are drafting a construction project scope of work for a client-facing bid from Kelli Homes, a Pacific Northwest home builder.
+    const userPrompt = `Draft a concise scope of work for a Kelli Homes construction bid.
 
 Job: ${job.name || '(unnamed)'}
 Type: ${job.type || 'Not specified'}
 Location: ${job.location || 'Not specified'}
 Target completion: ${job.target_completion || 'TBD'}
 
-Planned work (line items):
+Planned work:
 ${itemList}
-${context ? `\nAdditional context from the contractor: ${context}` : ''}
+${context ? `\nContractor notes: ${context}` : ''}
 
-Write a 2-3 paragraph professional scope of work suitable for a homeowner signing a contract. Plain English, no construction jargon. Start with a one-sentence project overview. Describe the scope in a logical sequence (site prep → structure → finishes → handoff where applicable). Close with a brief statement about Kelli Homes' commitment to quality and workmanship. Do NOT include pricing, dollar amounts, or markup details — that appears in a separate table. Do NOT use headings or bullet lists. Just 2-3 flowing paragraphs.`;
+Write 1-2 short paragraphs (120-180 words total). Plain English, no construction jargon, no headings, no bullet lists. Open with a single-sentence project summary. Describe the core scope in a logical sequence. No dollar amounts, no markup details, no restatement of line item lists verbatim. Do not include a separate "commitment to quality" sentence — keep it tight and factual.`;
 
     const Anthropic = require('@anthropic-ai/sdk');
     const client = new Anthropic.default({ apiKey: process.env.ANTHROPIC_API_KEY });
     const msg = await client.messages.create({
       model: 'claude-haiku-4-5-20251001',
-      max_tokens: 800,
+      max_tokens: 400,
       messages: [{ role: 'user', content: userPrompt }],
     });
     const text = msg.content?.[0]?.text || '';
