@@ -13,6 +13,11 @@
   --kh-shadow-soft: 0 6px 18px rgba(0, 0, 0, 0.06);
 }
 
+/* Prevent double-tap zoom on all devices */
+* {
+  touch-action: manipulation;
+}
+
 /* Tab Navigation System */
 .kh-tabs {
   margin-top: 24px;
@@ -1863,6 +1868,15 @@ html {
   border-top: 1px solid var(--kh-border);
   display: flex;
   justify-content: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.kh-doc-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
 }
 
 /* Documents table grid mode */
@@ -1988,6 +2002,49 @@ html {
   border-color: #d4d4d4;
   color: #999;
   text-decoration: line-through;
+}
+
+/* Inline Select Pills — editable priority/status dropdowns */
+.kh-inline-select {
+  appearance: none;
+  -webkit-appearance: none;
+  border: none;
+  outline: none;
+  cursor: pointer;
+  font-weight: 500;
+  font-size: 12px;
+  padding: 2px 20px 2px 10px;
+  border-radius: 999px;
+  white-space: nowrap;
+  background-color: transparent;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23666' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 6px center;
+  background-size: 8px;
+  transition: box-shadow 0.3s ease;
+}
+
+.kh-inline-select:focus {
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.4);
+}
+
+/* Priority variants */
+.kh-inline-select--low { background-color: #f0f0f0; color: #666; }
+.kh-inline-select--medium { background-color: #dbeafe; color: #1e40af; }
+.kh-inline-select--high { background-color: #fef3c7; color: #92400e; }
+.kh-inline-select--urgent { background-color: #fecaca; color: #991b1b; }
+
+/* Status variants — outline style */
+.kh-inline-select--not-started { border: 1px solid #ccc; color: #888; }
+.kh-inline-select--in-progress { border: 1px solid #93c5fd; color: #1e60af; }
+.kh-inline-select--complete { border: 1px solid #86efac; color: #166534; }
+.kh-inline-select--on-hold { border: 1px solid #fcd34d; color: #92400e; }
+.kh-inline-select--blocked { border: 1px solid #fca5a5; color: #b91c1c; }
+.kh-inline-select--cancelled { border: 1px solid #d4d4d4; color: #999; text-decoration: line-through; }
+
+/* Save feedback flash */
+.kh-inline-select--saved {
+  box-shadow: 0 0 0 2px #22c55e !important;
 }
 
 /* Checkbox Group for Assignees */
@@ -2559,10 +2616,6 @@ html {
     display: none;
   }
 
-  /* Prevent double-tap zoom */
-  * {
-    touch-action: manipulation;
-  }
 }
 
 /* ==========================================

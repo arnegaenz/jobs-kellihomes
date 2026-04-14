@@ -221,6 +221,13 @@ export async function requestDocumentUpload(jobId, file, documentType) {
   });
 }
 
+export async function createDocumentShareLink(documentId) {
+  const apiBaseUrl = getApiBaseUrl();
+  return fetchJson(`${apiBaseUrl}/documents/${documentId}/share`, {
+    method: "POST"
+  });
+}
+
 export async function deleteDocument(documentId) {
   const apiBaseUrl = getApiBaseUrl();
   return fetchJson(`${apiBaseUrl}/documents/${documentId}`, {

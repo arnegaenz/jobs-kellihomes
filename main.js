@@ -10,6 +10,7 @@ import {
   fetchDocuments,
   requestDocumentUpload,
   deleteDocument,
+  createDocumentShareLink,
   restoreDocument,
   updateDocumentType,
   fetchBusinessDocuments,
@@ -3629,6 +3630,28 @@ async function loadDocuments(jobId) {
   }
 }
 
+async function handleCopyShareLink(docId, btn) {
+  const originalText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = "Creating link...";
+  try {
+    const { url } = await createDocumentShareLink(docId);
+    await navigator.clipboard.writeText(url);
+    btn.textContent = "Link copied (7 days)";
+    setTimeout(() => {
+      btn.textContent = originalText;
+      btn.disabled = false;
+    }, 2500);
+  } catch (error) {
+    console.error("Failed to create share link.", error);
+    btn.textContent = "Copy failed";
+    setTimeout(() => {
+      btn.textContent = originalText;
+      btn.disabled = false;
+    }, 2500);
+  }
+}
+
 function renderDocuments(jobId, documents) {
   const list = document.getElementById("documents-list");
   if (!list) return;
@@ -3672,7 +3695,11 @@ function renderDocuments(jobId, documents) {
           </div>
         </div>
         <div class="kh-doc-card-footer">
-          <button class="kh-link" data-doc-id="${doc.id}">${doc.deletedAt ? "Restore" : "Trash"}</button>
+          ${doc.deletedAt ? "" : `
+            <a class="kh-link" href="${doc.downloadUrl || doc.url || "#"}" ${doc.downloadUrl ? "" : 'target="_blank" rel="noopener"'}>Download</a>
+            <button class="kh-link" data-action="share" data-doc-id="${doc.id}">Copy link</button>
+          `}
+          <button class="kh-link" data-action="trash" data-doc-id="${doc.id}">${doc.deletedAt ? "Restore" : "Trash"}</button>
         </div>
       `;
       if (doc.url && !doc.deletedAt) {
@@ -3694,26 +3721,39 @@ function renderDocuments(jobId, documents) {
             <div class="kh-doc-meta">${doc.documentType || "—"} · ${formatDate(doc.createdAt)}</div>
           </div>
         </div>
-        <button class="kh-link" data-doc-id="${doc.id}">${doc.deletedAt ? "Restore" : "Move to trash"}</button>
+        <div class="kh-doc-actions">
+          ${doc.deletedAt ? "" : `
+            <a class="kh-link" href="${doc.downloadUrl || doc.url || "#"}" ${doc.downloadUrl ? "" : 'target="_blank" rel="noopener"'}>Download</a>
+            <button class="kh-link" data-action="share" data-doc-id="${doc.id}">Copy link</button>
+          `}
+          <button class="kh-link" data-action="trash" data-doc-id="${doc.id}">${doc.deletedAt ? "Restore" : "Move to trash"}</button>
+        </div>
       `;
     }
 
-    item.querySelector("button").addEventListener("click", async (e) => {
-      const btn = e.target;
-      setButtonLoading(btn, doc.deletedAt ? "Restoring..." : "Deleting...");
-      try {
-        if (doc.deletedAt) {
-          await restoreDocument(doc.id);
-        } else {
-          await deleteDocument(doc.id);
+    const shareBtn = item.querySelector('[data-action="share"]');
+    if (shareBtn) {
+      shareBtn.addEventListener("click", (e) => handleCopyShareLink(doc.id, e.currentTarget));
+    }
+    const trashBtn = item.querySelector('[data-action="trash"]');
+    if (trashBtn) {
+      trashBtn.addEventListener("click", async (e) => {
+        const btn = e.currentTarget;
+        setButtonLoading(btn, doc.deletedAt ? "Restoring..." : "Deleting...");
+        try {
+          if (doc.deletedAt) {
+            await restoreDocument(doc.id);
+          } else {
+            await deleteDocument(doc.id);
+          }
+          loadDocuments(jobId);
+        } catch (error) {
+          console.error("Failed to update document.", error);
+          setMessage("documents-message", "Unable to update document.", true);
+          resetButton(btn);
         }
-        loadDocuments(jobId);
-      } catch (error) {
-        console.error("Failed to update document.", error);
-        setMessage("documents-message", "Unable to update document.", true);
-        resetButton(btn);
-      }
-    });
+      });
+    }
     list.appendChild(item);
   });
 }

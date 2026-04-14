@@ -51,15 +51,23 @@ router.get('/', async (req, res) => {
     const documentsWithUrls = await Promise.all(
       result.rows.map(async (doc) => {
         try {
-          const command = new GetObjectCommand({
+          const viewCmd = new GetObjectCommand({
             Bucket: S3_BUCKET,
             Key: doc.storageKey,
           });
-          const url = await getSignedUrl(s3Client, command, { expiresIn: 3600 }); // 1 hour
-          return { ...doc, url };
+          const downloadCmd = new GetObjectCommand({
+            Bucket: S3_BUCKET,
+            Key: doc.storageKey,
+            ResponseContentDisposition: `attachment; filename="${(doc.name || 'document').replace(/"/g, '')}"`,
+          });
+          const [url, downloadUrl] = await Promise.all([
+            getSignedUrl(s3Client, viewCmd, { expiresIn: 3600 }),
+            getSignedUrl(s3Client, downloadCmd, { expiresIn: 3600 }),
+          ]);
+          return { ...doc, url, downloadUrl };
         } catch (error) {
           logger.error('Error generating presigned URL for document', { docId: doc.id, error: error.message });
-          return { ...doc, url: null };
+          return { ...doc, url: null, downloadUrl: null };
         }
       })
     );
@@ -273,6 +281,39 @@ router.post('/upload', async (req, res) => {
       code: error.code
     });
     res.status(500).json({ error: 'Failed to initiate document upload', details: error.message });
+  }
+});
+
+// POST /documents/:id/share - Mint a 7-day shareable presigned URL
+router.post('/:id/share', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const pool = getPool();
+    const result = await pool.query(
+      'SELECT id, storage_key AS "storageKey", name FROM documents WHERE id = $1 AND deleted_at IS NULL',
+      [id]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Document not found' });
+    }
+    const doc = result.rows[0];
+    const expiresInSeconds = 7 * 24 * 60 * 60;
+    const command = new GetObjectCommand({
+      Bucket: S3_BUCKET,
+      Key: doc.storageKey,
+      ResponseContentDisposition: `inline; filename="${(doc.name || 'document').replace(/"/g, '')}"`,
+    });
+    const url = await getSignedUrl(s3Client, command, { expiresIn: expiresInSeconds });
+    const expiresAt = new Date(Date.now() + expiresInSeconds * 1000).toISOString();
+    logger.info('Document share link created', {
+      docId: id,
+      createdBy: req.user.username,
+      expiresAt,
+    });
+    res.json({ url, expiresAt });
+  } catch (error) {
+    logger.error('Error creating share link', { error: error.message });
+    res.status(500).json({ error: 'Failed to create share link' });
   }
 });
 
