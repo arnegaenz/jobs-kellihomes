@@ -1731,13 +1731,34 @@ function renderDocumentsTable(documents, jobs, onTypeChange) {
           <div class="kh-doc-grid-card__meta">${doc.documentType || "—"} · ${jobMap.get(doc.jobId) || "—"}</div>
           <div class="kh-doc-grid-card__meta">${formatDate(doc.createdAt)}</div>
         </div>
+        ${doc.deletedAt ? "" : `
+          <div class="kh-doc-card-footer">
+            <a class="kh-link" data-action="download" href="${doc.downloadUrl || doc.url || "#"}" ${doc.downloadUrl ? "" : 'target="_blank" rel="noopener"'}>Download</a>
+            <button class="kh-link" data-action="share" data-doc-id="${doc.id}">Copy link</button>
+          </div>
+        `}
       `;
 
       if (doc.url && !doc.deletedAt) {
-        card.style.cursor = "pointer";
-        card.addEventListener("click", () => {
+        card.querySelector(".kh-doc-thumb").style.cursor = "pointer";
+        card.querySelector(".kh-doc-thumb").addEventListener("click", () => {
           window.open(doc.url, "_blank", "noopener");
         });
+        card.querySelector(".kh-doc-grid-card__body").style.cursor = "pointer";
+        card.querySelector(".kh-doc-grid-card__body").addEventListener("click", () => {
+          window.open(doc.url, "_blank", "noopener");
+        });
+        const shareBtn = card.querySelector('[data-action="share"]');
+        if (shareBtn) {
+          shareBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            handleCopyShareLink(doc.id, e.currentTarget);
+          });
+        }
+        const dlLink = card.querySelector('[data-action="download"]');
+        if (dlLink) {
+          dlLink.addEventListener("click", (e) => e.stopPropagation());
+        }
       }
 
       if (showPdfThumb) {
@@ -1812,6 +1833,21 @@ function renderDocumentsTable(documents, jobs, onTypeChange) {
     const dateCell = document.createElement("td");
     dateCell.textContent = formatDate(doc.createdAt);
 
+    const actionsCell = document.createElement("td");
+    if (!doc.deletedAt) {
+      actionsCell.className = "kh-doc-actions";
+      const dl = document.createElement("a");
+      dl.className = "kh-link";
+      dl.textContent = "Download";
+      dl.href = doc.downloadUrl || doc.url || "#";
+      if (!doc.downloadUrl) { dl.target = "_blank"; dl.rel = "noopener"; }
+      const share = document.createElement("button");
+      share.className = "kh-link";
+      share.textContent = "Copy link";
+      share.addEventListener("click", (e) => handleCopyShareLink(doc.id, e.currentTarget));
+      actionsCell.append(dl, share);
+    }
+
     if (doc.deletedAt) {
       row.classList.add("is-trashed");
     }
@@ -1822,7 +1858,7 @@ function renderDocumentsTable(documents, jobs, onTypeChange) {
       });
     }
 
-    row.append(docCell, typeCell, jobCell, dateCell);
+    row.append(docCell, typeCell, jobCell, dateCell, actionsCell);
     tableBody.appendChild(row);
   });
 }
