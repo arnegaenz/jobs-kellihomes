@@ -221,46 +221,91 @@ export async function requestDocumentUpload(jobId, file, documentType) {
   });
 }
 
-export async function fetchEstimate(jobId) {
+// ─── Estimates ─────────────────────────────────────────────────────────────
+// Each job may hold many estimates; per-estimate operations are keyed on
+// the estimate id returned by listEstimatesForJob / createEstimate.
+
+export async function listEstimatesForJob(jobId) {
   const apiBaseUrl = getApiBaseUrl();
-  return fetchJsonDedup(`${apiBaseUrl}/jobs/${encodeURIComponent(jobId)}/estimate`);
+  const res = await fetchJsonDedup(`${apiBaseUrl}/jobs/${encodeURIComponent(jobId)}/estimates`);
+  return res?.estimates || [];
 }
 
-export async function saveEstimate(jobId, payload) {
+export async function createEstimate(jobId, label) {
   const apiBaseUrl = getApiBaseUrl();
-  return fetchJson(`${apiBaseUrl}/jobs/${encodeURIComponent(jobId)}/estimate`, {
+  return fetchJson(`${apiBaseUrl}/jobs/${encodeURIComponent(jobId)}/estimates`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ label: label || null }),
+  });
+}
+
+export async function fetchEstimate(estimateId) {
+  const apiBaseUrl = getApiBaseUrl();
+  return fetchJsonDedup(`${apiBaseUrl}/estimates/${encodeURIComponent(estimateId)}`);
+}
+
+export async function saveEstimate(estimateId, payload) {
+  const apiBaseUrl = getApiBaseUrl();
+  return fetchJson(`${apiBaseUrl}/estimates/${encodeURIComponent(estimateId)}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
 }
 
-export async function previewEstimatePublish(jobId) {
+export async function fetchEstimateRevisions(estimateId) {
   const apiBaseUrl = getApiBaseUrl();
-  return fetchJson(`${apiBaseUrl}/jobs/${encodeURIComponent(jobId)}/estimate/publish/preview`, {
+  return fetchJsonDedup(`${apiBaseUrl}/estimates/${encodeURIComponent(estimateId)}/revisions`);
+}
+
+export async function previewEstimatePublish(estimateId) {
+  const apiBaseUrl = getApiBaseUrl();
+  return fetchJson(`${apiBaseUrl}/estimates/${encodeURIComponent(estimateId)}/publish/preview`, {
     method: "POST",
   });
 }
 
-export async function confirmEstimatePublish(jobId) {
+export async function confirmEstimatePublish(estimateId) {
   const apiBaseUrl = getApiBaseUrl();
-  return fetchJson(`${apiBaseUrl}/jobs/${encodeURIComponent(jobId)}/estimate/publish/confirm`, {
+  return fetchJson(`${apiBaseUrl}/estimates/${encodeURIComponent(estimateId)}/publish/confirm`, {
     method: "POST",
   });
 }
 
-export async function generateEstimateScope(jobId, context, options = {}) {
+export async function acceptEstimate(estimateId) {
   const apiBaseUrl = getApiBaseUrl();
-  return fetchJson(`${apiBaseUrl}/jobs/${encodeURIComponent(jobId)}/estimate/generate-scope`, {
+  return fetchJson(`${apiBaseUrl}/estimates/${encodeURIComponent(estimateId)}/accept`, {
+    method: "POST",
+  });
+}
+
+export async function declineEstimate(estimateId) {
+  const apiBaseUrl = getApiBaseUrl();
+  return fetchJson(`${apiBaseUrl}/estimates/${encodeURIComponent(estimateId)}/decline`, {
+    method: "POST",
+  });
+}
+
+export async function archiveEstimate(estimateId) {
+  const apiBaseUrl = getApiBaseUrl();
+  return fetchJson(`${apiBaseUrl}/estimates/${encodeURIComponent(estimateId)}/archive`, {
+    method: "POST",
+  });
+}
+
+export async function generateEstimateScope(estimateId, context, options = {}) {
+  const apiBaseUrl = getApiBaseUrl();
+  return fetchJson(`${apiBaseUrl}/estimates/${encodeURIComponent(estimateId)}/generate-scope`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ context: context || "", verbose: !!options.verbose }),
   });
 }
 
-export function getBidPdfUrl(jobId) {
+export function getBidPdfUrl(estimateId) {
   const apiBaseUrl = getApiBaseUrl();
-  return `${apiBaseUrl}/jobs/${encodeURIComponent(jobId)}/estimate/bid.pdf`;
+  return `${apiBaseUrl}/estimates/${encodeURIComponent(estimateId)}/bid.pdf`;
 }
 
 export async function createDocumentShareLink(documentId) {

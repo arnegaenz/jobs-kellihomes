@@ -208,16 +208,37 @@
 
           <!-- Estimating Tab -->
           <div class="kh-tab-panel" data-tab-panel="estimate">
-            <div class="kh-panel">
+
+            <!-- LIST VIEW: all estimates for this job -->
+            <div class="kh-panel" id="estimate-list-view">
               <div class="kh-panel__header">
                 <div>
-                  <div class="kh-panel__title">Estimate</div>
-                  <div class="kh-panel__subtitle" id="estimate-status-line">Draft — not yet published.</div>
+                  <div class="kh-panel__title">Estimates</div>
+                  <div class="kh-panel__subtitle" id="estimate-list-summary">Loading…</div>
                 </div>
                 <div class="kh-estimate-actions">
-                  <button type="button" class="kh-button kh-button--ghost" id="estimate-clear">Clear Estimate</button>
-                  <button type="button" class="kh-button kh-button--ghost" id="estimate-download-bid">Download Bid PDF</button>
-                  <button type="button" class="kh-button" id="estimate-publish">Publish to Line Items</button>
+                  <button type="button" class="kh-button" id="estimate-new">+ New Estimate</button>
+                </div>
+              </div>
+              <div id="estimate-list-body"></div>
+            </div>
+
+            <!-- EDITOR VIEW: edit one estimate -->
+            <div class="kh-panel" id="estimate-editor-view" hidden>
+              <div class="kh-panel__header">
+                <div>
+                  <div style="margin-bottom:6px;">
+                    <button type="button" class="kh-button kh-button--ghost kh-button--small" id="estimate-back-to-list">← All estimates</button>
+                  </div>
+                  <div class="kh-panel__title" id="estimate-editor-title">Estimate</div>
+                  <div class="kh-panel__subtitle" id="estimate-status-line">Draft</div>
+                </div>
+                <div class="kh-estimate-actions">
+                  <button type="button" class="kh-button kh-button--ghost" id="estimate-rename">Rename</button>
+                  <button type="button" class="kh-button kh-button--ghost" id="estimate-clear">Clear</button>
+                  <button type="button" class="kh-button kh-button--ghost" id="estimate-download-bid">Download PDF</button>
+                  <button type="button" class="kh-button kh-button--ghost" id="estimate-publish">Publish / Send</button>
+                  <button type="button" class="kh-button" id="estimate-accept">Accept</button>
                 </div>
               </div>
               <div class="kh-form-message" id="estimate-message"></div>
@@ -280,7 +301,15 @@
                 </div>
                 <div class="kh-estimate-totals" id="estimate-totals"></div>
               </div>
+
+              <div class="kh-estimate-section">
+                <details id="estimate-revisions-section">
+                  <summary class="kh-estimate-section__title" style="cursor:pointer;"><span>Revisions</span></summary>
+                  <div id="estimate-revisions-list" style="margin-top:10px;"></div>
+                </details>
+              </div>
             </div>
+
           </div>
 
           <!-- Details Tab -->

@@ -102,7 +102,9 @@ app.use('/auth', authRoutes);
 
 app.use('/jobs', authenticateToken, jobsRoutes);
 app.use('/jobs/:jobId/line-items', authenticateToken, lineItemsRoutes);
-app.use('/jobs/:jobId/estimate', authenticateToken, estimatesRoutes);
+app.use('/jobs/:jobId/estimates', authenticateToken, estimatesRoutes.jobScoped);
+app.use('/estimates/:estimateId', authenticateToken, estimatesRoutes.singleScoped);
+app.use('/jobs/:jobId/estimate', authenticateToken, estimatesRoutes.legacyJobEstimate);
 app.use('/password', authenticateToken, passwordRoutes);
 app.use('/documents', authenticateToken, documentsRoutes);
 app.use('/business-documents', authenticateToken, businessDocumentsRoutes);

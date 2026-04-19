@@ -11,10 +11,16 @@ import {
   requestDocumentUpload,
   deleteDocument,
   createDocumentShareLink,
+  listEstimatesForJob,
+  createEstimate,
   fetchEstimate,
   saveEstimate,
+  fetchEstimateRevisions,
   previewEstimatePublish,
   confirmEstimatePublish,
+  acceptEstimate,
+  declineEstimate,
+  archiveEstimate,
   generateEstimateScope,
   getBidPdfUrl,
   restoreDocument,
@@ -5759,15 +5765,30 @@ document.addEventListener("DOMContentLoaded", () => {
 // ==========================================
 // Estimating Tab (job detail page only)
 // ==========================================
+//
+// The tab has two views:
+//   List view  — all estimates for the job; create new, open, accept, etc.
+//   Editor view — edit one estimate's scope + line items + markup
+// The selected estimate id is carried in the URL as `?estimate=<id>` so the
+// browser back/forward buttons feel natural.
 
 (function initEstimateTab() {
-  const itemsBody = typeof document !== 'undefined' && document.getElementById('estimate-items-body');
-  if (!itemsBody) return; // not on job page
+  const listView = document.getElementById('estimate-list-view');
+  const editorView = document.getElementById('estimate-editor-view');
+  if (!listView || !editorView) return; // not on job page
 
   const params = new URLSearchParams(window.location.search);
   const jobId = params.get('jobId');
   if (!jobId) return;
 
+  // ─── List view elements ─────────────────────────────────────────────────
+  const listBody = document.getElementById('estimate-list-body');
+  const listSummary = document.getElementById('estimate-list-summary');
+  const newBtn = document.getElementById('estimate-new');
+  const backBtn = document.getElementById('estimate-back-to-list');
+
+  // ─── Editor view elements ───────────────────────────────────────────────
+  const itemsBody = document.getElementById('estimate-items-body');
   const descEl = document.getElementById('estimate-description');
   const preparedByEl = document.getElementById('estimate-prepared-by');
   const markupModeEl = document.getElementById('estimate-markup-mode');
@@ -5775,36 +5796,224 @@ document.addEventListener("DOMContentLoaded", () => {
   const sqftEl = document.getElementById('estimate-sqft');
   const totalsEl = document.getElementById('estimate-totals');
   const statusLineEl = document.getElementById('estimate-status-line');
+  const titleEl = document.getElementById('estimate-editor-title');
   const msgEl = document.getElementById('estimate-message');
   const addBtn = document.getElementById('estimate-add-line-item');
   const aiBtn = document.getElementById('estimate-ai-scope');
   const publishBtn = document.getElementById('estimate-publish');
+  const acceptBtn = document.getElementById('estimate-accept');
   const downloadBtn = document.getElementById('estimate-download-bid');
+  const clearBtn = document.getElementById('estimate-clear');
+  const renameBtn = document.getElementById('estimate-rename');
+  const revisionsSection = document.getElementById('estimate-revisions-section');
+  const revisionsList = document.getElementById('estimate-revisions-list');
 
-  let estimateItems = [];  // working copy, unsaved changes live here
+  // ─── Editor state ───────────────────────────────────────────────────────
+  let currentEstimateId = null;
+  let currentEstimateLabel = '';
+  let currentEstimateStatus = 'draft';
   let currentVersion = 0;
-  let contractValue = null;
+  let acceptedAt = null;
+  let estimateItems = [];
+  let savedAiPrompt = '';
+  let savedAiVerbose = false;
+  let savedSquareFootage = null; // job-level field; saved via updateJob
   let autoSaveTimer = null;
-  let isLoaded = false; // don't autosave during initial load
+  let isLoaded = false;
   let lastSaveOk = true;
 
+  // ═══ Utilities ══════════════════════════════════════════════════════════
+
+  function fmtMoney(n) {
+    const v = parseFloat(n) || 0;
+    return '$' + v.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  }
+
+  function escapeAttr(s) {
+    return String(s == null ? '' : s).replace(/"/g, '&quot;').replace(/</g, '&lt;');
+  }
+
+  function markupMultiplier() {
+    const p = parseFloat(markupPctEl.value) || 0;
+    return 1 + (p / 100);
+  }
+
+  function setMsg(text, isError) {
+    if (!msgEl) return;
+    msgEl.textContent = text || '';
+    msgEl.classList.toggle('is-error', !!isError);
+  }
+
+  // Warn if the user refreshes/closes mid-debounce before the save fires
+  window.addEventListener('beforeunload', (e) => {
+    if (autoSaveTimer) { e.preventDefault(); e.returnValue = ''; return ''; }
+  });
+
+  // ═══ URL state + view switching ════════════════════════════════════════
+
+  function setUrlEstimate(estimateId) {
+    const u = new URL(window.location.href);
+    if (estimateId) u.searchParams.set('estimate', estimateId);
+    else u.searchParams.delete('estimate');
+    window.history.replaceState(null, '', u.toString());
+  }
+
+  function showListView() {
+    currentEstimateId = null;
+    isLoaded = false;
+    listView.hidden = false;
+    editorView.hidden = true;
+    setUrlEstimate(null);
+    renderList();
+  }
+
+  async function showEditorView(estimateId) {
+    listView.hidden = true;
+    editorView.hidden = false;
+    setUrlEstimate(estimateId);
+    currentEstimateId = estimateId;
+    await loadEstimate();
+  }
+
+  // ═══ List view ══════════════════════════════════════════════════════════
+
+  async function renderList() {
+    listSummary.textContent = 'Loading…';
+    listBody.innerHTML = '';
+    try {
+      const estimates = await listEstimatesForJob(jobId);
+      if (!estimates.length) {
+        listSummary.textContent = 'No estimates yet. Click "+ New Estimate" to start.';
+        return;
+      }
+      const acceptedCount = estimates.filter(e => e.status === 'accepted').length;
+      const acceptedTotal = estimates
+        .filter(e => e.status === 'accepted')
+        .reduce((s, e) => s + (parseFloat(e.acceptedTotal) || 0), 0);
+      listSummary.textContent = acceptedCount
+        ? `${estimates.length} estimate${estimates.length === 1 ? '' : 's'} · Contract value ${fmtMoney(acceptedTotal)} (${acceptedCount} accepted)`
+        : `${estimates.length} estimate${estimates.length === 1 ? '' : 's'} · None accepted yet`;
+      const sorted = estimates.slice().sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+      sorted.forEach(e => listBody.appendChild(renderListRow(e)));
+    } catch (err) {
+      console.error('Failed to list estimates', err);
+      listSummary.textContent = 'Failed to load estimates.';
+    }
+  }
+
+  function renderListRow(e) {
+    const statusLabels = {draft:'Draft', sent:'Sent', accepted:'Accepted', declined:'Declined', archived:'Archived'};
+    const statusColors = {draft:'var(--kh-text-muted)', sent:'#2563eb', accepted:'#16a34a', declined:'#b91c1c', archived:'#6b7280'};
+    const label = statusLabels[e.status] || e.status;
+    const color = statusColors[e.status] || 'var(--kh-text-muted)';
+    const verLabel = e.currentVersion > 0 ? ` · v${e.currentVersion}` : '';
+    const itemsLabel = `${e.itemCount} item${e.itemCount === 1 ? '' : 's'}`;
+
+    const actions = [];
+    actions.push(`<button type="button" class="kh-button kh-button--ghost kh-button--small" data-action="open">Open</button>`);
+    if (e.itemCount > 0) {
+      actions.push(`<button type="button" class="kh-button kh-button--ghost kh-button--small" data-action="download">Download PDF</button>`);
+    }
+    if (e.status !== 'accepted' && e.status !== 'declined' && e.status !== 'archived' && e.itemCount > 0) {
+      actions.push(`<button type="button" class="kh-button kh-button--small" data-action="accept">Accept</button>`);
+    }
+    if (e.status === 'draft' || e.status === 'sent') {
+      actions.push(`<button type="button" class="kh-button kh-button--ghost kh-button--small" data-action="decline">Decline</button>`);
+    }
+    if (e.status !== 'accepted' && e.status !== 'archived') {
+      actions.push(`<button type="button" class="kh-button kh-button--ghost kh-button--small" data-action="archive">Archive</button>`);
+    }
+
+    const acceptedLine = e.status === 'accepted' && e.acceptedAt
+      ? ` · Accepted ${new Date(e.acceptedAt).toLocaleDateString()}`
+      : '';
+
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;align-items:center;gap:16px;padding:14px 12px;border-bottom:1px solid var(--kh-border);';
+    row.innerHTML = `
+      <div style="flex:1;min-width:0;">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap;">
+          <span style="font-weight:600;">${escapeAttr(e.label || 'Estimate')}</span>
+          <span style="font-size:11px;font-weight:600;color:${color};text-transform:uppercase;letter-spacing:0.5px;">${label}${verLabel}</span>
+        </div>
+        <div style="font-size:13px;color:var(--kh-text-muted);">
+          ${itemsLabel} · Cost ${fmtMoney(e.totalCost)} · Bid ${fmtMoney(e.totalBid)}${acceptedLine}
+        </div>
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;">${actions.join('')}</div>
+    `;
+    row.querySelectorAll('[data-action]').forEach(btn => {
+      btn.addEventListener('click', () => handleListAction(btn.dataset.action, e));
+    });
+    return row;
+  }
+
+  async function handleListAction(action, estimate) {
+    try {
+      if (action === 'open') {
+        await showEditorView(estimate.id);
+      } else if (action === 'download') {
+        window.open(getBidPdfUrl(estimate.id), '_blank');
+      } else if (action === 'accept') {
+        const ok = window.confirm(
+          `Accept "${estimate.label}"?\n\nThis will push ${estimate.itemCount} line item(s) into the job's costing tab as budget baselines, and add ${fmtMoney(estimate.totalBid)} to the contract value. This cannot be undone.`
+        );
+        if (!ok) return;
+        await acceptEstimate(estimate.id);
+        renderList();
+      } else if (action === 'decline') {
+        const ok = window.confirm(`Decline "${estimate.label}"? It will be kept as record but can't be accepted.`);
+        if (!ok) return;
+        await declineEstimate(estimate.id);
+        renderList();
+      } else if (action === 'archive') {
+        const ok = window.confirm(`Archive "${estimate.label}"?`);
+        if (!ok) return;
+        await archiveEstimate(estimate.id);
+        renderList();
+      }
+    } catch (err) {
+      console.error(action, 'failed', err);
+      alert(`${action} failed: ${err.message || err}`);
+    }
+  }
+
+  async function onCreateNew() {
+    const label = window.prompt('Name this estimate (e.g., "Option A", "Kitchen only"):', 'Estimate');
+    if (label === null) return;
+    const trimmed = (label || '').trim() || 'Estimate';
+    try {
+      const created = await createEstimate(jobId, trimmed);
+      await showEditorView(created.id);
+    } catch (err) {
+      console.error('Create failed', err);
+      alert('Failed to create estimate: ' + (err.message || err));
+    }
+  }
+
+  // ═══ Editor view ════════════════════════════════════════════════════════
+
   function scheduleAutoSave() {
-    if (!isLoaded) return;
+    if (!isLoaded || !currentEstimateId) return;
     if (autoSaveTimer) clearTimeout(autoSaveTimer);
     setMsg('Saving…');
     autoSaveTimer = setTimeout(async () => {
       autoSaveTimer = null;
       try {
-        await saveEstimate(jobId, {
+        await saveEstimate(currentEstimateId, {
           description: descEl.value,
           markupMode: markupModeEl.value,
           markupPercent: parseFloat(markupPctEl.value) || 0,
           preparedBy: preparedByEl.value || null,
-          squareFootage: sqftEl && sqftEl.value !== '' ? parseFloat(sqftEl.value) : null,
           aiPrompt: savedAiPrompt,
           aiVerbose: savedAiVerbose,
           lineItems: estimateItems,
         });
+        const sqftVal = sqftEl && sqftEl.value !== '' ? parseFloat(sqftEl.value) : null;
+        if (sqftVal !== savedSquareFootage) {
+          await updateJob(jobId, { squareFootage: sqftVal });
+          savedSquareFootage = sqftVal;
+        }
         lastSaveOk = true;
         setMsg('Saved.');
         setTimeout(() => { if (msgEl && msgEl.textContent === 'Saved.') setMsg(''); }, 1500);
@@ -5816,29 +6025,30 @@ document.addEventListener("DOMContentLoaded", () => {
     }, 1000);
   }
 
-  // Warn if the user refreshes/closes mid-debounce before the save fires
-  window.addEventListener('beforeunload', (e) => {
-    if (autoSaveTimer) {
-      e.preventDefault();
-      e.returnValue = '';
-      return '';
+  async function flushSave() {
+    if (!currentEstimateId) return;
+    if (autoSaveTimer) { clearTimeout(autoSaveTimer); autoSaveTimer = null; }
+    try {
+      await saveEstimate(currentEstimateId, {
+        description: descEl.value,
+        markupMode: markupModeEl.value,
+        markupPercent: parseFloat(markupPctEl.value) || 0,
+        preparedBy: preparedByEl.value || null,
+        aiPrompt: savedAiPrompt,
+        aiVerbose: savedAiVerbose,
+        lineItems: estimateItems,
+      });
+      const sqftVal = sqftEl && sqftEl.value !== '' ? parseFloat(sqftEl.value) : null;
+      if (sqftVal !== savedSquareFootage) {
+        await updateJob(jobId, { squareFootage: sqftVal });
+        savedSquareFootage = sqftVal;
+      }
+      lastSaveOk = true;
+    } catch (err) {
+      lastSaveOk = false;
+      console.error('Save failed', err);
+      throw err;
     }
-  });
-
-  function setMsg(text, isError) {
-    if (!msgEl) return;
-    msgEl.textContent = text || '';
-    msgEl.classList.toggle('is-error', !!isError);
-  }
-
-  function fmtMoney(n) {
-    const v = parseFloat(n) || 0;
-    return '$' + v.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-  }
-
-  function markupMultiplier() {
-    const p = parseFloat(markupPctEl.value) || 0;
-    return 1 + (p / 100);
   }
 
   function renderItems() {
@@ -5883,8 +6093,6 @@ document.addEventListener("DOMContentLoaded", () => {
             e.target.value = v || '';
             e.target.select();
           });
-          // On the LAST row, Tab from Cost jumps straight to "+ Add line item"
-          // so the user can Space to add a new row without the address bar stealing focus.
           inp.addEventListener('keydown', (e) => {
             if (e.key === 'Tab' && !e.shiftKey && idx === estimateItems.length - 1) {
               e.preventDefault();
@@ -5903,7 +6111,7 @@ document.addEventListener("DOMContentLoaded", () => {
       itemsBody.appendChild(row);
     });
     if (estimateItems.length === 0) {
-      itemsBody.innerHTML = '<tr><td colspan="6" style="color:var(--kh-text-muted);padding:16px;">No line items yet. Click "Add line item" to pick from the catalog, or keep going and we\'ll guide you.</td></tr>';
+      itemsBody.innerHTML = '<tr><td colspan="6" style="color:var(--kh-text-muted);padding:16px;">No line items yet. Click "Add line item" to pick from the catalog.</td></tr>';
     }
     updateTotals();
   }
@@ -5931,10 +6139,6 @@ document.addEventListener("DOMContentLoaded", () => {
     `;
   }
 
-  function escapeAttr(s) {
-    return String(s == null ? '' : s).replace(/"/g, '&quot;').replace(/</g, '&lt;');
-  }
-
   function focusLastRowCost() {
     const rows = itemsBody.querySelectorAll('tr');
     if (!rows.length) return;
@@ -5944,22 +6148,49 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function updateStatusLine() {
     if (!statusLineEl) return;
-    if (currentVersion === 0) {
-      statusLineEl.textContent = 'Draft — not yet published.';
-    } else {
-      const cv = contractValue != null ? ` · Contract value: ${fmtMoney(contractValue)}` : '';
-      statusLineEl.textContent = `Published — v${currentVersion}${cv}`;
-    }
+    const statusLabels = {draft:'Draft', sent:'Sent to client', accepted:'Accepted — part of contract', declined:'Declined', archived:'Archived'};
+    const label = statusLabels[currentEstimateStatus] || currentEstimateStatus;
+    const ver = currentVersion > 0 ? ` · v${currentVersion}` : '';
+    const accepted = currentEstimateStatus === 'accepted' && acceptedAt
+      ? ` on ${new Date(acceptedAt).toLocaleDateString()}`
+      : '';
+    statusLineEl.textContent = `${label}${ver}${accepted}`;
+  }
+
+  function applyReadOnlyForStatus() {
+    // Accepted / declined / archived estimates are read-only. (Still viewable.)
+    const readOnly = ['accepted', 'declined', 'archived'].includes(currentEstimateStatus);
+    [descEl, preparedByEl, markupModeEl, markupPctEl, sqftEl].forEach(el => {
+      if (el) el.disabled = readOnly;
+    });
+    // Hide mutation buttons when read-only
+    const hide = (el) => { if (el) el.style.display = readOnly ? 'none' : ''; };
+    hide(addBtn); hide(aiBtn); hide(publishBtn); hide(acceptBtn); hide(clearBtn); hide(renameBtn);
+    // Disable row editing by re-rendering (inputs pick up disabled from renderItems)
+    itemsBody.querySelectorAll('input').forEach(i => { i.disabled = readOnly; });
+    itemsBody.querySelectorAll('[data-remove]').forEach(b => { b.style.display = readOnly ? 'none' : ''; });
   }
 
   async function loadEstimate() {
+    if (!currentEstimateId) return;
     try {
-      const data = await fetchEstimate(jobId);
+      const data = await fetchEstimate(currentEstimateId);
+      currentEstimateLabel = data.label || 'Estimate';
+      currentEstimateStatus = data.status || 'draft';
+      currentVersion = data.currentVersion || 0;
+      acceptedAt = data.acceptedAt || null;
+      if (titleEl) titleEl.textContent = currentEstimateLabel;
       descEl.value = data.description || '';
       preparedByEl.value = data.preparedBy || '';
       markupModeEl.value = data.markupMode || 'fixed';
       markupPctEl.value = data.markupPercent != null ? data.markupPercent : 30;
-      if (sqftEl) sqftEl.value = data.squareFootage != null ? data.squareFootage : '';
+      // Square footage lives on the job, so fetch it fresh.
+      try {
+        const job = await fetchJobById(jobId);
+        const sqft = job?.squareFootage;
+        if (sqftEl) sqftEl.value = sqft != null ? sqft : '';
+        savedSquareFootage = sqft != null ? parseFloat(sqft) : null;
+      } catch (_) { savedSquareFootage = null; }
       savedAiPrompt = data.aiPrompt || '';
       savedAiVerbose = !!data.aiVerbose;
       estimateItems = (data.lineItems || []).map(i => ({
@@ -5970,45 +6201,52 @@ document.addEventListener("DOMContentLoaded", () => {
         groupCode: i.groupCode || '',
         sortOrder: i.sortOrder || 0,
       }));
-      currentVersion = data.currentVersion || 0;
-      contractValue = data.contractValue;
       renderItems();
       updateStatusLine();
+      applyReadOnlyForStatus();
       isLoaded = true;
+      // Revisions accordion — lazy-load when opened
+      if (revisionsSection) {
+        revisionsSection.ontoggle = () => { if (revisionsSection.open) loadRevisions(); };
+        if (revisionsSection.open) loadRevisions();
+        else revisionsList.innerHTML = '';
+      }
     } catch (err) {
       console.error('Failed to load estimate', err);
       setMsg('Unable to load estimate.', true);
     }
   }
 
-  // Flush any pending autosave then save synchronously. Used before
-  // publish / download / AI generation where we need fresh server state.
-  async function flushSave() {
-    if (autoSaveTimer) { clearTimeout(autoSaveTimer); autoSaveTimer = null; }
+  async function loadRevisions() {
+    if (!currentEstimateId || !revisionsList) return;
+    revisionsList.innerHTML = '<span style="color:var(--kh-text-muted);">Loading…</span>';
     try {
-      await saveEstimate(jobId, {
-        description: descEl.value,
-        markupMode: markupModeEl.value,
-        markupPercent: parseFloat(markupPctEl.value) || 0,
-        preparedBy: preparedByEl.value || null,
-        squareFootage: sqftEl && sqftEl.value !== '' ? parseFloat(sqftEl.value) : null,
-        lineItems: estimateItems,
-      });
-      lastSaveOk = true;
+      const revisions = await fetchEstimateRevisions(currentEstimateId);
+      if (!revisions || !revisions.length) {
+        revisionsList.innerHTML = '<span style="color:var(--kh-text-muted);">No revisions yet. Click Publish / Send to freeze a version.</span>';
+        return;
+      }
+      revisionsList.innerHTML = revisions.map(r => `
+        <div style="padding:10px 0;border-bottom:1px solid var(--kh-border);display:flex;align-items:baseline;gap:12px;">
+          <span style="font-weight:600;min-width:50px;">v${r.version}</span>
+          <div style="flex:1;font-size:13px;color:var(--kh-text-muted);">
+            Published ${new Date(r.publishedAt).toLocaleString()} by ${escapeAttr(r.publishedBy || '—')}
+          </div>
+          <div style="font-variant-numeric:tabular-nums;">Cost ${fmtMoney(r.totalCost)} · Bid ${fmtMoney(r.totalBid)}</div>
+        </div>
+      `).join('');
     } catch (err) {
-      lastSaveOk = false;
-      console.error('Save failed', err);
-      throw err;
+      console.error('Failed to load revisions', err);
+      revisionsList.innerHTML = '<span style="color:var(--kh-text-muted);">Failed to load revisions.</span>';
     }
   }
 
-  // Reuse the existing LINE_ITEM_CATALOG from elsewhere in main.js via the window shim
+  // ═══ Catalog / AI / Publish / Accept / Rename / Download ════════════════
+
   function addFromCatalog() {
     const catalog = typeof LINE_ITEM_CATALOG !== 'undefined' ? LINE_ITEM_CATALOG : [];
     const existing = new Set(estimateItems.map(i => i.code).filter(Boolean));
     const available = catalog.filter(c => !existing.has(c.code));
-    // Simple prompt-based picker for v1 — the catalog modal used elsewhere is tightly
-    // coupled to the costing tab, so we use a list modal unique to the estimate.
     showEstimateCatalogModal(available);
   }
 
@@ -6087,24 +6325,20 @@ document.addEventListener("DOMContentLoaded", () => {
     modal.hidden = false;
   }
 
-  let savedAiPrompt = '';
-  let savedAiVerbose = false;
-
   function openAiModal() {
     const modal = document.getElementById('ai-scope-modal');
     const ctxEl = document.getElementById('ai-scope-context');
     const verboseEl = document.getElementById('ai-scope-verbose');
     const resultEl = document.getElementById('ai-scope-result');
     const aiMsgEl = document.getElementById('ai-scope-message');
-    const acceptBtn = document.getElementById('ai-scope-accept');
+    const acceptBtnEl = document.getElementById('ai-scope-accept');
     const genBtn = document.getElementById('ai-scope-generate');
     if (!modal) return;
-    // Pre-populate with the last saved prompt + verbose setting for this job
     ctxEl.value = savedAiPrompt || '';
     if (verboseEl) verboseEl.checked = !!savedAiVerbose;
     resultEl.value = '';
     if (aiMsgEl) { aiMsgEl.textContent = ''; aiMsgEl.classList.remove('is-error'); }
-    if (acceptBtn) acceptBtn.disabled = true;
+    if (acceptBtnEl) acceptBtnEl.disabled = true;
     if (genBtn) genBtn.textContent = 'Generate';
     modal.hidden = false;
   }
@@ -6114,7 +6348,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const resultEl = document.getElementById('ai-scope-result');
     const aiMsgEl = document.getElementById('ai-scope-message');
     const btn = document.getElementById('ai-scope-generate');
-    const acceptBtn = document.getElementById('ai-scope-accept');
+    const acceptBtnEl = document.getElementById('ai-scope-accept');
     btn.disabled = true;
     const hadPrior = !!resultEl.value;
     btn.textContent = hadPrior ? 'Regenerating…' : 'Generating…';
@@ -6122,15 +6356,13 @@ document.addEventListener("DOMContentLoaded", () => {
     try {
       const verboseEl = document.getElementById('ai-scope-verbose');
       const verbose = !!(verboseEl && verboseEl.checked);
-      // Update in-memory cache FIRST so flushSave includes the prompt + verbose
       savedAiPrompt = ctxEl.value.trim();
       savedAiVerbose = verbose;
-      // Save everything (line items, description, prompt, verbose) before AI call
       await flushSave();
-      const res = await generateEstimateScope(jobId, savedAiPrompt, { verbose });
+      const res = await generateEstimateScope(currentEstimateId, savedAiPrompt, { verbose });
       resultEl.value = res.scope || '';
       if (aiMsgEl) aiMsgEl.textContent = 'Review the draft below. Edit freely, then click "Use This Scope".';
-      if (acceptBtn) acceptBtn.disabled = !resultEl.value.trim();
+      if (acceptBtnEl) acceptBtnEl.disabled = !resultEl.value.trim();
     } catch (err) {
       console.error('AI scope generation failed', err);
       if (aiMsgEl) { aiMsgEl.classList.add('is-error'); aiMsgEl.textContent = 'Generation failed. ' + (err.message || ''); }
@@ -6146,12 +6378,11 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!resultEl || !resultEl.value.trim()) return;
     descEl.value = resultEl.value.trim();
     modal.hidden = true;
-    // Programmatic value sets don't fire 'input' — save explicitly right now
     try {
       await flushSave();
       setMsg('Scope applied and saved.');
     } catch (err) {
-      setMsg('Scope applied but save failed — click Clear/anything to retry autosave.', true);
+      setMsg('Scope applied but save failed — click anything to retry autosave.', true);
     }
   }
 
@@ -6160,10 +6391,9 @@ document.addEventListener("DOMContentLoaded", () => {
       setMsg('Add at least one line item before publishing.', true);
       return;
     }
-    // Save draft first so the diff is computed against fresh state
     await flushSave();
     try {
-      const diff = await previewEstimatePublish(jobId);
+      const diff = await previewEstimatePublish(currentEstimateId);
       renderPublishDiffModal(diff);
     } catch (err) {
       console.error('Publish preview failed', err);
@@ -6178,17 +6408,17 @@ document.addEventListener("DOMContentLoaded", () => {
     let html = '';
     if (!diff.hasPrior) {
       html = `
-        <p>You're about to publish <strong>v1</strong>. This will seed the Line Items / Costing tab with ${diff.added.length} line items as budget baselines.</p>
-        ${renderDiffList('New lines', diff.added.map(i => ({ name: i.name, code: i.code, note: fmt(i.cost) })))}
+        <p>Freeze this estimate as <strong>v1</strong>. A PDF snapshot will be stored for the record, and the estimate status will move to "Sent".</p>
+        <p style="color:var(--kh-text-muted);font-size:13px;margin-top:10px;">Publishing does NOT push line items into the job's costing tab. Use the separate <strong>Accept</strong> action when the client signs off.</p>
+        ${renderDiffList('Line items', diff.added.map(i => ({ name: i.name, code: i.code, note: fmt(i.cost) })))}
       `;
     } else {
       html = `
         <p>Publishing <strong>v${diff.nextVersion}</strong>. Changes since v${diff.nextVersion - 1}:</p>
         ${diff.added.length ? renderDiffList('New lines', diff.added.map(i => ({ name: i.name, code: i.code, note: fmt(i.cost) }))) : ''}
         ${diff.changed.length ? renderDiffList('Cost changes', diff.changed.map(c => ({ name: c.after.name, code: c.after.code, note: `${fmt(c.before.cost)} → ${fmt(c.after.cost)} (${c.after.cost - c.before.cost >= 0 ? '+' : ''}${fmt(c.after.cost - c.before.cost)})` }))) : ''}
-        ${diff.removed.length ? renderDiffList('Removed', diff.removed.map(i => ({ name: i.name, code: i.code, note: 'will be zeroed out in Line Items' }))) : ''}
+        ${diff.removed.length ? renderDiffList('Removed', diff.removed.map(i => ({ name: i.name, code: i.code, note: '' }))) : ''}
         ${!diff.added.length && !diff.changed.length && !diff.removed.length ? '<p style="color:var(--kh-text-muted);">No changes from the previous revision.</p>' : ''}
-        <p style="color:var(--kh-text-muted);font-size:13px;margin-top:14px;">Cost changes become budget-increase entries in Line Items with the reason "Estimate v${diff.nextVersion} revision".</p>
       `;
     }
     body.innerHTML = html;
@@ -6212,12 +6442,14 @@ document.addEventListener("DOMContentLoaded", () => {
     btn.disabled = true;
     btn.textContent = 'Publishing…';
     try {
-      const result = await confirmEstimatePublish(jobId);
+      const result = await confirmEstimatePublish(currentEstimateId);
       currentVersion = result.version;
-      contractValue = result.totalBid;
+      currentEstimateStatus = 'sent';
       updateStatusLine();
+      applyReadOnlyForStatus();
       document.getElementById('publish-modal').hidden = true;
-      setMsg(`Published v${result.version}. Line Items updated with budget = ${fmtMoney(result.totalCost)} (cost basis).`);
+      setMsg(`Published v${result.version} — ${fmtMoney(result.totalBid)} bid. PDF ready to download.`);
+      if (revisionsSection && revisionsSection.open) loadRevisions();
     } catch (err) {
       console.error('Publish failed', err);
       setMsg('Publish failed: ' + (err.message || ''), true);
@@ -6227,64 +6459,104 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
+  async function onAcceptClick() {
+    if (estimateItems.length === 0) {
+      setMsg('Add at least one line item before accepting.', true);
+      return;
+    }
+    await flushSave();
+    const totalCost = estimateItems.reduce((s, i) => s + (parseFloat(i.cost) || 0), 0);
+    const totalBid = totalCost * markupMultiplier();
+    const ok = window.confirm(
+      `Accept "${currentEstimateLabel}"?\n\n` +
+      `This will push ${estimateItems.length} line item(s) into the job's costing tab and add ${fmtMoney(totalBid)} to the contract value.\n\n` +
+      `This action cannot be undone.`
+    );
+    if (!ok) return;
+    try {
+      await acceptEstimate(currentEstimateId);
+      currentEstimateStatus = 'accepted';
+      acceptedAt = new Date().toISOString();
+      updateStatusLine();
+      applyReadOnlyForStatus();
+      setMsg('Estimate accepted. Line items added to the costing tab.');
+    } catch (err) {
+      console.error('Accept failed', err);
+      setMsg('Accept failed: ' + (err.message || ''), true);
+    }
+  }
+
+  async function onRenameClick() {
+    const next = window.prompt('Rename this estimate:', currentEstimateLabel);
+    if (next === null) return;
+    const trimmed = (next || '').trim();
+    if (!trimmed || trimmed === currentEstimateLabel) return;
+    try {
+      await saveEstimate(currentEstimateId, { label: trimmed });
+      currentEstimateLabel = trimmed;
+      if (titleEl) titleEl.textContent = trimmed;
+      setMsg('Renamed.');
+    } catch (err) {
+      setMsg('Rename failed: ' + (err.message || ''), true);
+    }
+  }
+
   function onDownloadBid() {
     if (estimateItems.length === 0) {
       setMsg('Add at least one line item before downloading the bid.', true);
       return;
     }
-    // Save first so PDF reflects current edits
     flushSave().then(() => {
-      window.open(getBidPdfUrl(jobId), '_blank');
+      window.open(getBidPdfUrl(currentEstimateId), '_blank');
     });
   }
 
-  // ─── Wire up ───
-  addBtn.addEventListener('click', addFromCatalog);
-  const clearBtn = document.getElementById('estimate-clear');
-  if (clearBtn) {
-    clearBtn.addEventListener('click', async () => {
-      if (estimateItems.length === 0 && !descEl.value.trim()) {
-        setMsg('Nothing to clear.');
-        return;
-      }
-      const ok = window.confirm('Clear this estimate? All line items and the scope of work will be removed. This cannot be undone.');
-      if (!ok) return;
-      estimateItems = [];
-      descEl.value = '';
-      renderItems();
-      await flushSave();
-      setMsg('Estimate cleared.');
-    });
+  async function onClearClick() {
+    if (estimateItems.length === 0 && !descEl.value.trim()) {
+      setMsg('Nothing to clear.');
+      return;
+    }
+    const ok = window.confirm('Clear this estimate? All line items and the scope of work will be removed. This cannot be undone.');
+    if (!ok) return;
+    estimateItems = [];
+    descEl.value = '';
+    renderItems();
+    await flushSave();
+    setMsg('Estimate cleared.');
   }
-  aiBtn.addEventListener('click', openAiModal);
-  publishBtn.addEventListener('click', onPublishClick);
-  downloadBtn.addEventListener('click', onDownloadBid);
+
+  // ═══ Wire up ════════════════════════════════════════════════════════════
+
+  // List view actions
+  if (newBtn) newBtn.addEventListener('click', onCreateNew);
+  if (backBtn) backBtn.addEventListener('click', showListView);
+
+  // Editor view actions
+  if (addBtn) addBtn.addEventListener('click', addFromCatalog);
+  if (clearBtn) clearBtn.addEventListener('click', onClearClick);
+  if (aiBtn) aiBtn.addEventListener('click', openAiModal);
+  if (publishBtn) publishBtn.addEventListener('click', onPublishClick);
+  if (acceptBtn) acceptBtn.addEventListener('click', onAcceptClick);
+  if (downloadBtn) downloadBtn.addEventListener('click', onDownloadBid);
+  if (renameBtn) renameBtn.addEventListener('click', onRenameClick);
+
+  // Autosave wiring
   markupModeEl.addEventListener('change', () => { updateTotals(); scheduleAutoSave(); });
   markupPctEl.addEventListener('input', () => { renderItems(); scheduleAutoSave(); });
   if (sqftEl) sqftEl.addEventListener('input', () => { updateTotals(); scheduleAutoSave(); });
   descEl.addEventListener('input', scheduleAutoSave);
   preparedByEl.addEventListener('change', scheduleAutoSave);
 
-  // Autosave AI prompt + verbose as the user edits them in the modal
+  // AI modal autosave
   const aiCtxEl = document.getElementById('ai-scope-context');
   const aiVerboseEl = document.getElementById('ai-scope-verbose');
-  if (aiCtxEl) {
-    aiCtxEl.addEventListener('input', () => {
-      savedAiPrompt = aiCtxEl.value;
-      scheduleAutoSave();
-    });
-  }
-  if (aiVerboseEl) {
-    aiVerboseEl.addEventListener('change', () => {
-      savedAiVerbose = aiVerboseEl.checked;
-      scheduleAutoSave();
-    });
-  }
+  if (aiCtxEl) aiCtxEl.addEventListener('input', () => { savedAiPrompt = aiCtxEl.value; scheduleAutoSave(); });
+  if (aiVerboseEl) aiVerboseEl.addEventListener('change', () => { savedAiVerbose = aiVerboseEl.checked; scheduleAutoSave(); });
 
   const aiGen = document.getElementById('ai-scope-generate');
   if (aiGen) aiGen.addEventListener('click', onAiGenerate);
-  const aiAccept = document.getElementById('ai-scope-accept');
-  if (aiAccept) aiAccept.addEventListener('click', onAiAccept);
+  const aiAcceptBtn = document.getElementById('ai-scope-accept');
+  if (aiAcceptBtn) aiAcceptBtn.addEventListener('click', onAiAccept);
   const publishConfirm = document.getElementById('publish-confirm');
   if (publishConfirm) publishConfirm.addEventListener('click', onPublishConfirm);
 
@@ -6297,5 +6569,12 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 
-  loadEstimate();
+  // ═══ Initial mount ══════════════════════════════════════════════════════
+
+  const initialEstimateId = params.get('estimate');
+  if (initialEstimateId) {
+    showEditorView(initialEstimateId);
+  } else {
+    showListView();
+  }
 })();
