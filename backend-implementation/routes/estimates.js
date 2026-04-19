@@ -554,6 +554,9 @@ async function setEstimateStatus(pool, estimateId, newStatus) {
   const validTransitions = {
     declined: ['draft', 'sent'],
     archived: ['draft', 'sent', 'declined'],
+    // `draft` is only a valid target when restoring an archived estimate — it's
+    // not a general "go back to draft" action.
+    draft:    ['archived'],
   };
   const allowedFrom = validTransitions[newStatus];
   if (!allowedFrom) return { error: 'invalid', status: 400, message: 'Invalid status transition' };
@@ -1011,6 +1014,17 @@ singleScoped.post('/archive', async (req, res) => {
   } catch (error) {
     logger.error('Error archiving estimate', { error: error.message });
     res.status(500).json({ error: 'Failed to archive' });
+  }
+});
+
+singleScoped.post('/unarchive', async (req, res) => {
+  try {
+    const result = await setEstimateStatus(getPool(), req.params.estimateId, 'draft');
+    if (result.error) return res.status(result.status).json({ error: result.error, message: result.message });
+    res.json(result);
+  } catch (error) {
+    logger.error('Error unarchiving estimate', { error: error.message });
+    res.status(500).json({ error: 'Failed to unarchive' });
   }
 });
 

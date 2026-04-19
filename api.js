@@ -294,6 +294,13 @@ export async function archiveEstimate(estimateId) {
   });
 }
 
+export async function unarchiveEstimate(estimateId) {
+  const apiBaseUrl = getApiBaseUrl();
+  return fetchJson(`${apiBaseUrl}/estimates/${encodeURIComponent(estimateId)}/unarchive`, {
+    method: "POST",
+  });
+}
+
 export async function generateEstimateScope(estimateId, context, options = {}) {
   const apiBaseUrl = getApiBaseUrl();
   return fetchJson(`${apiBaseUrl}/estimates/${encodeURIComponent(estimateId)}/generate-scope`, {

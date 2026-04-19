@@ -21,6 +21,7 @@ import {
   acceptEstimate,
   declineEstimate,
   archiveEstimate,
+  unarchiveEstimate,
   generateEstimateScope,
   getBidPdfUrl,
   restoreDocument,
@@ -5786,6 +5787,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const listSummary = document.getElementById('estimate-list-summary');
   const newBtn = document.getElementById('estimate-new');
   const backBtn = document.getElementById('estimate-back-to-list');
+  const showArchivedEl = document.getElementById('estimate-show-archived');
 
   // ─── Editor view elements ───────────────────────────────────────────────
   const itemsBody = document.getElementById('estimate-items-body');
@@ -5882,18 +5884,34 @@ document.addEventListener("DOMContentLoaded", () => {
     listBody.innerHTML = '';
     try {
       const estimates = await listEstimatesForJob(jobId);
+      const showArchived = !!(showArchivedEl && showArchivedEl.checked);
+      const archivedCount = estimates.filter(e => e.status === 'archived').length;
+      const visible = showArchived ? estimates : estimates.filter(e => e.status !== 'archived');
+
       if (!estimates.length) {
         listSummary.textContent = 'No estimates yet. Click "+ New Estimate" to start.';
         return;
       }
-      const acceptedCount = estimates.filter(e => e.status === 'accepted').length;
-      const acceptedTotal = estimates
+      if (!visible.length) {
+        // All estimates for this job are archived and the toggle is off.
+        listSummary.textContent = `${archivedCount} archived estimate${archivedCount === 1 ? '' : 's'} · toggle "Show archived" above to view.`;
+        return;
+      }
+
+      const acceptedCount = visible.filter(e => e.status === 'accepted').length;
+      const acceptedTotal = visible
         .filter(e => e.status === 'accepted')
         .reduce((s, e) => s + (parseFloat(e.acceptedTotal) || 0), 0);
-      listSummary.textContent = acceptedCount
-        ? `${estimates.length} estimate${estimates.length === 1 ? '' : 's'} · Contract value ${fmtMoney(acceptedTotal)} (${acceptedCount} accepted)`
-        : `${estimates.length} estimate${estimates.length === 1 ? '' : 's'} · None accepted yet`;
-      const sorted = estimates.slice().sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+      const countLabel = `${visible.length} estimate${visible.length === 1 ? '' : 's'}`;
+      const contractLabel = acceptedCount
+        ? ` · Contract value ${fmtMoney(acceptedTotal)} (${acceptedCount} accepted)`
+        : ' · None accepted yet';
+      const archivedLabel = (!showArchived && archivedCount > 0)
+        ? ` · ${archivedCount} archived hidden`
+        : '';
+      listSummary.textContent = countLabel + contractLabel + archivedLabel;
+
+      const sorted = visible.slice().sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
       sorted.forEach(e => listBody.appendChild(renderListRow(e)));
     } catch (err) {
       console.error('Failed to list estimates', err);
@@ -5911,7 +5929,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const actions = [];
     actions.push(`<button type="button" class="kh-button kh-button--ghost kh-button--small" data-action="open">Open</button>`);
-    if (e.itemCount > 0) {
+    if (e.itemCount > 0 && e.status !== 'archived') {
       actions.push(`<button type="button" class="kh-button kh-button--ghost kh-button--small" data-action="download">Download PDF</button>`);
     }
     if (e.status !== 'accepted' && e.status !== 'declined' && e.status !== 'archived' && e.itemCount > 0) {
@@ -5922,6 +5940,9 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     if (e.status !== 'accepted' && e.status !== 'archived') {
       actions.push(`<button type="button" class="kh-button kh-button--ghost kh-button--small" data-action="archive">Archive</button>`);
+    }
+    if (e.status === 'archived') {
+      actions.push(`<button type="button" class="kh-button kh-button--ghost kh-button--small" data-action="restore">Restore</button>`);
     }
 
     const acceptedLine = e.status === 'accepted' && e.acceptedAt
@@ -5967,9 +5988,12 @@ document.addEventListener("DOMContentLoaded", () => {
         await declineEstimate(estimate.id);
         renderList();
       } else if (action === 'archive') {
-        const ok = window.confirm(`Archive "${estimate.label}"?`);
+        const ok = window.confirm(`Archive "${estimate.label}"? It will be hidden from the list but preserved on the job — toggle "Show archived" to see it again.`);
         if (!ok) return;
         await archiveEstimate(estimate.id);
+        renderList();
+      } else if (action === 'restore') {
+        await unarchiveEstimate(estimate.id);
         renderList();
       }
     } catch (err) {
@@ -6530,6 +6554,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // List view actions
   if (newBtn) newBtn.addEventListener('click', onCreateNew);
   if (backBtn) backBtn.addEventListener('click', showListView);
+  if (showArchivedEl) showArchivedEl.addEventListener('change', renderList);
 
   // Editor view actions
   if (addBtn) addBtn.addEventListener('click', addFromCatalog);
