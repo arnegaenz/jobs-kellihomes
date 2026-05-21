@@ -2318,31 +2318,54 @@ function renderLineItemsCosts(tbodyId, items = []) {
     budgetCell.className = "kh-cell-currency";
     budgetCell.innerHTML = `<input type="text" inputmode="numeric" value="${Math.round(currentBudget)}" data-field="budget" data-prev-value="${Math.round(currentBudget)}" class="kh-input-currency" />`;
 
-    // History (running ledger of initial + adjustments)
+    // History (running ledger of initial + adjustments).
+    // Collapsed by default when there's more than one entry.
     const historyCell = document.createElement("td");
-    let historyHtml = '';
-    if (budgetHistory.length > 0) {
-      historyHtml = budgetHistory.map((entry) => {
-        const amt = parseFloat(entry.amount) || 0;
-        const isInitial = entry.type === 'initial';
-        if (isInitial) {
-          return `<div class="kh-budget-history-entry kh-budget-history-entry--initial">
-            <span class="kh-budget-history-entry__label">Initial: $${formatCurrency(amt)}</span>
-            <span class="kh-budget-history-entry__reason">${entry.reason || ''}</span>
-          </div>`;
-        }
-        const sign = amt >= 0 ? '+' : '−';
-        const absAmt = Math.abs(amt);
-        const cls = amt >= 0 ? 'kh-budget-history-entry--increase' : 'kh-budget-history-entry--decrease';
-        return `<div class="kh-budget-history-entry ${cls}">
-          <span class="kh-budget-history-entry__label">${sign}$${formatCurrency(absAmt)}</span>
+    const entriesHtml = budgetHistory.map((entry) => {
+      const amt = parseFloat(entry.amount) || 0;
+      const isInitial = entry.type === 'initial';
+      const dateStr = entry.date ? `<span class="kh-budget-history-entry__date">${entry.date}</span>` : '';
+      if (isInitial) {
+        return `<div class="kh-budget-history-entry kh-budget-history-entry--initial">
+          <span class="kh-budget-history-entry__label">Initial: $${formatCurrency(amt)}</span>
           <span class="kh-budget-history-entry__reason">${entry.reason || ''}</span>
+          ${dateStr}
         </div>`;
-      }).join('');
+      }
+      const sign = amt >= 0 ? '+' : '−';
+      const absAmt = Math.abs(amt);
+      const cls = amt >= 0 ? 'kh-budget-history-entry--increase' : 'kh-budget-history-entry--decrease';
+      return `<div class="kh-budget-history-entry ${cls}">
+        <span class="kh-budget-history-entry__label">${sign}$${formatCurrency(absAmt)}</span>
+        <span class="kh-budget-history-entry__reason">${entry.reason || ''}</span>
+        ${dateStr}
+      </div>`;
+    }).join('');
+
+    if (budgetHistory.length === 0) {
+      historyCell.innerHTML = `<div class="kh-budget-history"><div class="kh-budget-history-empty">No history yet</div></div>`;
+    } else if (budgetHistory.length === 1) {
+      // Single entry — no point hiding it.
+      historyCell.innerHTML = `<div class="kh-budget-history">${entriesHtml}</div>`;
     } else {
-      historyHtml = '<div class="kh-budget-history-empty">No history yet</div>';
+      // Multiple entries — collapsed summary with toggle.
+      const initialEntry = budgetHistory.find(e => e.type === 'initial');
+      const initialAmt = initialEntry ? parseFloat(initialEntry.amount) || 0 : 0;
+      const adjustments = budgetHistory.filter(e => e.type !== 'initial');
+      const changesLabel = adjustments.length === 1 ? '1 change' : `${adjustments.length} changes`;
+      const summary = initialEntry
+        ? `Initial: $${formatCurrency(initialAmt)} · ${changesLabel}`
+        : `${budgetHistory.length} entries`;
+      historyCell.innerHTML = `
+        <div class="kh-budget-history" data-expanded="false">
+          <button type="button" class="kh-budget-history__toggle" data-action="toggle-history">
+            <span class="kh-budget-history__summary">${summary}</span>
+            <span class="kh-budget-history__chev" aria-hidden="true">▸</span>
+          </button>
+          <div class="kh-budget-history__entries">${entriesHtml}</div>
+        </div>
+      `;
     }
-    historyCell.innerHTML = `<div class="kh-budget-history">${historyHtml}</div>`;
 
     // Actual (editable) - whole dollars only
     const actualCell = document.createElement("td");
@@ -2684,6 +2707,16 @@ function attachLineItemEventListeners(tbodyId) {
         // Auto-save after delete
         triggerLineItemAutoSave();
       }
+    });
+  });
+
+  // Toggle history expand/collapse
+  tableBody.querySelectorAll('[data-action="toggle-history"]').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const wrap = e.currentTarget.closest('.kh-budget-history');
+      if (!wrap) return;
+      const expanded = wrap.getAttribute('data-expanded') === 'true';
+      wrap.setAttribute('data-expanded', expanded ? 'false' : 'true');
     });
   });
 
