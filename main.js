@@ -2353,14 +2353,16 @@ function renderLineItemsCosts(tbodyId, items = []) {
       const initialAmt = initialEntry ? parseFloat(initialEntry.amount) || 0 : 0;
       const adjustments = budgetHistory.filter(e => e.type !== 'initial');
       const changesLabel = adjustments.length === 1 ? '1 change' : `${adjustments.length} changes`;
-      const summary = initialEntry
-        ? `Initial: $${formatCurrency(initialAmt)} · ${changesLabel}`
-        : `${budgetHistory.length} entries`;
+      const prefix = initialEntry ? `Initial: $${formatCurrency(initialAmt)} · ` : '';
+      const actionLabel = initialEntry ? changesLabel : `${budgetHistory.length} entries`;
       historyCell.innerHTML = `
         <div class="kh-budget-history" data-expanded="false">
-          <button type="button" class="kh-budget-history__toggle" data-action="toggle-history">
-            <span class="kh-budget-history__summary">${summary}</span>
-            <span class="kh-budget-history__chev" aria-hidden="true">▸</span>
+          <button type="button" class="kh-budget-history__toggle" data-action="toggle-history" aria-expanded="false">
+            <span class="kh-budget-history__prefix">${prefix}</span>
+            <span class="kh-budget-history__action">
+              <span class="kh-budget-history__action-text">${actionLabel}</span>
+              <span class="kh-budget-history__chev" aria-hidden="true">▸</span>
+            </span>
           </button>
           <div class="kh-budget-history__entries">${entriesHtml}</div>
         </div>
@@ -2716,7 +2718,15 @@ function attachLineItemEventListeners(tbodyId) {
       const wrap = e.currentTarget.closest('.kh-budget-history');
       if (!wrap) return;
       const expanded = wrap.getAttribute('data-expanded') === 'true';
-      wrap.setAttribute('data-expanded', expanded ? 'false' : 'true');
+      const next = expanded ? 'false' : 'true';
+      wrap.setAttribute('data-expanded', next);
+      e.currentTarget.setAttribute('aria-expanded', next);
+      const actionText = e.currentTarget.querySelector('.kh-budget-history__action-text');
+      if (actionText) {
+        const dataset = actionText.dataset;
+        if (!dataset.collapsedLabel) dataset.collapsedLabel = actionText.textContent;
+        actionText.textContent = next === 'true' ? 'Hide' : dataset.collapsedLabel;
+      }
     });
   });
 
