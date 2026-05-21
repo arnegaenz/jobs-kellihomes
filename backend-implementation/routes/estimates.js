@@ -492,14 +492,26 @@ async function acceptEstimate(pool, estimateId) {
       if (existingRes.rows.length > 0) {
         const li = existingRes.rows[0];
         const history = li.budget_history || [];
-        history.push({ amount: d.cost, date: today, reason: `${reasonBase} — added to scope` });
+        // Existing line item already has a budget — this is an adjustment.
+        history.push({
+          amount: d.cost,
+          type: 'adjustment',
+          date: today,
+          reason: `${reasonBase} — added to scope`,
+        });
         const newBudget = parseFloat(li.budget) + d.cost;
         await client.query(
           `UPDATE line_items SET budget = $1, budget_history = $2::jsonb WHERE id = $3`,
           [newBudget, JSON.stringify(history), li.id]
         );
       } else {
-        const history = [{ amount: d.cost, date: today, reason: `${reasonBase} — new line` }];
+        // Brand-new line item: this cost seeds the initial budget.
+        const history = [{
+          amount: d.cost,
+          type: 'initial',
+          date: today,
+          reason: `${reasonBase} — new line`,
+        }];
         await client.query(
           `INSERT INTO line_items
            (job_id, code, name, budget, actual, budget_history, schedule, notes_text, status, vendor)

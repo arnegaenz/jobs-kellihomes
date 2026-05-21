@@ -2239,9 +2239,8 @@ function renderLineItemsSummary(lineItems = []) {
   let latestEndDate = null;
 
   lineItems.forEach(item => {
-    const original = parseFloat(item.originalBudget) || 0;
-    const increases = (item.budgetHistory || []).reduce((sum, inc) => sum + (parseFloat(inc.amount) || 0), 0);
-    totalBudget += original + increases;
+    const history = Array.isArray(item.budgetHistory) ? item.budgetHistory : [];
+    totalBudget += history.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0);
     totalSpent += parseFloat(item.actual) || 0;
 
     // Find latest scheduled end date
@@ -2310,33 +2309,40 @@ function renderLineItemsCosts(tbodyId, items = []) {
       </div>
     `;
 
-    // Original Budget (read-only label, set from import)
-    const originalBudgetCell = document.createElement("td");
-    originalBudgetCell.className = "kh-cell-currency";
-    originalBudgetCell.innerHTML = `<span data-field="originalBudget" data-value="${item.originalBudget || 0}">$${formatCurrency(item.originalBudget || 0)}</span>`;
+    // Budget (editable) — whole dollars only
+    const budgetHistory = Array.isArray(item.budgetHistory) ? item.budgetHistory : [];
+    const currentBudget = budgetHistory.length > 0
+      ? budgetHistory.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0)
+      : parseFloat(item.currentBudget ?? item.originalBudget ?? 0);
+    const budgetCell = document.createElement("td");
+    budgetCell.className = "kh-cell-currency";
+    budgetCell.innerHTML = `<input type="text" inputmode="numeric" value="${Math.round(currentBudget)}" data-field="budget" data-prev-value="${Math.round(currentBudget)}" class="kh-input-currency" />`;
 
-    // Budget Increases (button + display)
-    const increasesCell = document.createElement("td");
-    const totalIncreases = (item.budgetHistory || []).reduce((sum, inc) => sum + parseFloat(inc.amount || 0), 0);
+    // History (running ledger of initial + adjustments)
+    const historyCell = document.createElement("td");
     let historyHtml = '';
-    if (item.budgetHistory && item.budgetHistory.length > 0) {
-      historyHtml = item.budgetHistory.map((inc, idx) =>
-        `<div class="kh-budget-increase-item">
-          <span>+$${formatCurrency(inc.amount)}: ${inc.reason}</span>
-          <button class="kh-budget-increase-delete" data-action="delete-increase" data-code="${item.code}" data-index="${idx}" title="Delete">&times;</button>
-        </div>`
-      ).join('');
+    if (budgetHistory.length > 0) {
+      historyHtml = budgetHistory.map((entry) => {
+        const amt = parseFloat(entry.amount) || 0;
+        const isInitial = entry.type === 'initial';
+        if (isInitial) {
+          return `<div class="kh-budget-history-entry kh-budget-history-entry--initial">
+            <span class="kh-budget-history-entry__label">Initial: $${formatCurrency(amt)}</span>
+            <span class="kh-budget-history-entry__reason">${entry.reason || ''}</span>
+          </div>`;
+        }
+        const sign = amt >= 0 ? '+' : '−';
+        const absAmt = Math.abs(amt);
+        const cls = amt >= 0 ? 'kh-budget-history-entry--increase' : 'kh-budget-history-entry--decrease';
+        return `<div class="kh-budget-history-entry ${cls}">
+          <span class="kh-budget-history-entry__label">${sign}$${formatCurrency(absAmt)}</span>
+          <span class="kh-budget-history-entry__reason">${entry.reason || ''}</span>
+        </div>`;
+      }).join('');
+    } else {
+      historyHtml = '<div class="kh-budget-history-empty">No history yet</div>';
     }
-    increasesCell.innerHTML = `
-      <button class="kh-link" data-action="add-increase" data-code="${item.code}">+ Add</button>
-      ${historyHtml ? `<div class="kh-budget-history">${historyHtml}</div>` : ''}
-    `;
-
-    // Current Budget (calculated, read-only)
-    const currentBudgetCell = document.createElement("td");
-    const currentBudget = parseFloat(item.originalBudget || 0) + totalIncreases;
-    currentBudgetCell.innerHTML = `<strong>$${formatCurrency(currentBudget)}</strong>`;
-    currentBudgetCell.className = "kh-cell-currency";
+    historyCell.innerHTML = `<div class="kh-budget-history">${historyHtml}</div>`;
 
     // Actual (editable) - whole dollars only
     const actualCell = document.createElement("td");
@@ -2355,9 +2361,8 @@ function renderLineItemsCosts(tbodyId, items = []) {
     actionsCell.innerHTML = `<button class="kh-link kh-link--danger" data-action="delete-line-item" data-code="${item.code}">Remove</button>`;
 
     row.appendChild(itemCell);
-    row.appendChild(originalBudgetCell);
-    row.appendChild(increasesCell);
-    row.appendChild(currentBudgetCell);
+    row.appendChild(budgetCell);
+    row.appendChild(historyCell);
     row.appendChild(actualCell);
     row.appendChild(varianceCell);
     row.appendChild(actionsCell);
@@ -2682,34 +2687,47 @@ function attachLineItemEventListeners(tbodyId) {
     });
   });
 
-  // Add budget increase buttons
-  tableBody.querySelectorAll('[data-action="add-increase"]').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      const code = e.target.dataset.code;
-      showBudgetIncreaseModal(code);
-    });
-  });
+  // Budget cell edit: prompt for reason on change, log delta to history
+  tableBody.querySelectorAll('input[data-field="budget"]').forEach(input => {
+    input.addEventListener('change', (e) => {
+      const row = e.target.closest('tr');
+      const code = row?.dataset?.code;
+      if (!code) return;
+      const prev = parseFloat(e.target.dataset.prevValue) || 0;
+      const next = parseFloat(e.target.value) || 0;
+      const delta = Math.round(next - prev);
+      if (delta === 0) return;
 
-  // Delete budget increase buttons
-  tableBody.querySelectorAll('[data-action="delete-increase"]').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const code = e.target.dataset.code;
-      const index = parseInt(e.target.dataset.index, 10);
       const item = currentLineItems.find(i => i.code === code);
-      if (!item || !item.budgetHistory || !item.budgetHistory[index]) return;
+      if (!item) return;
 
-      const increase = item.budgetHistory[index];
-      if (confirm(`Delete budget increase of $${formatCurrency(increase.amount)}?\n\nReason: ${increase.reason}`)) {
-        item.budgetHistory.splice(index, 1);
-        renderLineItemsTwoTables(currentLineItems);
-        triggerLineItemAutoSave();
-      }
+      const hasInitial = (item.budgetHistory || []).some(en => en.type === 'initial');
+      promptBudgetChange({
+        item,
+        delta,
+        isInitial: !hasInitial,
+        onCancel: () => {
+          // Revert the cell to the prior value
+          e.target.value = Math.round(prev);
+        },
+        onSave: (reason) => {
+          if (!Array.isArray(item.budgetHistory)) item.budgetHistory = [];
+          item.budgetHistory.push({
+            amount: hasInitial ? delta : next,
+            type: hasInitial ? 'adjustment' : 'initial',
+            date: new Date().toISOString().slice(0, 10),
+            reason: reason || (hasInitial ? 'Budget change' : 'Initial budget'),
+          });
+          renderLineItemsTwoTables(currentLineItems);
+          triggerLineItemAutoSave();
+        },
+      });
     });
   });
 
-  // Auto-save on any input change
+  // Auto-save on any non-budget input change
   tableBody.querySelectorAll('input, select, textarea').forEach(input => {
+    if (input.dataset.field === 'budget') return; // budget has its own handler above
     input.addEventListener('change', () => {
       triggerLineItemAutoSave();
     });
@@ -2796,12 +2814,16 @@ function parseQuickBooksCSV(csvText) {
       name = name.substring(0, pipeIndex).trim();
     }
 
+    const today = new Date().toISOString().slice(0, 10);
+    const initialHistory = estCost > 0
+      ? [{ amount: estCost, type: 'initial', date: today, reason: 'Imported from CSV' }]
+      : [];
     parsedItems.push({
       code: code,
       name: name,
       description: description,
       originalBudget: estCost,
-      budgetHistory: [],
+      budgetHistory: initialHistory,
       currentBudget: estCost,
       actual: actCost,
       variance: estCost - actCost,
@@ -2964,15 +2986,19 @@ function collectLineItemsFromTwoTables() {
     itemsMap.set(item.code, { ...item });
   });
 
-  // Collect cost data from costs table
+  // Collect cost data from costs table.
+  // budgetHistory is the source of truth (mutated in-place by the Budget cell
+  // change handler), so we don't read budget back from the DOM — only actual.
   costsBody.querySelectorAll('tr').forEach(row => {
     const code = row.dataset.code;
     if (!itemsMap.has(code)) return;
 
     const item = itemsMap.get(code);
-    const originalBudgetEl = row.querySelector('[data-field="originalBudget"]');
-    item.originalBudget = parseFloat(originalBudgetEl?.dataset?.value || originalBudgetEl?.value || 0);
     item.actual = parseFloat(row.querySelector('[data-field="actual"]')?.value || 0);
+    item.currentBudget = (item.budgetHistory || []).reduce(
+      (sum, e) => sum + (parseFloat(e.amount) || 0),
+      0
+    );
   });
 
   // Collect schedule data from schedule table
@@ -3064,51 +3090,54 @@ function addLineItem(code) {
   triggerLineItemAutoSave();
 }
 
-// Modal handling for budget increases
-function showBudgetIncreaseModal(code) {
-  const modal = document.getElementById('budget-increase-modal');
-  const amountInput = document.getElementById('budget-increase-amount');
-  const reasonInput = document.getElementById('budget-increase-reason');
-  const saveButton = document.getElementById('save-budget-increase');
+// Modal handling for budget changes (initial set or later adjustment).
+// Called when a Budget cell value differs from its prior value.
+function promptBudgetChange({ item, delta, isInitial, onCancel, onSave }) {
+  const modal = document.getElementById('budget-change-modal');
+  const summary = document.getElementById('budget-change-summary');
+  const reasonInput = document.getElementById('budget-change-reason');
+  const saveBtn = document.getElementById('save-budget-change');
+  const cancelBtn = document.getElementById('cancel-budget-change');
+  const closeBtn = document.getElementById('close-budget-change');
 
-  if (!modal) return;
+  if (!modal || !summary || !reasonInput || !saveBtn) {
+    // Modal missing — fall back to a window prompt so the change isn't lost
+    const reason = window.prompt(isInitial ? 'Reason for initial budget?' : 'Reason for budget change?');
+    if (reason === null) { onCancel?.(); return; }
+    onSave?.(reason.trim());
+    return;
+  }
 
-  currentEditingLineItemCode = code;
-  amountInput.value = '';
   reasonInput.value = '';
 
-  saveButton.onclick = () => {
-    const amount = parseFloat(amountInput.value);
-    const reason = reasonInput.value.trim();
+  if (isInitial) {
+    summary.textContent = `Setting initial budget for "${item.name}" to $${formatCurrency(Math.abs(delta))}.`;
+    reasonInput.placeholder = 'Initial budget';
+  } else {
+    const sign = delta >= 0 ? '+' : '−';
+    summary.textContent = `Adjusting "${item.name}" by ${sign}$${formatCurrency(Math.abs(delta))}.`;
+    reasonInput.placeholder = 'Why is the budget changing?';
+  }
 
-    if (!amount || amount <= 0) {
-      alert('Please enter a valid amount');
-      return;
-    }
-
-    if (!reason) {
-      alert('Please enter a reason for the increase');
-      return;
-    }
-
-    // Add increase to the line item
-    const item = currentLineItems.find(item => item.code === currentEditingLineItemCode);
-    if (item) {
-      if (!item.budgetHistory) item.budgetHistory = [];
-      item.budgetHistory.push({
-        amount: amount,
-        date: new Date().toISOString().split('T')[0],
-        reason: reason
-      });
-      renderLineItemsTwoTables(currentLineItems);
-      // Auto-save after budget increase
-      triggerLineItemAutoSave();
-    }
-
+  let resolved = false;
+  const close = (saved) => {
+    if (resolved) return;
+    resolved = true;
     modal.hidden = true;
+    if (!saved) onCancel?.();
   };
 
+  saveBtn.onclick = () => {
+    const reason = reasonInput.value.trim();
+    onSave?.(reason);
+    resolved = true;
+    modal.hidden = true;
+  };
+  cancelBtn.onclick = () => close(false);
+  closeBtn.onclick = () => close(false);
+
   modal.hidden = false;
+  reasonInput.focus();
 }
 
 /**
@@ -3173,12 +3202,17 @@ function renderFinancialSnapshot(lineItems = []) {
   let actualTotal = 0;
 
   lineItems.forEach(item => {
-    const original = parseFloat(item.originalBudget) || 0;
-    const increases = (item.budgetHistory || []).reduce((sum, inc) => sum + (parseFloat(inc.amount) || 0), 0);
+    const history = Array.isArray(item.budgetHistory) ? item.budgetHistory : [];
+    const initial = history
+      .filter(e => e.type === 'initial')
+      .reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0);
+    const adjustments = history
+      .filter(e => e.type !== 'initial')
+      .reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0);
     const actual = parseFloat(item.actual) || 0;
 
-    originalTotal += original;
-    changeOrdersTotal += increases;
+    originalTotal += initial;
+    changeOrdersTotal += adjustments;
     actualTotal += actual;
   });
 

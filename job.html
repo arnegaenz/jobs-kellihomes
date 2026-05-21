@@ -185,8 +185,8 @@
             <div class="kh-panel">
               <div class="kh-panel__title">Financial Snapshot</div>
               <div class="kh-panel__list">
-                <div class="kh-panel__list-item"><span>Original Estimate</span><strong id="fin-original">—</strong></div>
-                <div class="kh-panel__list-item"><span>Change Orders</span><strong id="fin-changes">—</strong></div>
+                <div class="kh-panel__list-item"><span>Initial Budget</span><strong id="fin-original">—</strong></div>
+                <div class="kh-panel__list-item"><span>Adjustments</span><strong id="fin-changes">—</strong></div>
                 <div class="kh-panel__list-item"><span>Current Budget</span><strong id="fin-current">—</strong></div>
                 <div class="kh-panel__list-item"><span>Costs to Date</span><strong id="fin-costs">—</strong></div>
                 <div class="kh-panel__list-item"><span>Remaining Budget</span><strong id="fin-remaining">—</strong></div>
@@ -370,9 +370,8 @@
                   <thead>
                     <tr>
                       <th>Item</th>
-                      <th>Original Budget</th>
-                      <th>Budget Increases</th>
-                      <th>Current Budget</th>
+                      <th>Budget</th>
+                      <th>History</th>
                       <th>Actual</th>
                       <th>Variance</th>
                       <th></th>
@@ -469,24 +468,22 @@
           </div>
         </div>
 
-        <!-- Budget Increase Modal -->
-        <div id="budget-increase-modal" class="kh-modal" hidden>
+        <!-- Budget Change Reason Modal -->
+        <div id="budget-change-modal" class="kh-modal" hidden>
           <div class="kh-modal__content">
             <div class="kh-modal__header">
-              <h3>Add Budget Increase</h3>
-              <button class="kh-modal__close" id="close-budget-increase">&times;</button>
+              <h3>Budget change</h3>
+              <button class="kh-modal__close" id="close-budget-change">&times;</button>
             </div>
             <div class="kh-modal__body">
+              <p id="budget-change-summary" class="kh-helper-text"></p>
               <label class="kh-label">
-                <span>Increase Amount</span>
-                <input type="text" inputmode="numeric" id="budget-increase-amount" class="kh-input" placeholder="0" />
-              </label>
-              <label class="kh-label">
-                <span>Reason for Increase</span>
-                <textarea id="budget-increase-reason" class="kh-input" rows="2" style="resize: none;" placeholder="Why is the budget increasing?"></textarea>
+                <span>Reason for change</span>
+                <textarea id="budget-change-reason" class="kh-input" rows="2" style="resize: none;" placeholder="Why is the budget changing?"></textarea>
               </label>
               <div class="kh-form-actions">
-                <button class="kh-button" id="save-budget-increase">Add Increase</button>
+                <button class="kh-button kh-button--secondary" id="cancel-budget-change">Cancel</button>
+                <button class="kh-button" id="save-budget-change">Save change</button>
               </div>
             </div>
           </div>

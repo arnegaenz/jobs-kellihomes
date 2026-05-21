@@ -35,19 +35,22 @@ router.get('/', async (req, res) => {
 
     // Transform database rows to frontend format
     const lineItems = result.rows.map(row => {
-      // budget_history stores the original budget and all increases
-      // First entry (if exists) with type 'original' is the original budget
-      // Or we calculate original by subtracting increases from current budget
+      // budget_history is a running ledger of every change to the budget.
+      // Entries: { amount, type: 'initial' | 'adjustment', date, reason }
+      // The current budget always equals the sum of all entry amounts.
       const budgetHistory = row.budget_history || [];
-      const totalIncreases = budgetHistory.reduce((sum, inc) => sum + (parseFloat(inc.amount) || 0), 0);
+      const initialTotal = budgetHistory
+        .filter(e => e.type === 'initial')
+        .reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0);
+      const adjustmentsTotal = budgetHistory
+        .filter(e => e.type !== 'initial')
+        .reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0);
       const storedBudget = parseFloat(row.budget) || 0;
-      // Original budget = stored budget - increases (since we store currentBudget)
-      const originalBudget = storedBudget - totalIncreases;
 
       return {
         code: row.code,
         name: row.name,
-        originalBudget: originalBudget,
+        originalBudget: initialTotal,
         budgetHistory: budgetHistory,
         currentBudget: storedBudget,
         actual: row.actual || 0,
@@ -96,11 +99,13 @@ router.put('/', async (req, res) => {
     // Insert new line items
     if (lineItems.length > 0) {
       const insertPromises = lineItems.map(item => {
-        // Calculate current budget from original + increases
-        const originalBudget = parseFloat(item.originalBudget) || 0;
-        const budgetIncreases = item.budgetHistory || [];
-        const totalIncrease = budgetIncreases.reduce((sum, inc) => sum + (parseFloat(inc.amount) || 0), 0);
-        const currentBudget = originalBudget + totalIncrease;
+        // Current budget = sum of all history entries (initial + adjustments).
+        // Frontend is the source of truth for the history array.
+        const budgetHistory = item.budgetHistory || [];
+        const currentBudget = budgetHistory.reduce(
+          (sum, e) => sum + (parseFloat(e.amount) || 0),
+          0
+        );
 
         return client.query(
           `INSERT INTO line_items (
